@@ -54,7 +54,7 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> BoxE
     guard p.gridCell > 0, p.binSize > 0, let planeY = findPlaneY(points: points, seed: seed, p: p) else { return nil }
 
     // Box candidates: above the plane, not far above the seed. Bucket into an XZ grid.
-    let lo = planeY + p.abovePlane, hi = seed.y + p.topSlab * 2.5
+    let lo = planeY + p.abovePlane, hi = seed.y + (p.maxExtent ? p.maxAboveSeed : p.topSlab * 2.5)
     let inv = 1 / p.gridCell
     var idx: [Int] = []
     var keys: [Int] = []
@@ -90,37 +90,41 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> BoxE
         } }
     }
 
-    var compYs: [Float] = []
+    var compPts: [SIMD3<Float>] = []
+    var compKeys: [Int] = []
     var slabPts: [(key: Int, xz: SIMD2<Float>)] = []
     var slabCount: [Int: Int] = [:]
-    var allXZ: [SIMD2<Float>] = []
     for (j, k) in keys.enumerated() where comp.contains(k) {
         let q = points[idx[j]]
-        compYs.append(q.y)
-        allXZ.append(SIMD2(q.x, q.z))
+        compPts.append(q); compKeys.append(k)
         if abs(q.y - seed.y) <= p.topSlab {
             slabPts.append((k, SIMD2(q.x, q.z)))
             slabCount[k, default: 0] += 1
         }
     }
-    guard compYs.count >= p.minBoxPoints else { return nil }
+    guard compPts.count >= p.minBoxPoints else { return nil }
+    let allXZ = compPts.map { SIMD2($0.x, $0.z) }
 
-    // Footprint from top-slab points. Cell filters use slab-only counts: >= minCellPoints and
-    // >= slabNeighbours occupied neighbours, so sparse/isolated bleed cells drop out.
-    // footprintRect then trims stragglers that survive next to the real edge.
-    let keep = slabCount.filter { k, c in
-        guard c >= p.minCellPoints else { return false }
-        let ix = k >> 32, iz = Int(Int32(truncatingIfNeeded: k))
-        var n = 0
-        for dx in -1...1 { for dz in -1...1 where (dx != 0 || dz != 0) && slabCount[cellKey(ix + dx, iz + dz)] != nil { n += 1 } }
-        return n >= p.slabNeighbours
+    let rect: (center: SIMD2<Float>, size: SIMD2<Float>, angle: Float)
+    let height: Float
+    if p.maxExtent {
+        // C4: every height counts. Comp cells already have >= minCellPoints; drop cells with few
+        // occupied neighbours, then footprintRect trims stragglers.
+        let keep = denseCells(cellCount.filter { comp.contains($0.key) }, p)
+        let xz = compKeys.indices.filter { keep[compKeys[$0]] != nil }.map { allXZ[$0] }
+        rect = footprintRect(xz.count >= p.minBoxPoints ? xz : allXZ, p)
+        guard let top = supportedTop(compPts, p) else { return nil }
+        height = top - planeY
+    } else {
+        // Footprint from top-slab points. Cell filters use slab-only counts, so sparse/isolated
+        // bleed cells drop out. footprintRect then trims stragglers that survive next to the real edge.
+        let keep = denseCells(slabCount, p)
+        let slabXZ = slabPts.filter { keep[$0.key] != nil }.map(\.xz)
+        rect = footprintRect(slabXZ.count >= p.minTopSlabPoints ? slabXZ : allXZ, p)
+        let ys = compPts.map(\.y).sorted()
+        let pi = min(ys.count - 1, max(0, Int((p.heightPercentile * Float(ys.count - 1)).rounded())))
+        height = ys[pi] - planeY
     }
-    let slabXZ = slabPts.filter { keep[$0.key] != nil }.map(\.xz)
-    let rect = footprintRect(slabXZ.count >= p.minTopSlabPoints ? slabXZ : allXZ, p)
-
-    compYs.sort()
-    let pi = min(compYs.count - 1, max(0, Int((p.heightPercentile * Float(compYs.count - 1)).rounded())))
-    let height = compYs[pi] - planeY
     let (l, w) = (rect.size.x, rect.size.y)
     guard l > 0, w > 0, height > 0, l <= p.maxBoxSize, w <= p.maxBoxSize, height <= p.maxBoxSize else { return nil }
 
@@ -129,7 +133,43 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> BoxE
     if yaw <= -.pi / 2 { yaw += .pi }
     return BoxEstimate(length: l, width: w, height: height,
                        center: SIMD3(rect.center.x, planeY, rect.center.y),
-                       yaw: yaw, planeY: planeY, pointCount: compYs.count)
+                       yaw: yaw, planeY: planeY, pointCount: compPts.count)
+}
+
+/// Cells with >= minCellPoints points and >= slabNeighbours occupied (present in `counts`) 8-neighbours.
+func denseCells(_ counts: [Int: Int], _ p: Params) -> [Int: Int] {
+    counts.filter { k, c in
+        guard c >= p.minCellPoints else { return false }
+        let ix = k >> 32, iz = Int(Int32(truncatingIfNeeded: k))
+        var n = 0
+        for dx in -1...1 { for dz in -1...1 where (dx != 0 || dz != 0) && counts[cellKey(ix + dx, iz + dz)] != nil { n += 1 } }
+        return n >= p.slabNeighbours
+    }
+}
+
+/// Robust max y (C4): the highest 1 cm y-bin b such that some 3x3-cell XZ neighbourhood holds
+/// >= heightSupport points in bins b-1...b (the bin below absorbs a flat top's noise straddling a bin
+/// edge). Returns the median y of those points, so a flat top reads its surface, not its noise ceiling;
+/// isolated flyers above the object lack support. A 3 cm-wide protrusion has support and counts.
+func supportedTop(_ pts: [SIMD3<Float>], _ p: Params) -> Float? {
+    let inv = 1 / p.gridCell, binInv = 1 / p.binSize
+    func key(_ q: SIMD3<Float>) -> (cell: Int, ix: Int, iz: Int, b: Int) {
+        let ix = Int((q.x * inv).rounded(.down)), iz = Int((q.z * inv).rounded(.down))
+        return (cellKey(ix, iz), ix, iz, Int((q.y * binInv).rounded(.down)))
+    }
+    var bins: [Int: [Int: Int]] = [:]   // y-bin -> cell -> count
+    for q in pts { let k = key(q); bins[k.b, default: [:]][k.cell, default: 0] += 1 }
+    for b in bins.keys.sorted(by: >) {
+        for k in bins[b]!.keys {
+            let ix = k >> 32, iz = Int(Int32(truncatingIfNeeded: k))
+            var n = 0
+            for dx in -1...1 { for dz in -1...1 { for bb in (b - 1)...b { n += bins[bb]?[cellKey(ix + dx, iz + dz)] ?? 0 } } }
+            guard n >= p.heightSupport else { continue }
+            let ys = pts.filter { let q = key($0); return abs(q.ix - ix) <= 1 && abs(q.iz - iz) <= 1 && (b - 1...b).contains(q.b) }.map(\.y)
+            return medianOf(ys)
+        }
+    }
+    return nil
 }
 
 @inline(__always) func cross(_ o: SIMD2<Float>, _ a: SIMD2<Float>, _ b: SIMD2<Float>) -> Float {

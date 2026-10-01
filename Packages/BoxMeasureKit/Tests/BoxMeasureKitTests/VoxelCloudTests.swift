@@ -106,3 +106,57 @@ extension BoxMeasureKitTests {
         check(BoxMeasurer.estimate(points: pts, seed: b.top, params: voxelTestParams()), b, tol: 0.02)
     }
 }
+
+/// SPEC §10 C4: irregular objects measured by maximum extent (orbit + VoxelCloud, default Params).
+extension BoxMeasureKitTests {
+    /// Union footprint / height check; `b` = expected bounding box.
+    func irregular(_ parts: [Box], seed: SIMD3<Float>, expect b: Box, params: Params = voxelTestParams(),
+                   file: StaticString = #filePath, line: UInt = #line) -> BoxEstimate? {
+        var o = Orbit()
+        o.capture(parts, floorRadius: 1.2, camRadius: 1.2, camHeight: 1.4)
+        let e = BoxMeasurer.estimate(points: o.fused(center: seed), seed: seed, params: params)
+        if let e {
+            print(String(format: "  irregular: L %.4f (%.4f)  W %.4f (%.4f)  H %.4f (%.4f)  planeY %.4f",
+                         e.length, b.l, e.width, b.w, e.height, b.h, e.planeY))
+        }
+        return e
+    }
+
+    func assertDims(_ e: BoxEstimate?, _ l: Float, _ w: Float, _ h: Float, tol: Float, hTol: Float = 0.01,
+                    file: StaticString = #filePath, line: UInt = #line) {
+        guard let e else { return XCTFail("nil estimate", file: file, line: line) }
+        XCTAssertEqual(e.length, l, accuracy: tol, "length", file: file, line: line)
+        XCTAssertEqual(e.width, w, accuracy: tol, "width", file: file, line: line)
+        XCTAssertEqual(e.height, h, accuracy: hTol, "height", file: file, line: line)
+        XCTAssertEqual(e.planeY, 0, accuracy: 0.005, "planeY", file: file, line: line)
+    }
+
+    /// (a) Tapered stack 50x40 / 40x30 / 30x20, 10 cm tiers: footprint = bottom tier, height = 30.
+    func testMaxExtentTaperedStack() {
+        let tiers = [Box(cx: 0, cz: 0, baseY: 0, l: 0.5, w: 0.4, h: 0.1, yaw: 20 * deg),
+                     Box(cx: 0, cz: 0, baseY: 0.1, l: 0.4, w: 0.3, h: 0.1, yaw: 20 * deg),
+                     Box(cx: 0, cz: 0, baseY: 0.2, l: 0.3, w: 0.2, h: 0.1, yaw: 20 * deg)]
+        let expect = Box(cx: 0, cz: 0, baseY: 0, l: 0.5, w: 0.4, h: 0.3, yaw: 20 * deg)
+        assertDims(irregular(tiers, seed: tiers[2].top, expect: expect), 0.5, 0.4, 0.3, tol: 0.015)
+        // Flag really switches: the v2 top slab measures the top tier only.
+        var p = voxelTestParams(); p.maxExtent = false
+        assertDims(irregular(tiers, seed: tiers[2].top, expect: Box(cx: 0, cz: 0, baseY: 0, l: 0.3, w: 0.2, h: 0.3, yaw: 20 * deg), params: p), 0.3, 0.2, 0.3, tol: 0.015)
+    }
+
+    /// (b) L shape: 40x30x20 + 20x30x40 side by side -> union rect 60x30, height 40. Seed on the LOW part.
+    func testMaxExtentLShape() {
+        let low = Box(cx: 0, cz: 0, baseY: 0, l: 0.4, w: 0.3, h: 0.2, yaw: 0)
+        let tall = Box(cx: 0.3, cz: 0, baseY: 0, l: 0.2, w: 0.3, h: 0.4, yaw: 0)
+        let expect = Box(cx: 0.1, cz: 0, baseY: 0, l: 0.6, w: 0.3, h: 0.4, yaw: 0)
+        assertDims(irregular([low, tall], seed: low.top, expect: expect), 0.6, 0.3, 0.4, tol: 0.015)
+    }
+
+    /// (c) Documented: a thin protrusion with real support COUNTS (max extent). 3 cm-wide, 25 cm-long
+    /// handle standing 5 cm above a 40x30x20 box -> height 25, footprint unchanged 40x30.
+    func testMaxExtentHandleCounts() {
+        let b = Box(cx: 0, cz: 0, baseY: 0, l: 0.4, w: 0.3, h: 0.2, yaw: 30 * deg)
+        let handle = Box(cx: 0, cz: 0, baseY: 0.2, l: 0.25, w: 0.03, h: 0.05, yaw: 30 * deg)
+        let expect = Box(cx: 0, cz: 0, baseY: 0, l: 0.4, w: 0.3, h: 0.25, yaw: 30 * deg)
+        assertDims(irregular([b, handle], seed: b.top + SIMD3(0, 0, 0.1), expect: expect), 0.4, 0.3, 0.25, tol: 0.01)
+    }
+}

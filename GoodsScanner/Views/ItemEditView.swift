@@ -10,14 +10,14 @@ struct ScanResult {
     var widthCm: Double
     var heightCm: Double
     var confidence: Double
-    var photo: UIImage?
+    var photos: [UIImage]
 }
 
 extension ScanResult {
     /// BoxEstimate is in meters; the app stores cm (A7).
-    init(_ e: BoxEstimate, confidence: Double, photo: UIImage?) {
+    init(_ e: BoxEstimate, confidence: Double, photos: [UIImage]) {
         self.init(lengthCm: Double(e.length * 100), widthCm: Double(e.width * 100), heightCm: Double(e.height * 100),
-                  confidence: confidence, photo: photo)
+                  confidence: confidence, photos: photos)
     }
 }
 
@@ -193,7 +193,7 @@ struct ItemEditView: View {
     func apply(_ r: ScanResult) {
         length = r.lengthCm; width = r.widthCm; height = r.heightCm
         method = "lidar"; confidence = r.confidence
-        if let img = r.photo { addPhoto(img) }
+        r.photos.forEach(addPhoto)
     }
 
     private func addPhoto(_ img: UIImage) {

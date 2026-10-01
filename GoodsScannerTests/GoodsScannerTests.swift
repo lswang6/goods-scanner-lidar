@@ -1,5 +1,7 @@
 import XCTest
 import SwiftData
+import simd
+import BoxMeasureKit
 @testable import GoodsScanner
 
 @MainActor
@@ -143,5 +145,39 @@ final class GoodsScannerTests: XCTestCase {
 
     func testFileName() {
         XCTAssertEqual(Exporter.fileName(date(2026, 10, 1), date(2026, 10, 31), ext: "csv"), "入库报表_20261001-20261031.csv")
+    }
+
+    /// PhotoAnnotator mapping with a synthetic camera at the origin in ARKit's landscape-right camera frame
+    /// (x toward the home indicator, y up in landscape, looking down -z). Landscape 192x144 -> portrait 144x192.
+    func testPhotoProjectionMapping() throws {
+        let res = CGSize(width: 192, height: 144), size = CGSize(width: 144, height: 192)
+        let K = simd_float3x3(SIMD3(150, 0, 0), SIMD3(0, 150, 0), SIMD3(95.5, 71.5, 1))
+        let T = matrix_identity_float4x4
+        func proj(_ p: SIMD3<Float>) -> CGPoint? {
+            PhotoAnnotator.project(p, transform: T, intrinsics: K, imageResolution: res, imageSize: size)
+        }
+        // Optical axis -> portrait centre: (H-1-cy, cx) = (71.5, 95.5).
+        let c = try XCTUnwrap(proj(SIMD3(0, 0, -1)))
+        XCTAssertEqual(c.x, 71.5, accuracy: 0.01); XCTAssertEqual(c.y, 95.5, accuracy: 0.01)
+        // Camera +x (toward home indicator) = portrait DOWN; camera +y = portrait RIGHT.
+        let px = try XCTUnwrap(proj(SIMD3(0.1, 0, -1))), py = try XCTUnwrap(proj(SIMD3(0, 0.1, -1)))
+        XCTAssertEqual(px.x, c.x, accuracy: 0.01); XCTAssertEqual(px.y, c.y + 15, accuracy: 0.01)
+        XCTAssertEqual(py.x, c.x + 15, accuracy: 0.01); XCTAssertEqual(py.y, c.y, accuracy: 0.01)
+        XCTAssertNil(proj(SIMD3(0, 0, 1)), "behind the camera")
+
+        // Box 30x20x20 cm centred on the optical axis 1 m ahead: all corners inside, centre near image centre.
+        let box = BoxEstimate(length: 0.3, width: 0.2, height: 0.2, center: SIMD3(0, -0.1, -1), yaw: 0.3, planeY: -0.1, pointCount: 1)
+        let pts = PhotoAnnotator.corners(box).map(proj)
+        for p in pts {
+            let p = try XCTUnwrap(p)
+            XCTAssertTrue(CGRect(origin: .zero, size: size).contains(p), "\(p)")
+        }
+        let mean = pts.reduce(CGPoint.zero) { CGPoint(x: $0.x + $1!.x / 8, y: $0.y + $1!.y / 8) }
+        XCTAssertEqual(mean.x, size.width / 2, accuracy: 6); XCTAssertEqual(mean.y, size.height / 2, accuracy: 6)
+
+        let photo = try XCTUnwrap(UIGraphicsImageRenderer(size: size, format: { let f = UIGraphicsImageRendererFormat(); f.scale = 1; return f }())
+            .image { _ in UIColor.gray.setFill(); UIRectFill(CGRect(origin: .zero, size: size)) }.cgImage)
+        let out = PhotoAnnotator.annotate(image: photo, transform: T, intrinsics: K, imageResolution: res, box: box, labels: (30, 20, 20))
+        XCTAssertEqual(out.size.width * out.scale, 144); XCTAssertEqual(out.size.height * out.scale, 192)
     }
 }

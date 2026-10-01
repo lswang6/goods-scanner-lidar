@@ -103,6 +103,8 @@ private struct ARScanScreen: View {
                         Text("cm").font(.subheadline).foregroundStyle(.secondary)
                     }
                     .lineLimit(1).minimumScaleFactor(0.6)
+                    Text("按最大外形尺寸计量" + (scan.shots.isEmpty ? "" : " · 已拍 \(scan.shots.count)/\(ScanSession.maxShots)"))
+                        .font(.caption2).foregroundStyle(.secondary)
                     if scan.sampleCount >= 2 {
                         Text(String(format: "离散度 %.1f%%（%d 次）", scan.spread * 100, scan.sampleCount)
                          + (stable ? "" : " 不稳定，建议重扫"))
@@ -130,12 +132,20 @@ private struct ARScanScreen: View {
     /// each side minus offset, 0.1 cm resolution, >= 0.1.
     /// confidence = max(0, 1 - spread) (spread = max relative L/W/H range over the retained samples:
     /// last 5 fused estimates after lock, last 10 single-frame ones before).
+    /// Photos (C2): every shot (or one current frame if none) annotated with the measured box geometry
+    /// and the delivered, post-offset numbers.
     private func deliver() {
         guard !delivered, let m = scan.median else { return }
         delivered = true
-        var r = ScanResult(m, confidence: max(0, 1 - Double(scan.spread)), photo: scan.lockPhoto ?? scan.capturePhoto())
+        var r = ScanResult(m, confidence: max(0, 1 - Double(scan.spread)), photos: [])
         let adj = { (cm: Double) in max(0.1, ((cm - offsetCm) * 10).rounded() / 10) }
         r.lengthCm = adj(r.lengthCm); r.widthCm = adj(r.widthCm); r.heightCm = adj(r.heightCm)
+        let shots = scan.shots.isEmpty ? [scan.captureShot()].compactMap { $0 } : scan.shots
+        r.photos = shots.map {
+            PhotoAnnotator.annotate(image: $0.image, transform: $0.transform, intrinsics: $0.intrinsics,
+                                    imageResolution: $0.imageResolution, box: m, labels: (r.lengthCm, r.widthCm, r.heightCm))
+        }
+        scan.clearShots()
         onResult(r)
     }
 }

@@ -69,6 +69,7 @@ public func minAreaRect(_ pts: [SIMD2<Float>]) -> (center: SIMD2<Float>, size: S
 - **支撑面** = 从 `seedY − 3cm` 往下扫 y 直方图，取**第一个**点数 ≥ `max(minPlanePoints, 5% 半径内点数)` 的桶（最近的支撑面：托盘顶/桌面优先于远处地面）。搜索半径从 1.0m 起，点数不足时扩到 2.0m。
 - **长宽** 只用**顶面薄层**点（`y ∈ seedY ± 2cm`）做 flood-fill + 最小外接矩形，排除轮廓处深度渗出的中间高度点；薄层太稀（<50 点）时退回全部箱体点。
 - **高** = 全部箱体点 y 的 98 分位 − planeY。
+- **v3 起默认 `maxExtent = true`（见 §10 C4）**：footprint 用全部高度点，高度取有支撑的最高面；上面的顶面薄层法 + 98 分位仅在 `maxExtent = false` 时使用（瞄准阶段单帧估计用它，避免单视角轮廓渗出把尺寸放大）。
 
 参数 `Params`：半径 1.0→2.0m、直方图桶 1cm、离面阈值 1.5cm、顶层厚度 ±2cm、XZ 网格 1cm、高度分位 0.98、每格最少点数 2、最大箱体 2.5m。
 

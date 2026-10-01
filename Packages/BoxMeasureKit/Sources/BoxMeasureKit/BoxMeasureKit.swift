@@ -42,6 +42,16 @@ public struct Params: Sendable {
     /// than `trimMargin` (m, ~ depth noise) outside the trimmed rectangle and refit.
     public var trimPoints: Int = 10
     public var trimMargin: Float = 0.005
+    /// SPEC §10 C4 "按最大外形": footprint = minAreaRect over the component's points at ALL heights
+    /// (cells with >= slabNeighbours occupied neighbours, then the same trim/refit), height = highest
+    /// supported y (see `heightSupport`). false = v2 top-slab footprint + `heightPercentile` height.
+    public var maxExtent: Bool = true
+    /// maxExtent only: admit points up to seed.y + this (parts taller than the aimed-at top). The
+    /// top-slab mode keeps its fixed seed.y + 2.5 * topSlab cap.
+    public var maxAboveSeed: Float = 0.5
+    /// maxExtent height: a 1 cm y-bin counts as object top when its 3x3-cell XZ neighbourhood holds at
+    /// least this many points in that bin plus the bin below.
+    public var heightSupport: Int = 10
     public init() {}
 }
 

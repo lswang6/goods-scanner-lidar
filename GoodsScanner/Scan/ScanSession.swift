@@ -7,7 +7,7 @@ import BoxMeasureKit
 /// scan (depth points fused into a VoxelCloud while the user circles the box) -> done.
 /// Threading: ARSession delegate runs on main (default). Each throttled frame is copied into plain
 /// arrays on main (ARFrame is never retained) and processed on `queue`. Everything under "queue only"
-/// is touched only on `queue`; @Published state, `lockPhoto` and SceneKit only on main.
+/// is touched only on `queue`; @Published state (incl. `shots`) and SceneKit only on main.
 /// Mesh overlay: see MeshOverlay (own queue).
 final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     enum Phase { case aim, scan, done }
@@ -18,8 +18,9 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     @Published private(set) var sampleCount = 0
     @Published private(set) var status = "瞄准箱顶，周围留出地面"
     @Published private(set) var sectors = [Bool](repeating: false, count: ScanSession.sectorCount)
-    /// Photo taken at seed lock (facing the box); nil if 完成 was tapped before lock.
-    private(set) var lockPhoto: UIImage?
+    /// C1: photo at seed lock + one per newly covered sector >= 90° from all photographed ones, max 4.
+    /// Raw (unannotated); ScanView annotates them with the final estimate and calls `clearShots()`.
+    @Published private(set) var shots: [CameraShot] = []
 
     let view = ARSCNView(frame: .zero)
     private let overlay = MeshOverlay()
@@ -42,6 +43,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     private var lastScanEstimate: BoxEstimate?
     private var lastEstimateTime: TimeInterval = 0
     private var covered = [Bool](repeating: false, count: ScanSession.sectorCount)
+    private var photoSectors: [Int] = []
 
     static let interval: TimeInterval = 0.2
     static let fuseFrames = 3
@@ -53,13 +55,15 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     static let lockHold: TimeInterval = 1.0
     static let estimateInterval: TimeInterval = 0.5
     static let cloudRadius: Float = 1.5     // 2 m of floor alone is ~500k 5 mm voxels (the cap); estimator needs <= 1 m
-    static let cloudAboveSeed: Float = 0.1  // estimator ignores points above seed.y + 5 cm; drop walls/ceiling early
+    static let cloudAboveSeed = voxelParams.maxAboveSeed  // estimator (maxExtent) ignores points above this; drop walls/ceiling early
     static let minHits = 2
     static let voxelParams = Params()       // defaults pass the orbit tests (BoxMeasureKitTests testOrbit*)
     static let sectorCount = 12
     static let finishSectors = 9
     static let finishSamples = 5
     static let finishSpread: Float = 0.02
+    static let maxShots = 4
+    static let shotSectorGap = 3            // 90°
 
     override init() {
         super.init()
@@ -86,18 +90,25 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             self.qPhase = .aim
             self.ring.removeAll(); self.aggregator.reset(); self.lastSeed = nil; self.seedHistory.removeAll()
             self.lockedSeed = nil; self.cloud = nil; self.scanAgg.reset(); self.lastScanEstimate = nil
-            self.covered = Array(repeating: false, count: Self.sectorCount)
+            self.covered = Array(repeating: false, count: Self.sectorCount); self.photoSectors.removeAll()
             self.finish(nil, status)
         }
     }
 
-    /// Current camera image, portrait (app is portrait-locked; back camera buffer is landscape-right).
-    func capturePhoto() -> UIImage? {
-        guard let buf = view.session.currentFrame?.capturedImage else { return nil }
-        let ci = CIImage(cvPixelBuffer: buf).oriented(.right)
+    /// Current camera image, portrait (app is portrait-locked; back camera buffer is landscape-right),
+    /// with the pose/intrinsics of that same frame. Main only.
+    /// ponytail: CIContext render on main (~tens of ms, <= 4x per scan); move to a queue with a reset
+    /// generation check if it shows up as a hitch.
+    func captureShot() -> CameraShot? {
+        guard let frame = view.session.currentFrame else { return nil }
+        let cam = frame.camera
+        let ci = CIImage(cvPixelBuffer: frame.capturedImage).oriented(.right)
         guard let cg = ciContext.createCGImage(ci, from: ci.extent) else { return nil }
-        return UIImage(cgImage: cg)
+        return CameraShot(image: cg, transform: cam.transform, intrinsics: cam.intrinsics, imageResolution: cam.imageResolution)
     }
+
+    /// Release the full-res photos once they are delivered.
+    func clearShots() { shots.removeAll() }
 
     // MARK: ARSessionDelegate (main queue)
 
@@ -194,6 +205,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             cloud = c
             lastEstimateTime = s.time
             updateCoverage(s, center: seed)
+            photoSectors = [Self.sector(s.transform, center: seed)]
             return finish(e, "已锁定，绕箱子走一圈", event: .locked(seed))
         }
         finish(e, "瞄准箱顶，保持 1 秒…")
@@ -202,7 +214,12 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     private func scanStep(_ s: Snapshot, points: [SIMD3<Float>], seed: SIMD3<Float>) {
         cloud?.insert(points)
         let center = lastScanEstimate.map { $0.center + SIMD3(0, $0.height / 2, 0) } ?? seed
-        updateCoverage(s, center: center)
+        // C1: shoot when a newly covered sector is >= 90° from every photographed one.
+        if let sec = updateCoverage(s, center: center), photoSectors.count < Self.maxShots,
+           photoSectors.allSatisfy({ d in let a = abs(d - sec); return min(a, Self.sectorCount - a) >= Self.shotSectorGap }) {
+            photoSectors.append(sec)
+            DispatchQueue.main.async { self.takeShot() }
+        }
         let n = covered.filter { $0 }.count
         let remaining = max(0, Self.finishSectors - n)
         let hint = n <= 1 ? "已锁定，绕箱子走一圈" : remaining > 0 ? "还差 \(remaining) 个方向" : "覆盖完成，尺寸收敛中…"
@@ -223,17 +240,34 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     }
 
     /// B5: sector of the camera's azimuth around `center`, counted only at 0.3-2.5 m with the center in view.
-    private func updateCoverage(_ s: Snapshot, center c: SIMD3<Float>) {
+    /// Returns the sector if it was newly covered by this frame.
+    @discardableResult
+    private func updateCoverage(_ s: Snapshot, center c: SIMD3<Float>) -> Int? {
         let cam = s.transform.columns.3
         let dist = simd_length(SIMD2(cam.x - c.x, cam.z - c.z))
-        guard dist >= 0.3, dist <= 2.5 else { return }
+        guard dist >= 0.3, dist <= 2.5 else { return nil }
         let p = simd_inverse(s.transform) * SIMD4(c, 1)
-        guard p.z < 0 else { return }
+        guard p.z < 0 else { return nil }
         let K = s.intrinsics
         let u = K[0][0] * p.x / -p.z + K[2][0], v = K[2][1] - K[1][1] * p.y / -p.z
-        guard u >= 0, u < Float(s.res.width), v >= 0, v < Float(s.res.height) else { return }
+        guard u >= 0, u < Float(s.res.width), v >= 0, v < Float(s.res.height) else { return nil }
+        let i = Self.sector(s.transform, center: c)
+        guard !covered[i] else { return nil }
+        covered[i] = true
+        return i
+    }
+
+    private static func sector(_ transform: simd_float4x4, center c: SIMD3<Float>) -> Int {
+        let cam = transform.columns.3
         let a = atan2(cam.z - c.z, cam.x - c.x) + .pi   // 0...2pi
-        covered[min(Self.sectorCount - 1, Int(a / (2 * .pi) * Float(Self.sectorCount)))] = true
+        return min(sectorCount - 1, Int(a / (2 * .pi) * Float(sectorCount)))
+    }
+
+    /// Main only. Extra C1 photo with a subtle shutter haptic.
+    private func takeShot() {
+        guard phase == .scan, shots.count < Self.maxShots, let shot = captureShot() else { return }
+        shots.append(shot)
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     private enum Event { case none, locked(SIMD3<Float>), done }
@@ -248,14 +282,14 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             switch event {
             case .none: break
             case .locked(let seed):
-                self.lockPhoto = self.capturePhoto()
+                self.shots = self.captureShot().map { [$0] } ?? []
                 self.overlay.setFocus(seed)
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             case .done:
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
             }
             self.phase = phase
-            if phase == .aim { self.lockPhoto = nil }
+            if phase == .aim { self.shots.removeAll() }
             if !keepWireframe { self.publish(latest, status: status) } else { self.status = status }
         }
     }
