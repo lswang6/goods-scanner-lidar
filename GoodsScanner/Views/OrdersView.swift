@@ -24,8 +24,19 @@ struct OrdersView: View {
     }
 
     var body: some View {
+        let today = orders.filter { Calendar.current.isDateInToday($0.receivedAt) }
         NavigationStack(path: $path) {
             List {
+                if search.isEmpty {
+                    Section {
+                        HStack(spacing: 8) {
+                            StatCard(icon: "doc.text", value: "\(today.count)", unit: "单", label: "今日入库")
+                            StatCard(icon: "shippingbox", value: "\(today.reduce(0) { $0 + $1.totalPieces })", unit: "件", label: "今日件数")
+                            StatCard(icon: "cube", value: today.reduce(0) { $0 + $1.totalVolumeM3 }.m3, unit: "m³", label: "今日体积")
+                        }
+                        .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
+                    }
+                }
                 ForEach(groups, id: \.day) { g in
                     Section(g.day.formatted(.dateTime.year().month().day().weekday())) {
                         ForEach(g.orders) { o in
@@ -35,11 +46,20 @@ struct OrdersView: View {
                     }
                 }
             }
-            .overlay { if orders.isEmpty { ContentUnavailableView("暂无入库单", systemImage: "shippingbox", description: Text("点右上角 + 新建入库单")) } }
+            .listSectionSpacing(16)
+            .overlay {
+                if orders.isEmpty {
+                    EmptyState(image: "EmptyOrders", title: "暂无入库单", message: "货物到仓后新建入库单，逐件扫描或录入尺寸",
+                               action: ("新建入库", { creating = true }))
+                }
+            }
             .searchable(text: $search, prompt: "单号 / 客户")
             .navigationTitle("入库单")
             .navigationDestination(for: InboundOrder.self) { o in OrderDetailView(order: o) { delete(o) } }
-            .toolbar { Button { creating = true } label: { Image(systemName: "plus") } }
+            .toolbar {
+                Button { creating = true } label: { Label("新建入库", systemImage: "plus").labelStyle(.titleAndIcon) }
+                    .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(.accent)
+            }
             .sheet(isPresented: $creating, onDismiss: { if let o = created { created = nil; path = [o] } }) { OrderForm(order: nil) { created = $0 } }
             .confirmationDialog("删除入库单及其全部货物和照片？", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
                                 titleVisibility: .visible, presenting: confirmDelete) { o in
@@ -59,16 +79,20 @@ struct OrdersView: View {
 private struct OrderRow: View {
     let order: InboundOrder
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
+        HStack(spacing: 12) {
+            IconTile(systemName: "shippingbox.fill")
+            VStack(alignment: .leading, spacing: 2) {
                 Text(order.orderNo).font(.headline.monospacedDigit())
-                Spacer()
-                Text(order.receivedAt, format: .dateTime.hour().minute()).font(.caption).foregroundStyle(.secondary)
+                Text("\(order.customer?.name ?? "（无客户）") · \(order.receivedAt.formatted(.dateTime.hour().minute()))")
+                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             }
-            Text(order.customer?.name ?? "（无客户）").font(.subheadline)
-            Text("\(order.totalPieces) 件 · \(order.totalVolumeM3.m3) m³ · \(order.totalWeightKg.kg) kg")
-                .font(.caption).foregroundStyle(.secondary)
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 2) {
+                NumText(value: order.totalVolumeM3.m3, unit: "m³", style: .headline)
+                Text("\(order.totalPieces) 件").font(.num(.caption)).foregroundStyle(.secondary)
+            }
         }
+        .padding(.vertical, 2)
     }
 }
 
@@ -86,17 +110,24 @@ struct OrderDetailView: View {
 
     var body: some View {
         List {
-            Section("入库信息") {
-                LabeledContent("单号", value: order.orderNo)
-                LabeledContent("客户", value: order.customer.map { "\($0.name)（\($0.code)）" } ?? "—")
-                LabeledContent("入库时间", value: order.receivedAt.formatted(date: .numeric, time: .shortened))
-                LabeledContent("操作员", value: order.operatorName)
-                if !order.note.isEmpty { LabeledContent("备注", value: order.note) }
+            Section {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(order.orderNo).font(.num(.title2)).foregroundStyle(.brand)
+                    Label(order.customer.map { "\($0.name)（\($0.code)）" } ?? "（无客户）", systemImage: "person.fill")
+                    Label(order.receivedAt.formatted(date: .numeric, time: .shortened), systemImage: "clock")
+                    if !order.operatorName.isEmpty { Label(order.operatorName, systemImage: "person.badge.key") }
+                    if !order.note.isEmpty { Label(order.note, systemImage: "note.text") }
+                }
+                .font(.subheadline)
+                .padding(.vertical, 4)
             }
-            Section("合计") {
-                LabeledContent("件数", value: "\(order.totalPieces)")
-                LabeledContent("总体积", value: "\(order.totalVolumeM3.m3) m³")
-                LabeledContent("总重量", value: "\(order.totalWeightKg.kg) kg")
+            Section {
+                HStack(spacing: 8) {
+                    StatCard(icon: "shippingbox", value: "\(order.totalPieces)", unit: "件", label: "件数")
+                    StatCard(icon: "cube", value: order.totalVolumeM3.m3, unit: "m³", label: "总体积")
+                    StatCard(icon: "scalemass", value: order.totalWeightKg.kg, unit: "kg", label: "总重量")
+                }
+                .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
             }
             Section("货物（\(order.items.count)）") {
                 ForEach(order.items.sorted { $0.createdAt < $1.createdAt }) { item in
@@ -107,11 +138,18 @@ struct OrderDetailView: View {
                             }
                         }
                 }
-                Button { addingItem = true } label: { Label("添加货物", systemImage: "plus") }
+                if order.items.isEmpty { Text("还没有货物，点下方「添加货物」").foregroundStyle(.secondary) }
             }
             Section {
                 Button("删除入库单", role: .destructive) { confirmDelete = true }
             }
+        }
+        .listSectionSpacing(16)
+        .safeAreaInset(edge: .bottom) {
+            Button { addingItem = true } label: { Label("添加货物", systemImage: "plus") }
+                .buttonStyle(PrimaryButtonStyle())
+                .padding(.horizontal, 16).padding(.vertical, 8)
+                .background(.bar)
         }
         .navigationTitle(order.orderNo)
         .navigationBarTitleDisplayMode(.inline)
@@ -135,18 +173,31 @@ struct OrderDetailView: View {
 private struct ItemRow: View {
     let item: CargoItem
     var body: some View {
-        HStack {
-            if let f = item.photoFiles.first, let img = PhotoStore.thumbnail(f, side: 200) {
-                Image(uiImage: img).resizable().scaledToFill().frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 6))
+        HStack(spacing: 12) {
+            Group {
+                if let f = item.photoFiles.first, let img = PhotoStore.thumbnail(f, side: 200) {
+                    Image(uiImage: img).resizable().scaledToFill()
+                } else {
+                    Image(systemName: "shippingbox.fill").font(.title2).foregroundStyle(.brand)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.brand.opacity(0.12))
+                }
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(item.name.isEmpty ? "（未命名）" : item.name).font(.headline)
-                Text("\(item.lengthCm.cm)×\(item.widthCm.cm)×\(item.heightCm.cm) cm × \(item.quantity)")
-                    .font(.caption)
-                Text("\(item.totalVolumeM3.m3) m³ · \(item.weightKg.map { "\($0.kg) kg" } ?? "—") · \(item.methodLabel)")
-                    .font(.caption).foregroundStyle(.secondary)
+            .frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: Radius.tag, style: .continuous))
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
+                    Text(item.name.isEmpty ? "（未命名）" : item.name).font(.headline).lineLimit(1)
+                    if item.method == "lidar" { Image(systemName: "viewfinder").font(.caption).foregroundStyle(.scan) }
+                }
+                DimsBadge(l: item.lengthCm, w: item.widthCm, h: item.heightCm)
+                if let kg = item.weightKg { NumText(value: kg.kg, unit: "kg", style: .caption).foregroundStyle(.secondary) }
+            }
+            Spacer(minLength: 4)
+            VStack(alignment: .trailing, spacing: 2) {
+                NumText(value: item.totalVolumeM3.m3, unit: "m³", style: .headline)
+                Text("× \(item.quantity)").font(.num(.subheadline)).foregroundStyle(.secondary)
             }
         }
+        .padding(.vertical, 2)
     }
 }
 

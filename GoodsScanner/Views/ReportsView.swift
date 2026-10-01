@@ -38,31 +38,49 @@ struct ReportsView: View {
                         ForEach(customers) { Text("\($0.name)（\($0.code)）").tag(Optional($0.persistentModelID)) }
                     }
                 }
-                Section("汇总") {
-                    LabeledContent("入库单数", value: "\(total.orders)")
-                    LabeledContent("件数", value: "\(total.pieces)")
-                    LabeledContent("总体积", value: "\(total.volumeM3.m3) m³")
-                    LabeledContent("总重量", value: "\(total.weightKg.kg) kg")
-                }
-                if !byCustomer.isEmpty {
+                if list.isEmpty {
+                    Section {
+                        EmptyState(image: "EmptyReports", title: "所选范围无入库记录", message: "调整日期或客户筛选后再查看汇总与导出")
+                            .frame(minHeight: 320)
+                            .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
+                    }
+                } else {
+                    Section("汇总") {
+                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                            StatCard(icon: "doc.text", value: "\(total.orders)", unit: "单", label: "入库单数")
+                            StatCard(icon: "shippingbox", value: "\(total.pieces)", unit: "件", label: "件数")
+                            StatCard(icon: "cube", value: total.volumeM3.m3, unit: "m³", label: "总体积")
+                            StatCard(icon: "scalemass", value: total.weightKg.kg, unit: "kg", label: "总重量")
+                        }
+                        .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
+                    }
                     Section("按客户") {
                         ForEach(byCustomer, id: \.key) { code, os in
                             let s = Summary(os)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(os.first?.customer?.name ?? "（无客户）").font(.headline)
-                                Text("\(s.orders) 单 · \(s.pieces) 件 · \(s.volumeM3.m3) m³ · \(s.weightKg.kg) kg")
-                                    .font(.caption).foregroundStyle(.secondary)
+                            HStack(spacing: 12) {
+                                IconTile(systemName: "person.fill", size: 36)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(os.first?.customer?.name ?? "（无客户）").font(.headline).lineLimit(1)
+                                    Text("\(s.orders) 单 · \(s.pieces) 件 · \(s.weightKg.kg) kg")
+                                        .font(.num(.caption)).foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 4)
+                                NumText(value: s.volumeM3.m3, unit: "m³", style: .headline)
                             }
                         }
                     }
+                    Section("导出") {
+                        HStack(spacing: 8) {
+                            exportButton("CSV 明细", "tablecells") { try Exporter.writeCSV(list, from: from, to: to) }
+                            exportButton("PDF 报表", "doc.richtext") { try Exporter.writePDF(list, from: from, to: to, customerName: customerName) }
+                            exportButton("照片 ZIP", "photo.stack") { try Exporter.writePhotosZip(list, from: from, to: to) }
+                        }
+                        .disabled(exporting)
+                        .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
+                    }
                 }
-                Section("导出") {
-                    Button { export { try Exporter.writeCSV(list, from: from, to: to) } } label: { Label("导出 CSV 明细", systemImage: "tablecells") }
-                    Button { export { try Exporter.writePDF(list, from: from, to: to, customerName: customerName) } } label: { Label("导出 PDF 报表", systemImage: "doc.richtext") }
-                    Button { export { try Exporter.writePhotosZip(list, from: from, to: to) } } label: { Label("导出照片 ZIP", systemImage: "photo.stack") }
-                }
-                .disabled(list.isEmpty || exporting)
             }
+            .listSectionSpacing(16)
             .overlay { if exporting { ProgressView("正在导出…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12)) } }
             .navigationTitle("报表")
             .sheet(item: $share) { ActivityView(items: [$0.url]) }
@@ -70,6 +88,19 @@ struct ReportsView: View {
                 Button("好", role: .cancel) {}
             } message: { Text(error ?? "") }
         }
+    }
+
+    private func exportButton(_ title: String, _ icon: String, make: @escaping () throws -> URL) -> some View {
+        Button { export(make) } label: {
+            VStack(spacing: 6) {
+                Image(systemName: icon).font(.title2)
+                Text(title).font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(.accent)
+            .frame(maxWidth: .infinity, minHeight: 72)
+            .background(Color.surface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+        }
+        .buttonStyle(.borderless)
     }
 
     /// Runs on the main actor (SwiftData models stay on their thread); the short sleep lets the spinner paint first.
