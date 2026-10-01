@@ -1,17 +1,5 @@
 import simd
 
-/// Fewer component points than this -> no estimate.
-let minBoxPoints = 20
-/// Seed cell empty -> look for the nearest occupied cell within this many cells (Chebyshev).
-let seedCellSearch = 3
-/// Top-slab cell needs this many slab-occupied 8-neighbours to feed the footprint.
-/// Footprint outlier rejection: trim this many extreme points per side, then drop points farther
-/// than `trimMargin` outside the trimmed rectangle (~ depth noise) and refit.
-let trimPoints = 10
-/// Top-slab cell needs this many slab-occupied 8-neighbours (isolated bleed cells drop out).
-let slabNeighbours = 4
-let trimMargin: Float = 0.005
-
 func medianOf(_ v: [Float]) -> Float {
     let s = v.sorted()
     let n = s.count
@@ -81,7 +69,7 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> BoxE
     // Seed cell, or the nearest occupied one.
     let sx = Int((seed.x * inv).rounded(.down)), sz = Int((seed.z * inv).rounded(.down))
     var start: Int?
-    search: for d in 0...seedCellSearch {
+    search: for d in 0...max(0, p.seedCellSearch) {
         var best: (Int, Int)?   // (dist2, key)
         for dx in -d...d { for dz in -d...d where max(abs(dx), abs(dz)) == d {
             let k = cellKey(sx + dx, sz + dz)
@@ -115,7 +103,7 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> BoxE
             slabCount[k, default: 0] += 1
         }
     }
-    guard compYs.count >= minBoxPoints else { return nil }
+    guard compYs.count >= p.minBoxPoints else { return nil }
 
     // Footprint from top-slab points. Cell filters use slab-only counts: >= minCellPoints and
     // >= slabNeighbours occupied neighbours, so sparse/isolated bleed cells drop out.
@@ -125,10 +113,10 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> BoxE
         let ix = k >> 32, iz = Int(Int32(truncatingIfNeeded: k))
         var n = 0
         for dx in -1...1 { for dz in -1...1 where (dx != 0 || dz != 0) && slabCount[cellKey(ix + dx, iz + dz)] != nil { n += 1 } }
-        return n >= slabNeighbours
+        return n >= p.slabNeighbours
     }
     let slabXZ = slabPts.filter { keep[$0.key] != nil }.map(\.xz)
-    let rect = footprintRect(slabXZ.count >= p.minTopSlabPoints ? slabXZ : allXZ)
+    let rect = footprintRect(slabXZ.count >= p.minTopSlabPoints ? slabXZ : allXZ, p)
 
     compYs.sort()
     let pi = min(compYs.count - 1, max(0, Int((p.heightPercentile * Float(compYs.count - 1)).rounded())))
@@ -225,18 +213,18 @@ func trimmedRange(_ vals: [Float], _ k: Int) -> (lo: Float, hi: Float) {
 
 /// minAreaRect is decided by single extreme points, so a few stray (bleed) points tilt and inflate
 /// it. Refit twice: at the current angle take trimmed extents, drop points beyond them by more
-/// than trimMargin, re-run minAreaRect on the inliers (untrimmed, so no inward bias).
-func footprintRect(_ pts: [SIMD2<Float>]) -> (center: SIMD2<Float>, size: SIMD2<Float>, angle: Float) {
+/// than p.trimMargin, re-run minAreaRect on the inliers (untrimmed, so no inward bias).
+func footprintRect(_ pts: [SIMD2<Float>], _ p: Params) -> (center: SIMD2<Float>, size: SIMD2<Float>, angle: Float) {
     var r = minAreaRect(pts)
-    guard pts.count >= 8 * trimPoints else { return r }
+    guard pts.count >= 8 * p.trimPoints else { return r }
     for _ in 0..<2 {
         guard r.size.y > 0 else { return r }
         let u = SIMD2<Float>(cos(r.angle), sin(r.angle)), v = SIMD2<Float>(-u.y, u.x)
         let pu = pts.map { simd_dot($0, u) }, pv = pts.map { simd_dot($0, v) }
-        let ru = trimmedRange(pu, trimPoints), rv = trimmedRange(pv, trimPoints)
+        let ru = trimmedRange(pu, p.trimPoints), rv = trimmedRange(pv, p.trimPoints)
         let inliers = pts.indices.filter {
-            pu[$0] >= ru.lo - trimMargin && pu[$0] <= ru.hi + trimMargin &&
-            pv[$0] >= rv.lo - trimMargin && pv[$0] <= rv.hi + trimMargin
+            pu[$0] >= ru.lo - p.trimMargin && pu[$0] <= ru.hi + p.trimMargin &&
+            pv[$0] >= rv.lo - p.trimMargin && pv[$0] <= rv.hi + p.trimMargin
         }.map { pts[$0] }
         r = minAreaRect(inliers)
     }

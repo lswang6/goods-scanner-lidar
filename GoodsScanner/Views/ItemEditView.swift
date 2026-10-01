@@ -124,9 +124,8 @@ struct ItemEditView: View {
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { if let img = $0 { addPhoto(img) } }.ignoresSafeArea()
             }
-            .sheet(isPresented: $showScan) {
-                // P2: replace placeholder with `ScanView(onResult: { apply($0); showScan = false })`
-                ScanPlaceholder()
+            .fullScreenCover(isPresented: $showScan) {
+                ScanView(onResult: { apply($0); showScan = false })
             }
             .onChange(of: pickerItems) { _, items in
                 Task {
@@ -183,16 +182,6 @@ struct ItemEditView: View {
         try? context.save()
         PhotoStore.delete(Array(removed))
         dismiss()
-    }
-}
-
-private struct ScanPlaceholder: View {
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        NavigationStack {
-            ContentUnavailableView("LiDAR 扫描", systemImage: "cube.transparent", description: Text("扫描功能开发中"))
-                .toolbar { Button("关闭") { dismiss() } }
-        }
     }
 }
 

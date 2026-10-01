@@ -32,6 +32,16 @@ public struct Params: Sendable {
     public var minCellPoints: Int = 2
     public var heightPercentile: Float = 0.98
     public var maxBoxSize: Float = 2.5
+    /// Fewer component points than this -> no estimate.
+    public var minBoxPoints: Int = 20
+    /// Seed cell empty -> look for the nearest occupied cell within this many cells (Chebyshev).
+    public var seedCellSearch: Int = 3
+    /// Top-slab cell needs this many slab-occupied 8-neighbours (isolated bleed cells drop out).
+    public var slabNeighbours: Int = 4
+    /// Footprint outlier rejection: trim this many extreme points per side, then drop points farther
+    /// than `trimMargin` (m, ~ depth noise) outside the trimmed rectangle and refit.
+    public var trimPoints: Int = 10
+    public var trimMargin: Float = 0.005
     public init() {}
 }
 
