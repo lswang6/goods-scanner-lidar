@@ -12,8 +12,9 @@ struct ScanView: View {
             ARScanScreen(onResult: onResult)
         } else {
             NavigationStack {
-                ContentUnavailableView("无法使用 LiDAR 扫描", systemImage: "cube.transparent",
-                                       description: Text("本机或模拟器不支持 LiDAR 深度，请返回手动录入尺寸，并用「拍照」添加照片。"))
+                EmptyState(image: "ScanAim", title: "无法使用 LiDAR 扫描",
+                           message: "本机或模拟器不支持 LiDAR 深度，请返回手动录入尺寸，并用「拍照」添加照片。",
+                           action: ("返回手动录入", { dismiss() }))
                     .toolbar { Button("关闭") { dismiss() } }
             }
         }
@@ -26,8 +27,10 @@ private struct ARScanScreen: View {
     @AppStorage("calibrationOffsetCm") private var offsetCm = 0.0
     @Environment(\.dismiss) private var dismiss
     @State private var delivered = false
+    @State private var orbitHint = false
 
     private var stable: Bool { scan.spread <= ScanSession.stableSpread }
+    private var coveredCount: Int { scan.sectors.filter { $0 }.count }
 
     var body: some View {
         ZStack {
@@ -36,36 +39,91 @@ private struct ARScanScreen: View {
                 Image(systemName: "plus").font(.system(size: 36, weight: .thin)).foregroundStyle(.white).shadow(radius: 2)
                     .frame(maxWidth: .infinity, maxHeight: .infinity).ignoresSafeArea()  // screen center == depth-map center
             }
-            VStack {
-                Text(scan.status).font(.headline).padding(10).background(.ultraThinMaterial, in: Capsule())
+            VStack(spacing: 12) {
+                statusCapsule
                 Spacer()
-                VStack(spacing: 8) {
-                    HStack(spacing: 16) {
-                        if scan.phase != .aim { SectorRing(covered: scan.sectors) }
-                        Text(dims).font(.title2.monospacedDigit().bold())
-                    }
-                    if scan.sampleCount >= 2 {
-                        Text(String(format: "离散度 %.1f%%（%d 次）", scan.spread * 100, scan.sampleCount)
-                         + (stable ? "" : " 不稳定，建议重扫"))
-                            .font(.footnote).foregroundStyle(stable ? .green : .yellow)
-                    }
-                    HStack(spacing: 12) {
-                        Button("取消") { dismiss() }.buttonStyle(.bordered)
-                        Button("重置") { scan.reset() }.buttonStyle(.bordered)
-                        Button("完成", action: deliver).buttonStyle(.borderedProminent).disabled(scan.median == nil)
-                    }
+                if scan.phase == .aim {
+                    guide("ScanAim", "对准箱顶，保持 1 秒")
+                } else if orbitHint && scan.phase == .scan && coveredCount <= 1 {  // lock already covers 1 sector
+                    guide("ScanOrbit", "绕箱子走一圈")
                 }
-                .padding().background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16)).padding()
+                bottomCard
             }
+            .padding(16)
+            .animation(.easeInOut(duration: 0.3), value: scan.phase)
+            .animation(.easeInOut(duration: 0.3), value: orbitHint)
+            .animation(.easeInOut(duration: 0.3), value: coveredCount <= 1)
         }
+        .environment(\.colorScheme, .dark)  // HUD over camera feed
         .onAppear { scan.start() }
         .onDisappear { scan.pause() }
         .onChange(of: scan.phase) { _, p in if p == .done { deliver() } }
+        .task(id: scan.phase) {
+            guard scan.phase == .scan else { orbitHint = false; return }
+            orbitHint = true
+            try? await Task.sleep(for: .seconds(3))
+            orbitHint = false
+        }
+    }
+
+    private var statusCapsule: some View {
+        let (icon, tint): (String, Color) = switch scan.phase {
+        case .aim: ("scope", .white)
+        case .scan: ("arrow.triangle.2.circlepath", stable ? .scan : .warn)
+        case .done: ("checkmark.circle.fill", .scan)
+        }
+        return HStack(spacing: 8) {
+            Image(systemName: icon).foregroundStyle(tint)
+            Text(scan.status).lineLimit(1).minimumScaleFactor(0.8)
+        }
+        .font(.subheadline.weight(.semibold))
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .background(.ultraThinMaterial, in: Capsule())
+    }
+
+    private func guide(_ image: String, _ text: String) -> some View {
+        HStack(spacing: 12) {
+            Image(image).resizable().scaledToFit().frame(width: 72, height: 56)
+            Text(text).font(.subheadline.weight(.semibold))
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .transition(.opacity)
+    }
+
+    private var bottomCard: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 16) {
+                SectorRing(covered: scan.sectors)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("长 × 宽 × 高").font(.caption).foregroundStyle(.secondary)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(dims).font(.num(.title))
+                        Text("cm").font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .lineLimit(1).minimumScaleFactor(0.6)
+                    if scan.sampleCount >= 2 {
+                        Text(String(format: "离散度 %.1f%%（%d 次）", scan.spread * 100, scan.sampleCount)
+                         + (stable ? "" : " 不稳定，建议重扫"))
+                            .font(.caption).foregroundStyle(stable ? Color.scan : Color.warn)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            HStack(spacing: 8) {
+                Button("取消") { dismiss() }.buttonStyle(SecondaryButtonStyle())
+                Button("重置") { scan.reset() }.buttonStyle(SecondaryButtonStyle())
+                Button("完成", action: deliver).buttonStyle(PrimaryButtonStyle()).disabled(scan.median == nil)
+            }
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
     private var dims: String {
-        guard let m = scan.median else { return "— × — × — cm" }
-        return String(format: "%.1f × %.1f × %.1f cm", m.length * 100, m.width * 100, m.height * 100)
+        guard let m = scan.median else { return "— × — × —" }
+        return String(format: "%.1f × %.1f × %.1f", m.length * 100, m.width * 100, m.height * 100)
     }
 
     /// Single result path for 完成 and auto-finish. Calibration offset is applied here and only here:
@@ -91,13 +149,13 @@ private struct SectorRing: View {
                 ForEach(covered.indices, id: \.self) { i in
                     let n = CGFloat(covered.count)
                     Circle().trim(from: (CGFloat(i) + 0.08) / n, to: (CGFloat(i) + 0.92) / n)
-                        .stroke(covered[i] ? Color.green : Color.white.opacity(0.35), lineWidth: 6)
+                        .stroke(covered[i] ? Color.scan : Color.secondary.opacity(0.35), lineWidth: 6)
                 }
             }
             .rotationEffect(.degrees(-90))
-            Text("\(covered.filter { $0 }.count)").font(.caption.monospacedDigit().bold())
+            Text("\(covered.filter { $0 }.count)/\(covered.count)").font(.num(.caption2))
         }
-        .frame(width: 48, height: 48)
+        .frame(width: 60, height: 60)
     }
 }
 

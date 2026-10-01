@@ -83,8 +83,14 @@ private struct OrderRow: View {
             IconTile(systemName: "shippingbox.fill")
             VStack(alignment: .leading, spacing: 2) {
                 Text(order.orderNo).font(.headline.monospacedDigit())
-                Text("\(order.customer?.name ?? "（无客户）") · \(order.receivedAt.formatted(.dateTime.hour().minute()))")
-                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                HStack(spacing: 0) {
+                    Text(order.customer?.name ?? "（无客户）").truncationMode(.tail)
+                    Text(" · " + order.receivedAt.formatted(.verbatim(
+                        "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
+                        timeZone: .current, calendar: .current)))
+                        .monospacedDigit().fixedSize()
+                }
+                .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {

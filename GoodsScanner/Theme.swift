@@ -114,6 +114,20 @@ struct PrimaryButtonStyle: ButtonStyle {
     }
 }
 
+/// Compact neutral companion to `PrimaryButtonStyle` (same height/shape, hugs its label).
+struct SecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundStyle(.primary)
+            .padding(.horizontal, 20)
+            .frame(minWidth: 44, minHeight: 52)
+            .background(Color(uiColor: .tertiarySystemFill), in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
 struct EmptyState: View {
     let image: String
     let title: String
@@ -122,7 +136,7 @@ struct EmptyState: View {
 
     var body: some View {
         VStack(spacing: 12) {
-            Image(image).resizable().scaledToFit().frame(maxWidth: 260, maxHeight: 195)
+            Image(image).resizable().scaledToFit().frame(maxWidth: 280, maxHeight: 180)  // assets range ~2.2:1 to ~0.9:1
             Text(title).font(.title3.weight(.semibold))
             Text(message).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
             if let action {
