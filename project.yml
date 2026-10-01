@@ -1,6 +1,6 @@
 name: GoodsScanner
 options:
-  bundleIdPrefix: com.example
+  bundleIdPrefix: com.louiswang
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -10,8 +10,8 @@ options:
 # before installing on a real device.
 settings:
   base:
-    DEVELOPMENT_TEAM: ""
-    PRODUCT_BUNDLE_IDENTIFIER: com.example.goodsscanner
+    DEVELOPMENT_TEAM: TX57ZT87FD
+    PRODUCT_BUNDLE_IDENTIFIER: com.louiswang.goodsscanner
     CODE_SIGN_STYLE: Automatic
     SWIFT_VERSION: "5.0"
     IPHONEOS_DEPLOYMENT_TARGET: "17.0"
@@ -52,5 +52,5 @@ targets:
       - target: GoodsScanner
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.example.goodsscanner.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.louiswang.goodsscanner.tests
         GENERATE_INFOPLIST_FILE: YES
