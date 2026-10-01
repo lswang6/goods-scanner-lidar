@@ -1,0 +1,185 @@
+import SwiftUI
+import SwiftData
+
+struct OrdersView: View {
+    @Environment(\.modelContext) private var context
+    @Query(sort: \InboundOrder.receivedAt, order: .reverse) private var orders: [InboundOrder]
+    @State private var search = ""
+    @State private var creating = false
+
+    private var groups: [(day: Date, orders: [InboundOrder])] {
+        let q = search.trimmingCharacters(in: .whitespaces)
+        let list = q.isEmpty ? orders : orders.filter {
+            $0.orderNo.localizedCaseInsensitiveContains(q)
+                || ($0.customer?.name.localizedCaseInsensitiveContains(q) ?? false)
+                || ($0.customer?.code.localizedCaseInsensitiveContains(q) ?? false)
+        }
+        let byDay = Dictionary(grouping: list) { Calendar.current.startOfDay(for: $0.receivedAt) }
+        return byDay.keys.sorted(by: >).map { ($0, byDay[$0]!) }
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                ForEach(groups, id: \.day) { g in
+                    Section(g.day.formatted(.dateTime.year().month().day().weekday())) {
+                        ForEach(g.orders) { o in
+                            NavigationLink(value: o) { OrderRow(order: o) }
+                                .swipeActions { Button("删除", role: .destructive) { deleteOrder(o, in: context) } }
+                        }
+                    }
+                }
+            }
+            .overlay { if orders.isEmpty { ContentUnavailableView("暂无入库单", systemImage: "shippingbox", description: Text("点右上角 + 新建入库单")) } }
+            .searchable(text: $search, prompt: "单号 / 客户")
+            .navigationTitle("入库单")
+            .navigationDestination(for: InboundOrder.self) { OrderDetailView(order: $0) }
+            .toolbar { Button { creating = true } label: { Image(systemName: "plus") } }
+            .sheet(isPresented: $creating) { OrderForm(order: nil) }
+        }
+    }
+}
+
+private struct OrderRow: View {
+    let order: InboundOrder
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(order.orderNo).font(.headline.monospacedDigit())
+                Spacer()
+                Text(order.receivedAt, format: .dateTime.hour().minute()).font(.caption).foregroundStyle(.secondary)
+            }
+            Text(order.customer?.name ?? "（无客户）").font(.subheadline)
+            Text("\(order.totalPieces) 件 · \(order.totalVolumeM3.m3) m³ · \(order.totalWeightKg.trimmed) kg")
+                .font(.caption).foregroundStyle(.secondary)
+        }
+    }
+}
+
+struct OrderDetailView: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+    let order: InboundOrder
+    @State private var editingOrder = false
+    @State private var addingItem = false
+    @State private var editingItem: CargoItem?
+    @State private var confirmDelete = false
+
+    var body: some View {
+        List {
+            Section("入库信息") {
+                LabeledContent("单号", value: order.orderNo)
+                LabeledContent("客户", value: order.customer.map { "\($0.name)（\($0.code)）" } ?? "—")
+                LabeledContent("入库时间", value: order.receivedAt.formatted(date: .numeric, time: .shortened))
+                LabeledContent("操作员", value: order.operatorName)
+                if !order.note.isEmpty { LabeledContent("备注", value: order.note) }
+            }
+            Section("合计") {
+                LabeledContent("件数", value: "\(order.totalPieces)")
+                LabeledContent("总体积", value: "\(order.totalVolumeM3.m3) m³")
+                LabeledContent("总重量", value: "\(order.totalWeightKg.trimmed) kg")
+            }
+            Section("货物（\(order.items.count)）") {
+                ForEach(order.items.sorted { $0.createdAt < $1.createdAt }) { item in
+                    Button { editingItem = item } label: { ItemRow(item: item) }.tint(.primary)
+                        .swipeActions { Button("删除", role: .destructive) { deleteItem(item, in: context) } }
+                }
+                Button { addingItem = true } label: { Label("添加货物", systemImage: "plus") }
+            }
+            Section {
+                Button("删除入库单", role: .destructive) { confirmDelete = true }
+            }
+        }
+        .navigationTitle(order.orderNo)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { Button("编辑") { editingOrder = true } }
+        .sheet(isPresented: $editingOrder) { OrderForm(order: order) }
+        .sheet(isPresented: $addingItem) { ItemEditView(order: order, item: nil) }
+        .sheet(item: $editingItem) { ItemEditView(order: order, item: $0) }
+        .confirmationDialog("删除入库单及其全部货物和照片？", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("删除", role: .destructive) {
+                // Pop first so this view never re-renders against a deleted model.
+                dismiss()
+                DispatchQueue.main.async { deleteOrder(order, in: context) }
+            }
+        }
+    }
+}
+
+private struct ItemRow: View {
+    let item: CargoItem
+    var body: some View {
+        HStack {
+            if let f = item.photoFiles.first, let img = PhotoStore.thumbnail(f, side: 120) {
+                Image(uiImage: img).resizable().scaledToFill().frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.name.isEmpty ? "（未命名）" : item.name).font(.headline)
+                Text("\(item.lengthCm.trimmed)×\(item.widthCm.trimmed)×\(item.heightCm.trimmed) cm × \(item.quantity)")
+                    .font(.caption)
+                Text("\(item.totalVolumeM3.m3) m³ · \(item.weightKg.map { "\($0.trimmed) kg" } ?? "—") · \(item.methodLabel)")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+struct OrderForm: View {
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+    @Query(sort: \Customer.code) private var customers: [Customer]
+    @AppStorage("defaultOperator") private var defaultOperator = ""
+    let order: InboundOrder?
+    @State private var customer: Customer?
+    @State private var receivedAt: Date
+    @State private var operatorName: String?
+    @State private var note: String
+    @State private var error: String?
+
+    init(order: InboundOrder?) {
+        self.order = order
+        _customer = State(initialValue: order?.customer)
+        _receivedAt = State(initialValue: order?.receivedAt ?? .now)
+        _operatorName = State(initialValue: order?.operatorName)
+        _note = State(initialValue: order?.note ?? "")
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let order { LabeledContent("单号", value: order.orderNo) }
+                Picker("客户", selection: $customer) {
+                    Text("请选择").tag(Customer?.none)
+                    ForEach(customers) { Text("\($0.name)（\($0.code)）").tag(Optional($0)) }
+                }
+                DatePicker("入库时间", selection: $receivedAt)
+                TextField("操作员", text: Binding(get: { operatorName ?? defaultOperator }, set: { operatorName = $0 }))
+                TextField("备注", text: $note, axis: .vertical)
+                if customers.isEmpty { Text("请先在「客户」页新建客户").foregroundStyle(.secondary) }
+                if let error { Text(error).foregroundStyle(.red) }
+            }
+            .navigationTitle(order == nil ? "新建入库单" : "编辑入库单")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("保存", action: save) }
+            }
+        }
+    }
+
+    private func save() {
+        guard let customer else { error = "请选择客户"; return }
+        let op = (operatorName ?? defaultOperator).trimmingCharacters(in: .whitespaces)
+        if let order {
+            // Order number is issued once at creation and never regenerated, even if receivedAt changes.
+            order.customer = customer; order.receivedAt = receivedAt; order.operatorName = op; order.note = note
+        } else {
+            do {
+                let no = try InboundOrder.nextOrderNo(for: receivedAt, in: context)
+                context.insert(InboundOrder(orderNo: no, customer: customer, receivedAt: receivedAt, operatorName: op, note: note))
+            } catch { self.error = "生成单号失败：\(error.localizedDescription)"; return }
+        }
+        try? context.save()
+        dismiss()
+    }
+}

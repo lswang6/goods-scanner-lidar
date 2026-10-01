@@ -1,0 +1,104 @@
+import Foundation
+import SwiftData
+
+@Model final class Customer {
+    @Attribute(.unique) var code: String
+    var name: String
+    var contact: String
+    var phone: String
+    var address: String
+    var note: String
+    var createdAt: Date
+    // .deny may be ignored by SwiftData; the UI checks `orders.isEmpty` before deleting (A6).
+    @Relationship(deleteRule: .deny, inverse: \InboundOrder.customer) var orders: [InboundOrder] = []
+
+    init(code: String, name: String, contact: String = "", phone: String = "", address: String = "", note: String = "", createdAt: Date = .now) {
+        self.code = code; self.name = name; self.contact = contact; self.phone = phone
+        self.address = address; self.note = note; self.createdAt = createdAt
+    }
+}
+
+@Model final class InboundOrder {
+    @Attribute(.unique) var orderNo: String
+    var customer: Customer?
+    var receivedAt: Date
+    var operatorName: String
+    var note: String
+    @Relationship(deleteRule: .cascade, inverse: \CargoItem.order) var items: [CargoItem] = []
+
+    init(orderNo: String, customer: Customer?, receivedAt: Date, operatorName: String = "", note: String = "") {
+        self.orderNo = orderNo; self.customer = customer; self.receivedAt = receivedAt
+        self.operatorName = operatorName; self.note = note
+    }
+
+    var totalPieces: Int { items.reduce(0) { $0 + $1.quantity } }
+    var totalVolumeM3: Double { items.reduce(0) { $0 + $1.totalVolumeM3 } }
+    var totalWeightKg: Double { items.reduce(0) { $0 + ($1.weightKg ?? 0) } }
+
+    /// A8: RK + yyyyMMdd + "-" + 3-digit sequence within the day of `receivedAt`.
+    /// Uses max existing suffix + 1 (not count) so deleting an earlier order never reissues a live number.
+    static func nextOrderNo(for receivedAt: Date, in context: ModelContext) throws -> String {
+        let cal = Calendar.current
+        let start = cal.startOfDay(for: receivedAt)
+        let end = cal.date(byAdding: .day, value: 1, to: start)!
+        let prefix = "RK" + dayFormatter.string(from: start) + "-"
+        let sameDay = try context.fetch(FetchDescriptor<InboundOrder>(predicate: #Predicate { $0.receivedAt >= start && $0.receivedAt < end }))
+        let maxSeq = sameDay.compactMap { $0.orderNo.hasPrefix(prefix) ? Int($0.orderNo.dropFirst(prefix.count)) : nil }.max() ?? 0
+        return prefix + String(format: "%03d", maxSeq + 1)
+    }
+
+    static let dayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyyMMdd"
+        return f
+    }()
+}
+
+@Model final class CargoItem {
+    var order: InboundOrder?
+    var name: String
+    var lengthCm: Double
+    var widthCm: Double
+    var heightCm: Double
+    var quantity: Int
+    var weightKg: Double?
+    var photoFiles: [String]
+    var method: String  // "lidar" | "manual"
+    var confidence: Double?
+    var createdAt: Date
+
+    init(name: String = "", lengthCm: Double = 0, widthCm: Double = 0, heightCm: Double = 0, quantity: Int = 1,
+         weightKg: Double? = nil, photoFiles: [String] = [], method: String = "manual", confidence: Double? = nil, createdAt: Date = .now) {
+        self.name = name; self.lengthCm = lengthCm; self.widthCm = widthCm; self.heightCm = heightCm
+        self.quantity = quantity; self.weightKg = weightKg; self.photoFiles = photoFiles
+        self.method = method; self.confidence = confidence; self.createdAt = createdAt
+    }
+
+    var unitVolumeM3: Double { CargoItem.volumeM3(lengthCm, widthCm, heightCm) }
+    var totalVolumeM3: Double { unitVolumeM3 * Double(quantity) }
+    var methodLabel: String { method == "lidar" ? "LiDAR" : "手动" }
+
+    static func volumeM3(_ l: Double, _ w: Double, _ h: Double) -> Double { l * w * h / 1_000_000 }
+}
+
+/// A6: snapshot photo names before the cascade clears items, then remove files.
+func deleteOrder(_ order: InboundOrder, in context: ModelContext) {
+    let files = order.items.flatMap(\.photoFiles)
+    context.delete(order)
+    try? context.save()
+    PhotoStore.delete(files)
+}
+
+func deleteItem(_ item: CargoItem, in context: ModelContext) {
+    let files = item.photoFiles
+    context.delete(item)
+    try? context.save()
+    PhotoStore.delete(files)
+}
+
+extension Double {
+    var m3: String { String(format: "%.3f", self) }
+    var trimmed: String { String(format: "%g", self) }
+}
