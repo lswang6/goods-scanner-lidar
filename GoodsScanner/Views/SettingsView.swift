@@ -13,6 +13,18 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    HStack(spacing: 16) {
+                        Image("AppIconImage").resizable().scaledToFit().frame(width: 64, height: 64)
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("入库量方").font(.title2.weight(.bold)).foregroundStyle(.brand)
+                            Text("版本 \(version)").font(.num(.footnote)).foregroundStyle(.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+                }
                 Section("操作员") {
                     TextField("默认操作员姓名", text: $defaultOperator)
                 }
@@ -20,16 +32,16 @@ struct SettingsView: View {
                     HStack {
                         Text("每边偏置 (cm)")
                         TextField("0", value: $calibrationOffsetCm, format: .number)
-                            .keyboardType(.numbersAndPunctuation).multilineTextAlignment(.trailing)
+                            .keyboardType(.numbersAndPunctuation).multilineTextAlignment(.trailing).font(.num(.body))
                     }
                 } header: { Text("测量校准") } footer: {
                     Text("用已知尺寸的纸箱扫描，若每边偏大 1cm 则填 1。正数表示扣减。")
                 }
                 Section {
-                    LabeledContent("LiDAR", value: lidarAvailable ? "可用" : "不可用（手动录入）")
-                }
-                Section("关于") {
-                    LabeledContent("版本", value: version)
+                    LabeledContent("LiDAR") {
+                        Label(lidarAvailable ? "可用" : "不可用（手动录入）", systemImage: lidarAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                            .foregroundStyle(lidarAvailable ? Color.scan : Color.warn)
+                    }
                 }
             }
             .navigationTitle("设置")

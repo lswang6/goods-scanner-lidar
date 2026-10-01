@@ -22,6 +22,7 @@ struct GoodsScannerApp: App {
                 ReportsView().tabItem { Label("报表", systemImage: "chart.bar.doc.horizontal") }
                 SettingsView().tabItem { Label("设置", systemImage: "gearshape") }
             }
+            .tint(.brand)
         }
         .modelContainer(Self.container)
     }

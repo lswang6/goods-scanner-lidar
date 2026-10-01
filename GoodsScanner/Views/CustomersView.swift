@@ -21,10 +21,25 @@ struct CustomersView: View {
             List {
                 ForEach(filtered) { c in
                     Button { editing = c } label: {
-                        VStack(alignment: .leading) {
-                            Text(c.name).font(.headline)
-                            Text("\(c.code)  \(c.contact) \(c.phone)").font(.caption).foregroundStyle(.secondary)
+                        HStack(spacing: 12) {
+                            Text(c.name.prefix(1))
+                                .font(.headline).foregroundStyle(.onBrand)
+                                .frame(width: 44, height: 44)
+                                .background(Color.brand, in: Circle())
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 6) {
+                                    Text(c.name).font(.headline).lineLimit(1)
+                                    Text(c.code).font(.caption.monospaced().weight(.semibold)).foregroundStyle(.brand)
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background(Color.brand.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.tag, style: .continuous))
+                                }
+                                let sub = [c.contact, c.phone].filter { !$0.isEmpty }.joined(separator: " · ")
+                                if !sub.isEmpty { Text(sub).font(.subheadline).foregroundStyle(.secondary).lineLimit(1) }
+                            }
+                            Spacer(minLength: 0)
+                            Text("\(c.orders.count) 单").font(.num(.caption)).foregroundStyle(.secondary)
                         }
+                        .padding(.vertical, 2)
                     }
                     .tint(.primary)
                     .swipeActions {
@@ -34,10 +49,18 @@ struct CustomersView: View {
                     }
                 }
             }
-            .overlay { if customers.isEmpty { ContentUnavailableView("暂无客户", systemImage: "person.2", description: Text("点右上角 + 新建客户")) } }
+            .overlay {
+                if customers.isEmpty {
+                    EmptyState(image: "EmptyCustomers", title: "暂无客户", message: "先建客户档案，入库单才能选择客户",
+                               action: ("新建客户", { creating = true }))
+                }
+            }
             .searchable(text: $search, prompt: "名称 / 代码 / 联系人 / 电话")
             .navigationTitle("客户")
-            .toolbar { Button { creating = true } label: { Image(systemName: "plus") } }
+            .toolbar {
+                Button { creating = true } label: { Label("新建客户", systemImage: "plus").labelStyle(.titleAndIcon) }
+                    .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(.accent)
+            }
             .sheet(isPresented: $creating) { CustomerForm(customer: nil) }
             .sheet(item: $editing) { CustomerForm(customer: $0) }
             .alert("无法删除", isPresented: Binding(get: { blockedDelete != nil }, set: { if !$0 { blockedDelete = nil } })) {

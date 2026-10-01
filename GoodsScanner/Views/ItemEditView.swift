@@ -70,47 +70,78 @@ struct ItemEditView: View {
         NavigationStack {
             Form {
                 Section {
+                    VStack(spacing: 8) {
+                        Button { showScan = true } label: { Label("LiDAR 环绕扫描", systemImage: "viewfinder") }
+                            .buttonStyle(PrimaryButtonStyle())
+                            .disabled(!lidarAvailable)
+                        if !lidarAvailable { Text("本机无 LiDAR，请手动录入尺寸").font(.caption).foregroundStyle(.secondary) }
+                    }
+                    .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
+                }
+                Section {
                     TextField("品名 / 备注", text: $name)
-                    Button { showScan = true } label: { Label("LiDAR 扫描", systemImage: "cube.transparent") }
-                        .disabled(!lidarAvailable)
-                    if !lidarAvailable { Text("本机无 LiDAR，请手动录入尺寸").font(.caption).foregroundStyle(.secondary) }
                 }
                 Section("尺寸 (cm)") {
-                    dimField("长", $length)
-                    dimField("宽", $width)
-                    dimField("高", $height)
-                    Stepper("件数：\(quantity)", value: $quantity, in: 1...99_999)
+                    HStack(spacing: 8) {
+                        dimField("长", $length)
+                        dimField("宽", $width)
+                        dimField("高", $height)
+                    }
+                    Stepper(value: $quantity, in: 1...99_999) {
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text("件数")
+                            Text("\(quantity)").font(.num(.body))
+                        }
+                    }
                     HStack {
                         Text("重量 (kg)")
                         TextField("选填，本行合计", text: $weight).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                            .font(.num(.body))
                     }
                 }
                 Section("体积") {
-                    LabeledContent("单件", value: "\(unitVolume.m3) m³")
-                    LabeledContent("合计", value: "\((unitVolume * Double(quantity)).m3) m³")
-                    LabeledContent("测量方式", value: method == "lidar" ? "LiDAR" : "手动")
+                    HStack(alignment: .firstTextBaseline) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("合计").font(.caption).foregroundStyle(.secondary)
+                            NumText(value: (unitVolume * Double(quantity)).m3, unit: "m³", style: .largeTitle)
+                        }
+                        Spacer()
+                        VStack(alignment: .trailing, spacing: 2) {
+                            Text("单件").font(.caption).foregroundStyle(.secondary)
+                            NumText(value: unitVolume.m3, unit: "m³", style: .headline)
+                        }
+                    }
+                    LabeledContent("测量方式") {
+                        Label(method == "lidar" ? "LiDAR" : "手动", systemImage: method == "lidar" ? "viewfinder" : "hand.point.up.left")
+                            .foregroundStyle(method == "lidar" ? Color.scan : .secondary)
+                    }
                     if let confidence { LabeledContent("置信度", value: confidence.formatted(.percent.precision(.fractionLength(0)))) }
                 }
                 Section("照片（\(photos.count)）") {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 80))], spacing: 8) {
-                        ForEach(photos, id: \.self) { f in
-                            ZStack(alignment: .topTrailing) {
-                                Group {
-                                    if let img = PhotoStore.thumbnail(f, side: 240) { Image(uiImage: img).resizable().scaledToFill() }
-                                    else { Color.gray.opacity(0.2) }
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(photos, id: \.self) { f in
+                                ZStack(alignment: .topTrailing) {
+                                    Group {
+                                        if let img = PhotoStore.thumbnail(f, side: 240) { Image(uiImage: img).resizable().scaledToFill() }
+                                        else { Color.gray.opacity(0.2) }
+                                    }
+                                    .frame(width: 88, height: 88).clipShape(RoundedRectangle(cornerRadius: Radius.tag, style: .continuous))
+                                    Button { removePhoto(f) } label: {
+                                        Image(systemName: "xmark.circle.fill").font(.title3).symbolRenderingMode(.palette).foregroundStyle(.white, .red)
+                                    }
+                                    .buttonStyle(.borderless).padding(2)
                                 }
-                                .frame(width: 80, height: 80).clipShape(RoundedRectangle(cornerRadius: 8))
-                                Button { removePhoto(f) } label: {
-                                    Image(systemName: "xmark.circle.fill").symbolRenderingMode(.palette).foregroundStyle(.white, .red)
-                                }
-                                .buttonStyle(.borderless).padding(2)
                             }
+                            Group {
+                                if UIImagePickerController.isSourceTypeAvailable(.camera) {
+                                    Button { showCamera = true } label: { addTile("拍照", "camera") }
+                                } else {
+                                    PhotosPicker(selection: $pickerItems, matching: .images) { addTile("相册", "photo") }
+                                }
+                            }
+                            .buttonStyle(.borderless)
                         }
-                    }
-                    if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                        Button { showCamera = true } label: { Label("拍照", systemImage: "camera") }
-                    } else {
-                        PhotosPicker(selection: $pickerItems, matching: .images) { Label("从相册添加", systemImage: "photo") }
                     }
                 }
                 if let error { Text(error).foregroundStyle(.red) }
@@ -140,10 +171,23 @@ struct ItemEditView: View {
     }
 
     private func dimField(_ label: String, _ value: Binding<Double?>) -> some View {
-        HStack {
-            Text(label)
-            TextField("0", value: value, format: .number).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+        VStack(spacing: 4) {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            TextField("0", value: value, format: .number).keyboardType(.decimalPad).multilineTextAlignment(.center)
+                .font(.num(.title2))
+                .frame(minHeight: 44)
+                .background(Color.canvas, in: RoundedRectangle(cornerRadius: Radius.tag, style: .continuous))
         }
+    }
+
+    private func addTile(_ title: String, _ icon: String) -> some View {
+        VStack(spacing: 4) {
+            Image(systemName: icon).font(.title2)
+            Text(title).font(.caption)
+        }
+        .foregroundStyle(.accent)
+        .frame(width: 88, height: 88)
+        .background(Color.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.tag, style: .continuous))
     }
 
     func apply(_ r: ScanResult) {
