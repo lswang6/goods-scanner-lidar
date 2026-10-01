@@ -58,6 +58,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     static let cloudAboveSeed = voxelParams.maxAboveSeed  // estimator (maxExtent) ignores points above this; drop walls/ceiling early
     static let minHits = 2
     static let voxelParams = Params()       // defaults pass the orbit tests (BoxMeasureKitTests testOrbit*)
+    /// Aim phase is single-view: silhouette bleed inflates max-extent by ~2 cm, so use the top-slab footprint.
+    static let aimParams: Params = { var p = Params(); p.maxExtent = false; return p }()
     static let sectorCount = 12
     static let finishSectors = 9
     static let finishSamples = 5
@@ -187,7 +189,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         if let last = lastSeed, simd_length(SIMD2(seed.x - last.x, seed.z - last.z)) > Self.seedJump { aggregator.reset() }
         lastSeed = seed
 
-        guard let e = BoxMeasurer.estimate(points: Array(ring.joined()), seed: seed) else {
+        guard let e = BoxMeasurer.estimate(points: Array(ring.joined()), seed: seed, params: Self.aimParams) else {
             seedHistory.removeAll()
             return finish(nil, points.count < Self.minHighPoints ? "点云不足，靠近一点" : "未识别到箱体：瞄准箱顶，周围留出地面")
         }

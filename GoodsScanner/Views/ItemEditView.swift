@@ -112,8 +112,9 @@ struct ItemEditView: View {
                         }
                     }
                     LabeledContent("测量方式") {
-                        Label(method == "lidar" ? "LiDAR" : "手动", systemImage: method == "lidar" ? "viewfinder" : "hand.point.up.left")
-                            .foregroundStyle(method == "lidar" ? Color.scan : .secondary)
+                        // Text(Image) not Label: see SettingsView LiDAR row.
+                        Text("\(Image(systemName: method == "lidar" ? "viewfinder" : "hand.point.up.left")) \(method == "lidar" ? "LiDAR" : "手动")")
+                            .foregroundStyle(method == "lidar" ? Color.scanText : .secondary)
                     }
                     if let confidence { LabeledContent("置信度", value: confidence.formatted(.percent.precision(.fractionLength(0)))) }
                 }
@@ -185,7 +186,7 @@ struct ItemEditView: View {
             Image(systemName: icon).font(.title2)
             Text(title).font(.caption)
         }
-        .foregroundStyle(.accent)
+        .foregroundStyle(.accentText)
         .frame(width: 88, height: 88)
         .background(Color.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.tag, style: .continuous))
     }

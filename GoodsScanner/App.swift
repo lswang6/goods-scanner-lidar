@@ -17,12 +17,13 @@ struct GoodsScannerApp: App {
     var body: some Scene {
         WindowGroup {
             TabView {
-                OrdersView().tabItem { Label("入库", systemImage: "shippingbox") }
-                CustomersView().tabItem { Label("客户", systemImage: "person.2") }
-                ReportsView().tabItem { Label("报表", systemImage: "chart.bar.doc.horizontal") }
-                SettingsView().tabItem { Label("设置", systemImage: "gearshape") }
+                // Selected tab in accent (brand was too close to the black unselected icons); content keeps brand.
+                OrdersView().tint(.brand).tabItem { Label("入库", systemImage: "shippingbox") }
+                CustomersView().tint(.brand).tabItem { Label("客户", systemImage: "person.2") }
+                ReportsView().tint(.brand).tabItem { Label("报表", systemImage: "chart.bar.doc.horizontal") }
+                SettingsView().tint(.brand).tabItem { Label("设置", systemImage: "gearshape") }
             }
-            .tint(.brand)
+            .tint(.accentText)
         }
         .modelContainer(Self.container)
     }

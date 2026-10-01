@@ -38,9 +38,10 @@ struct SettingsView: View {
                     Text("用已知尺寸的纸箱扫描，若每边偏大 1cm 则填 1。正数表示扣减。")
                 }
                 Section {
+                    // Text(Image) not Label: Label as LabeledContent content stretched the row (~225pt) on iOS 26.
                     LabeledContent("LiDAR") {
-                        Label(lidarAvailable ? "可用" : "不可用（手动录入）", systemImage: lidarAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                            .foregroundStyle(lidarAvailable ? Color.scan : Color.warn)
+                        Text("\(Image(systemName: lidarAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")) \(lidarAvailable ? "可用" : "不可用（手动录入）")")
+                            .foregroundStyle(lidarAvailable ? Color.scanText : Color.warnText)
                     }
                 }
             }

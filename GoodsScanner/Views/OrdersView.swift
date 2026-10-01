@@ -83,19 +83,17 @@ private struct OrderRow: View {
             IconTile(systemName: "shippingbox.fill")
             VStack(alignment: .leading, spacing: 2) {
                 Text(order.orderNo).font(.headline.monospacedDigit())
-                HStack(spacing: 0) {
-                    Text(order.customer?.name ?? "（无客户）").truncationMode(.tail)
-                    Text(" · " + order.receivedAt.formatted(.verbatim(
-                        "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
-                        timeZone: .current, calendar: .current)))
-                        .monospacedDigit().fixedSize()
-                }
-                .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                // Time lives in the trailing column so the customer name gets the full width.
+                Text(order.customer?.name ?? "（无客户）")
+                    .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
                 NumText(value: order.totalVolumeM3.m3, unit: "m³", style: .headline)
-                Text("\(order.totalPieces) 件").font(.num(.caption)).foregroundStyle(.secondary)
+                Text("\(order.totalPieces) 件 · " + order.receivedAt.formatted(.verbatim(
+                    "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
+                    timeZone: .current, calendar: .current)))
+                    .font(.num(.caption)).foregroundStyle(.secondary).lineLimit(1).fixedSize()
             }
         }
         .padding(.vertical, 2)
@@ -192,7 +190,7 @@ private struct ItemRow: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 6) {
                     Text(item.name.isEmpty ? "（未命名）" : item.name).font(.headline).lineLimit(1)
-                    if item.method == "lidar" { Image(systemName: "viewfinder").font(.caption).foregroundStyle(.scan) }
+                    if item.method == "lidar" { Image(systemName: "viewfinder").font(.caption).foregroundStyle(.scanText) }
                 }
                 DimsBadge(l: item.lengthCm, w: item.widthCm, h: item.heightCm)
                 if let kg = item.weightKg { NumText(value: kg.kg, unit: "kg", style: .caption).foregroundStyle(.secondary) }

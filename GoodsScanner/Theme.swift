@@ -10,6 +10,11 @@ extension ShapeStyle where Self == Color {
     static var accent: Color { Color(light: 0xFF7A1A, dark: 0xFF8F3D) }
     static var scan: Color { Color(light: 0x22C55E, dark: 0x34D399) }
     static var warn: Color { Color(light: 0xF59E0B, dark: 0xFBBF24) }
+    /// Text/small-icon variants of scan/accent/warn: AA >= 4.5:1 on surface in light and dark.
+    /// Keep the plain tokens for fills, strokes and the AR overlay.
+    static var scanText: Color { Color(light: 0x15803D, dark: 0x34D399) }
+    static var accentText: Color { Color(light: 0xC2410C, dark: 0xFF8F3D) }
+    static var warnText: Color { Color(light: 0xB45309, dark: 0xFBBF24) }
     static var danger: Color { .red }
     static var surface: Color { Color(uiColor: .secondarySystemGroupedBackground) }
     static var canvas: Color { Color(uiColor: .systemGroupedBackground) }

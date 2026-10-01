@@ -94,9 +94,9 @@ struct ReportsView: View {
         Button { export(make) } label: {
             VStack(spacing: 6) {
                 Image(systemName: icon).font(.title2)
-                Text(title).font(.caption.weight(.semibold))
+                Text(title).font(.subheadline.weight(.semibold))
             }
-            .foregroundStyle(.accent)
+            .foregroundStyle(.accentText)
             .frame(maxWidth: .infinity, minHeight: 72)
             .background(Color.surface, in: RoundedRectangle(cornerRadius: Radius.button, style: .continuous))
         }
