@@ -58,7 +58,7 @@ struct ItemEditView: View {
         _width = State(initialValue: item?.widthCm)
         _height = State(initialValue: item?.heightCm)
         _quantity = State(initialValue: item?.quantity ?? 1)
-        _weight = State(initialValue: item?.weightKg.map(\.trimmed) ?? "")
+        _weight = State(initialValue: item?.weightKg.map(\.kg) ?? "")
         _photos = State(initialValue: item?.photoFiles ?? [])
         _method = State(initialValue: item?.method ?? "manual")
         _confidence = State(initialValue: item?.confidence)
@@ -175,11 +175,12 @@ struct ItemEditView: View {
         if !trimmedWeight.isEmpty && (kg == nil || kg! < 0) { error = "重量格式不正确"; return }
         let target = item ?? CargoItem()
         let removed = Set(target.photoFiles).subtracting(photos)
-        target.name = name; target.lengthCm = l; target.widthCm = w; target.heightCm = h
+        target.name = name.trimmingCharacters(in: .whitespacesAndNewlines); target.lengthCm = l; target.widthCm = w; target.heightCm = h
         target.quantity = quantity; target.weightKg = kg; target.photoFiles = photos
         target.method = method; target.confidence = confidence
         if item == nil { context.insert(target); target.order = order }
-        try? context.save()
+        // Removed photos are deleted only after a successful save; on failure keep files and stay open.
+        do { try context.save() } catch { context.rollback(); self.error = "保存失败：\(error.localizedDescription)"; return }
         PhotoStore.delete(Array(removed))
         dismiss()
     }

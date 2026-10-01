@@ -6,6 +6,8 @@ struct OrdersView: View {
     @Query(sort: \InboundOrder.receivedAt, order: .reverse) private var orders: [InboundOrder]
     @State private var search = ""
     @State private var creating = false
+    @State private var confirmDelete: InboundOrder?
+    @State private var deleteError: String?
 
     private var groups: [(day: Date, orders: [InboundOrder])] {
         let q = search.trimmingCharacters(in: .whitespaces)
@@ -25,7 +27,7 @@ struct OrdersView: View {
                     Section(g.day.formatted(.dateTime.year().month().day().weekday())) {
                         ForEach(g.orders) { o in
                             NavigationLink(value: o) { OrderRow(order: o) }
-                                .swipeActions { Button("删除", role: .destructive) { deleteOrder(o, in: context) } }
+                                .swipeActions { Button("删除", role: .destructive) { confirmDelete = o } }
                         }
                     }
                 }
@@ -33,10 +35,21 @@ struct OrdersView: View {
             .overlay { if orders.isEmpty { ContentUnavailableView("暂无入库单", systemImage: "shippingbox", description: Text("点右上角 + 新建入库单")) } }
             .searchable(text: $search, prompt: "单号 / 客户")
             .navigationTitle("入库单")
-            .navigationDestination(for: InboundOrder.self) { OrderDetailView(order: $0) }
+            .navigationDestination(for: InboundOrder.self) { o in OrderDetailView(order: o) { delete(o) } }
             .toolbar { Button { creating = true } label: { Image(systemName: "plus") } }
             .sheet(isPresented: $creating) { OrderForm(order: nil) }
+            .confirmationDialog("删除入库单及其全部货物和照片？", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
+                                titleVisibility: .visible, presenting: confirmDelete) { o in
+                Button("删除", role: .destructive) { delete(o) }
+            }
+            .alert("删除失败", isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
+                Button("好", role: .cancel) {}
+            } message: { Text(deleteError ?? "") }
         }
+    }
+
+    private func delete(_ o: InboundOrder) {
+        do { try deleteOrder(o, in: context) } catch { deleteError = error.localizedDescription }
     }
 }
 
@@ -50,7 +63,7 @@ private struct OrderRow: View {
                 Text(order.receivedAt, format: .dateTime.hour().minute()).font(.caption).foregroundStyle(.secondary)
             }
             Text(order.customer?.name ?? "（无客户）").font(.subheadline)
-            Text("\(order.totalPieces) 件 · \(order.totalVolumeM3.m3) m³ · \(order.totalWeightKg.trimmed) kg")
+            Text("\(order.totalPieces) 件 · \(order.totalVolumeM3.m3) m³ · \(order.totalWeightKg.kg) kg")
                 .font(.caption).foregroundStyle(.secondary)
         }
     }
@@ -60,10 +73,13 @@ struct OrderDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     let order: InboundOrder
+    /// Owned by OrdersView so a failure alert still shows after this view has popped.
+    let onDelete: () -> Void
     @State private var editingOrder = false
     @State private var addingItem = false
     @State private var editingItem: CargoItem?
     @State private var confirmDelete = false
+    @State private var error: String?
 
     var body: some View {
         List {
@@ -77,12 +93,16 @@ struct OrderDetailView: View {
             Section("合计") {
                 LabeledContent("件数", value: "\(order.totalPieces)")
                 LabeledContent("总体积", value: "\(order.totalVolumeM3.m3) m³")
-                LabeledContent("总重量", value: "\(order.totalWeightKg.trimmed) kg")
+                LabeledContent("总重量", value: "\(order.totalWeightKg.kg) kg")
             }
             Section("货物（\(order.items.count)）") {
                 ForEach(order.items.sorted { $0.createdAt < $1.createdAt }) { item in
                     Button { editingItem = item } label: { ItemRow(item: item) }.tint(.primary)
-                        .swipeActions { Button("删除", role: .destructive) { deleteItem(item, in: context) } }
+                        .swipeActions {
+                            Button("删除", role: .destructive) {
+                                do { try deleteItem(item, in: context) } catch { self.error = error.localizedDescription }
+                            }
+                        }
                 }
                 Button { addingItem = true } label: { Label("添加货物", systemImage: "plus") }
             }
@@ -100,9 +120,12 @@ struct OrderDetailView: View {
             Button("删除", role: .destructive) {
                 // Pop first so this view never re-renders against a deleted model.
                 dismiss()
-                DispatchQueue.main.async { deleteOrder(order, in: context) }
+                DispatchQueue.main.async { onDelete() }
             }
         }
+        .alert("删除失败", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("好", role: .cancel) {}
+        } message: { Text(error ?? "") }
     }
 }
 
@@ -110,14 +133,14 @@ private struct ItemRow: View {
     let item: CargoItem
     var body: some View {
         HStack {
-            if let f = item.photoFiles.first, let img = PhotoStore.thumbnail(f, side: 120) {
+            if let f = item.photoFiles.first, let img = PhotoStore.thumbnail(f, side: 200) {
                 Image(uiImage: img).resizable().scaledToFill().frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 6))
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name.isEmpty ? "（未命名）" : item.name).font(.headline)
-                Text("\(item.lengthCm.trimmed)×\(item.widthCm.trimmed)×\(item.heightCm.trimmed) cm × \(item.quantity)")
+                Text("\(item.lengthCm.cm)×\(item.widthCm.cm)×\(item.heightCm.cm) cm × \(item.quantity)")
                     .font(.caption)
-                Text("\(item.totalVolumeM3.m3) m³ · \(item.weightKg.map { "\($0.trimmed) kg" } ?? "—") · \(item.methodLabel)")
+                Text("\(item.totalVolumeM3.m3) m³ · \(item.weightKg.map { "\($0.kg) kg" } ?? "—") · \(item.methodLabel)")
                     .font(.caption).foregroundStyle(.secondary)
             }
         }
@@ -170,6 +193,7 @@ struct OrderForm: View {
     private func save() {
         guard let customer else { error = "请选择客户"; return }
         let op = (operatorName ?? defaultOperator).trimmingCharacters(in: .whitespaces)
+        let note = note.trimmingCharacters(in: .whitespacesAndNewlines)
         if let order {
             // Order number is issued once at creation and never regenerated, even if receivedAt changes.
             order.customer = customer; order.receivedAt = receivedAt; order.operatorName = op; order.note = note
@@ -179,7 +203,7 @@ struct OrderForm: View {
                 context.insert(InboundOrder(orderNo: no, customer: customer, receivedAt: receivedAt, operatorName: op, note: note))
             } catch { self.error = "生成单号失败：\(error.localizedDescription)"; return }
         }
-        try? context.save()
+        do { try context.save() } catch { context.rollback(); self.error = "保存失败：\(error.localizedDescription)"; return }
         dismiss()
     }
 }

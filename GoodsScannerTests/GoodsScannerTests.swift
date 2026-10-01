@@ -4,10 +4,11 @@ import SwiftData
 
 @MainActor
 final class GoodsScannerTests: XCTestCase {
+    var container: ModelContainer!
     var context: ModelContext!
 
     override func setUpWithError() throws {
-        let container = try ModelContainer(for: Customer.self, InboundOrder.self, CargoItem.self,
+        container = try ModelContainer(for: Customer.self, InboundOrder.self, CargoItem.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         context = ModelContext(container)
     }
@@ -41,6 +42,26 @@ final class GoodsScannerTests: XCTestCase {
         XCTAssertEqual(try addOrder(date(2026, 10, 1)).orderNo, "RK20261001-003")
     }
 
+    func testOrderNoAfterEditingReceivedAtDoesNotOverwrite() throws {
+        let first = try addOrder(date(2026, 10, 1))
+        XCTAssertEqual(first.orderNo, "RK20261001-001")
+        first.receivedAt = date(2026, 10, 2)   // date edited; orderNo stays
+        try context.save()
+        let second = try addOrder(date(2026, 10, 1))
+        XCTAssertEqual(second.orderNo, "RK20261001-002")
+        XCTAssertEqual(try context.fetchCount(FetchDescriptor<InboundOrder>()), 2)
+        XCTAssertEqual(first.orderNo, "RK20261001-001")
+        XCTAssertEqual(try addOrder(date(2026, 10, 2)).orderNo, "RK20261002-001")
+    }
+
+    func testNumberFormatting() {
+        XCTAssertEqual(12345.67.kg, "12345.67")
+        XCTAssertEqual(1_000_000.0.kg, "1000000")
+        XCTAssertEqual(40.0.cm, "40")
+        XCTAssertEqual(40.26.cm, "40.3")
+        XCTAssertEqual(0.00012.fixed(4), "0.0001")
+    }
+
     func testVolumes() throws {
         let item = CargoItem(name: "箱", lengthCm: 100, widthCm: 100, heightCm: 100, quantity: 2, weightKg: 5)
         XCTAssertEqual(item.unitVolumeM3, 1, accuracy: 1e-9)
@@ -64,6 +85,12 @@ final class GoodsScannerTests: XCTestCase {
         XCTAssertEqual(Exporter.csvField("say \"hi\""), "\"say \"\"hi\"\"\"")
         XCTAssertEqual(Exporter.csvField("line1\nline2"), "\"line1\nline2\"")
         XCTAssertEqual(Exporter.csvField("cr\r"), "\"cr\r\"")
+        XCTAssertEqual(Exporter.csvField("a\r\nb"), "\"a\r\nb\"")
+        XCTAssertEqual(Exporter.csvField("=1+1"), "'=1+1")
+        XCTAssertEqual(Exporter.csvField("@x"), "'@x")
+        XCTAssertEqual(Exporter.csvField("-5,x"), "\"'-5,x\"")
+        XCTAssertEqual(Exporter.csvField("001", text: true), "\"=\"\"001\"\"\"")
+        XCTAssertEqual(Exporter.csvField("C001", text: true), "C001")
     }
 
     func testCSVBOMHeaderAndRow() throws {
@@ -82,6 +109,12 @@ final class GoodsScannerTests: XCTestCase {
         XCTAssertTrue(text.hasPrefix(header + "\r\n"))
         XCTAssertEqual(Exporter.csvColumns.count, 18)
         XCTAssertTrue(text.contains("RK20261001-001,2026-10-01 10:00,C1,\"客户,甲\",\"张\"\"三\"\"\",,,箱子,40,30,20,2,0.024,0.048,,手动,a.jpg;b.jpg,\"两行\n备注\"\r\n"), text)
+    }
+
+    func testCSVOrderWithoutItems() throws {
+        let o = try addOrder(date(2026, 10, 1))
+        let text = String(decoding: Exporter.csv([o]).dropFirst(3), as: UTF8.self)
+        XCTAssertTrue(text.hasSuffix("\r\nRK20261001-001,2026-10-01 10:00,,,,,,,,,,,,,,,,\r\n"), text)
     }
 
     func testFileName() {

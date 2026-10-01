@@ -27,32 +27,46 @@ enum Exporter {
 
     static func outputURL(_ name: String) throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appending(path: "Exports", directoryHint: .isDirectory)
+        // Clear previous exports (the share sheet for them is already closed) so tmp doesn't grow.
+        try? FileManager.default.removeItem(at: dir)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let url = dir.appending(path: name)
-        try? FileManager.default.removeItem(at: url)
-        return url
+        return dir.appending(path: name)
     }
 
-    static func sortedItems(_ o: InboundOrder) -> [CargoItem] { o.items.sorted { $0.createdAt < $1.createdAt } }
+    /// `[nil]` for an order without items so it still gets one (empty-item) row in CSV/PDF.
+    static func sortedItems(_ o: InboundOrder) -> [CargoItem?] {
+        o.items.isEmpty ? [nil] : o.items.sorted { $0.createdAt < $1.createdAt }
+    }
 
     // MARK: CSV
 
-    static func csvField(_ s: String) -> String {
-        s.contains(where: { $0 == "\"" || $0 == "," || $0 == "\n" || $0 == "\r" })
-            ? "\"" + s.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : s
+    /// `text`: all-digit values (customer code, phone) are emitted as Excel `="001"` so Excel keeps leading zeros
+    /// and doesn't turn 13800000001 into 1.38E+10. Other CSV readers will show the literal `="..."`.
+    /// Other cells starting with = + - @ get a leading `'` (formula injection). Digits-only values can't trigger it.
+    static func csvField(_ s: String, text: Bool = false) -> String {
+        var v = s
+        if text && !v.isEmpty && v.allSatisfy(\.isASCII) && v.allSatisfy(\.isNumber) {
+            v = "=\"" + v + "\""
+        } else if let f = v.unicodeScalars.first, "=+-@".unicodeScalars.contains(f) {
+            v = "'" + v
+        }
+        // unicodeScalars, not Characters: "\r\n" is a single Character that equals neither "\r" nor "\n".
+        return v.unicodeScalars.contains(where: { "\",\n\r".unicodeScalars.contains($0) })
+            ? "\"" + v.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : v
     }
 
     /// UTF-8 with BOM so Excel opens Chinese correctly (A9). One row per cargo item.
     static func csv(_ orders: [InboundOrder]) -> Data {
-        var lines = [csvColumns.map(csvField).joined(separator: ",")]
+        var lines = [csvColumns.map { csvField($0) }.joined(separator: ",")]
         for o in orders {
             let c = o.customer
             for i in sortedItems(o) {
-                let row = [o.orderNo, timeFormatter.string(from: o.receivedAt), c?.code ?? "", c?.name ?? "", c?.contact ?? "", c?.phone ?? "",
-                           o.operatorName, i.name, i.lengthCm.trimmed, i.widthCm.trimmed, i.heightCm.trimmed, String(i.quantity),
-                           i.unitVolumeM3.m3, i.totalVolumeM3.m3, i.weightKg?.trimmed ?? "", i.methodLabel,
-                           i.photoFiles.joined(separator: ";"), o.note]
-                lines.append(row.map(csvField).joined(separator: ","))
+                // Volumes at 4 decimals in CSV so small items aren't 0.000.
+                let row: [String] = [o.orderNo, timeFormatter.string(from: o.receivedAt), c?.code ?? "", c?.name ?? "", c?.contact ?? "", c?.phone ?? "",
+                           o.operatorName, i?.name ?? "", i?.lengthCm.cm ?? "", i?.widthCm.cm ?? "", i?.heightCm.cm ?? "", i.map { String($0.quantity) } ?? "",
+                           i?.unitVolumeM3.fixed(4) ?? "", i?.totalVolumeM3.fixed(4) ?? "", i?.weightKg?.kg ?? "", i?.methodLabel ?? "",
+                           i?.photoFiles.joined(separator: ";") ?? "", o.note]
+                lines.append(row.enumerated().map { csvField($1, text: $0 == 2 || $0 == 5) }.joined(separator: ","))
             }
         }
         return Data("\u{FEFF}".utf8) + Data((lines.joined(separator: "\r\n") + "\r\n").utf8)
@@ -74,7 +88,8 @@ enum Exporter {
         let small = [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 8)]
         let bold = [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 8)]
         let s = Summary(orders)
-        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
+        let df = DateFormatter()
+        df.calendar = Calendar(identifier: .gregorian); df.locale = Locale(identifier: "en_US_POSIX"); df.dateFormat = "yyyy-MM-dd"
 
         try UIGraphicsPDFRenderer(bounds: page).writePDF(to: url) { ctx in
             var y: CGFloat = 0
@@ -89,7 +104,7 @@ enum Exporter {
             ("入库报表" as NSString).draw(at: CGPoint(x: margin, y: y), withAttributes: [.font: UIFont.boldSystemFont(ofSize: 20)])
             y += 30
             let info = "日期：\(df.string(from: from)) 至 \(df.string(from: to))    客户：\(customerName ?? "全部")\n"
-                + "入库单 \(s.orders) 张 · 件数 \(s.pieces) · 总体积 \(s.volumeM3.m3) m³ · 总重量 \(s.weightKg.trimmed) kg"
+                + "入库单 \(s.orders) 张 · 件数 \(s.pieces) · 总体积 \(s.volumeM3.m3) m³ · 总重量 \(s.weightKg.kg) kg"
             (info as NSString).draw(in: CGRect(x: margin, y: y, width: page.width - 2 * margin, height: 32),
                                     withAttributes: [.font: UIFont.systemFont(ofSize: 11)])
             y += 40
@@ -97,14 +112,14 @@ enum Exporter {
             for o in orders {
                 for i in sortedItems(o) {
                     if y + rowH > page.height - margin { ctx.beginPage(); y = margin; header() }
-                    let vals = [o.orderNo, o.customer?.name ?? "", i.name,
-                                "\(i.lengthCm.trimmed)×\(i.widthCm.trimmed)×\(i.heightCm.trimmed)", "\(i.quantity)",
-                                i.totalVolumeM3.m3, i.weightKg?.trimmed ?? "", i.methodLabel]
+                    let dims: String = i.map { "\($0.lengthCm.cm)×\($0.widthCm.cm)×\($0.heightCm.cm)" } ?? ""
+                    let vals: [String] = [o.orderNo, o.customer?.name ?? "", i?.name ?? "", dims, i.map { String($0.quantity) } ?? "",
+                                i?.totalVolumeM3.m3 ?? "", i?.weightKg?.kg ?? "", i?.methodLabel ?? ""]
                     var x = margin
                     for (v, (_, w)) in zip(vals, cols) {
                         (v as NSString).draw(in: CGRect(x: x, y: y + 2, width: w - 4, height: rowH - 4), withAttributes: small); x += w
                     }
-                    if let f = i.photoFiles.first, let img = PhotoStore.thumbnail(f, side: thumb * 2) {
+                    if let f = i?.photoFiles.first, let img = PhotoStore.thumbnail(f, side: 300) {
                         let r = AVMakeRect(aspectRatio: img.size, insideRect: CGRect(x: x, y: y + 2, width: thumb, height: thumb))
                         img.draw(in: r)
                     }
@@ -125,13 +140,16 @@ enum Exporter {
         try? fm.removeItem(at: staging)
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
         defer { try? fm.removeItem(at: staging) }
+        var any = false
         for o in orders {
             let files = o.items.flatMap(\.photoFiles).filter { fm.fileExists(atPath: PhotoStore.url($0).path) }
             guard !files.isEmpty else { continue }
             let dir = staging.appending(path: o.orderNo, directoryHint: .isDirectory)
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
             for f in files { try fm.copyItem(at: PhotoStore.url(f), to: dir.appending(path: f)) }
+            any = true
         }
+        guard any else { throw NSError(domain: "Exporter", code: 1, userInfo: [NSLocalizedDescriptionKey: "所选范围内没有照片"]) }
         let dest = try outputURL(base + ".zip")
         var coordError: NSError?, copyError: Error?
         NSFileCoordinator().coordinate(readingItemAt: staging, options: .forUploading, error: &coordError) { zipURL in

@@ -37,13 +37,12 @@ import SwiftData
 
     /// A8: RK + yyyyMMdd + "-" + 3-digit sequence within the day of `receivedAt`.
     /// Uses max existing suffix + 1 (not count) so deleting an earlier order never reissues a live number.
+    /// Matches on the orderNo prefix, not the receivedAt range: receivedAt is editable after issue, and a reused
+    /// number would make the `.unique` orderNo upsert (silently overwrite) the older order.
     static func nextOrderNo(for receivedAt: Date, in context: ModelContext) throws -> String {
-        let cal = Calendar.current
-        let start = cal.startOfDay(for: receivedAt)
-        let end = cal.date(byAdding: .day, value: 1, to: start)!
-        let prefix = "RK" + dayFormatter.string(from: start) + "-"
-        let sameDay = try context.fetch(FetchDescriptor<InboundOrder>(predicate: #Predicate { $0.receivedAt >= start && $0.receivedAt < end }))
-        let maxSeq = sameDay.compactMap { $0.orderNo.hasPrefix(prefix) ? Int($0.orderNo.dropFirst(prefix.count)) : nil }.max() ?? 0
+        let prefix = "RK" + dayFormatter.string(from: receivedAt) + "-"
+        let sameDay = try context.fetch(FetchDescriptor<InboundOrder>(predicate: #Predicate { $0.orderNo.starts(with: prefix) }))
+        let maxSeq = sameDay.compactMap { Int($0.orderNo.dropFirst(prefix.count)) }.max() ?? 0
         return prefix + String(format: "%03d", maxSeq + 1)
     }
 
@@ -83,22 +82,30 @@ import SwiftData
     static func volumeM3(_ l: Double, _ w: Double, _ h: Double) -> Double { l * w * h / 1_000_000 }
 }
 
-/// A6: snapshot photo names before the cascade clears items, then remove files.
-func deleteOrder(_ order: InboundOrder, in context: ModelContext) {
+/// A6: snapshot photo names before the cascade clears items; remove files only once the delete is saved.
+/// On failure the pending delete is rolled back so a later autosave can't commit it and orphan the files.
+func deleteOrder(_ order: InboundOrder, in context: ModelContext) throws {
     let files = order.items.flatMap(\.photoFiles)
     context.delete(order)
-    try? context.save()
+    do { try context.save() } catch { context.rollback(); throw error }
     PhotoStore.delete(files)
 }
 
-func deleteItem(_ item: CargoItem, in context: ModelContext) {
+func deleteItem(_ item: CargoItem, in context: ModelContext) throws {
     let files = item.photoFiles
     context.delete(item)
-    try? context.save()
+    do { try context.save() } catch { context.rollback(); throw error }
     PhotoStore.delete(files)
 }
 
 extension Double {
     var m3: String { String(format: "%.3f", self) }
-    var trimmed: String { String(format: "%g", self) }
+    var cm: String { fixed(1) }
+    var kg: String { fixed(2) }
+    /// `digits` decimals, trailing zeros trimmed; String(format:) is locale-independent ("." decimal).
+    func fixed(_ digits: Int) -> String {
+        var s = String(format: "%.\(digits)f", self)
+        if s.contains(".") { while s.hasSuffix("0") { s.removeLast() }; if s.hasSuffix(".") { s.removeLast() } }
+        return s == "-0" ? "0" : s
+    }
 }

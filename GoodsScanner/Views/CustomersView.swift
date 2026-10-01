@@ -96,14 +96,19 @@ struct CustomerForm: View {
     }
 
     private func save() {
-        let c = code.trimmingCharacters(in: .whitespaces), n = name.trimmingCharacters(in: .whitespaces)
+        func t(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
+        let c = t(code), n = t(name)
         guard !c.isEmpty, !n.isEmpty else { error = "客户代码和名称必填"; return }
-        let dupes = (try? context.fetch(FetchDescriptor<Customer>(predicate: #Predicate { $0.code == c }))) ?? []
-        if dupes.contains(where: { $0.persistentModelID != customer?.persistentModelID }) { error = "客户代码「\(c)」已存在"; return }
+        // Case-insensitive + trimmed: `.unique` would otherwise upsert (silently overwrite) on an exact clash,
+        // and "c001"/"C001" would both be allowed. Customer counts are small, so compare in memory.
+        guard let all = try? context.fetch(FetchDescriptor<Customer>()) else { error = "读取客户失败，请重试"; return }
+        if all.contains(where: { t($0.code).caseInsensitiveCompare(c) == .orderedSame && $0.persistentModelID != customer?.persistentModelID }) {
+            error = "客户代码「\(c)」已存在"; return
+        }
         let target = customer ?? Customer(code: c, name: n)
         if customer == nil { context.insert(target) }
-        target.code = c; target.name = n; target.contact = contact; target.phone = phone; target.address = address; target.note = note
-        try? context.save()
+        target.code = c; target.name = n; target.contact = t(contact); target.phone = t(phone); target.address = t(address); target.note = t(note)
+        do { try context.save() } catch { context.rollback(); self.error = "保存失败：\(error.localizedDescription)"; return }
         dismiss()
     }
 }
