@@ -6,6 +6,9 @@ struct OrdersView: View {
     @Query(sort: \InboundOrder.receivedAt, order: .reverse) private var orders: [InboundOrder]
     @State private var search = ""
     @State private var creating = false
+    @State private var path: [InboundOrder] = []
+    /// Set by the new-order form; pushed once the sheet has fully dismissed.
+    @State private var created: InboundOrder?
     @State private var confirmDelete: InboundOrder?
     @State private var deleteError: String?
 
@@ -21,7 +24,7 @@ struct OrdersView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 ForEach(groups, id: \.day) { g in
                     Section(g.day.formatted(.dateTime.year().month().day().weekday())) {
@@ -37,7 +40,7 @@ struct OrdersView: View {
             .navigationTitle("入库单")
             .navigationDestination(for: InboundOrder.self) { o in OrderDetailView(order: o) { delete(o) } }
             .toolbar { Button { creating = true } label: { Image(systemName: "plus") } }
-            .sheet(isPresented: $creating) { OrderForm(order: nil) }
+            .sheet(isPresented: $creating, onDismiss: { if let o = created { created = nil; path = [o] } }) { OrderForm(order: nil) { created = $0 } }
             .confirmationDialog("删除入库单及其全部货物和照片？", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
                                 titleVisibility: .visible, presenting: confirmDelete) { o in
                 Button("删除", role: .destructive) { delete(o) }
@@ -153,14 +156,17 @@ struct OrderForm: View {
     @Query(sort: \Customer.code) private var customers: [Customer]
     @AppStorage("defaultOperator") private var defaultOperator = ""
     let order: InboundOrder?
+    /// Called after a NEW order is saved (not on edit).
+    let onCreated: (InboundOrder) -> Void
     @State private var customer: Customer?
     @State private var receivedAt: Date
     @State private var operatorName: String?
     @State private var note: String
     @State private var error: String?
 
-    init(order: InboundOrder?) {
+    init(order: InboundOrder?, onCreated: @escaping (InboundOrder) -> Void = { _ in }) {
         self.order = order
+        self.onCreated = onCreated
         _customer = State(initialValue: order?.customer)
         _receivedAt = State(initialValue: order?.receivedAt ?? .now)
         _operatorName = State(initialValue: order?.operatorName)
@@ -194,16 +200,19 @@ struct OrderForm: View {
         guard let customer else { error = "请选择客户"; return }
         let op = (operatorName ?? defaultOperator).trimmingCharacters(in: .whitespaces)
         let note = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        var new: InboundOrder?
         if let order {
             // Order number is issued once at creation and never regenerated, even if receivedAt changes.
             order.customer = customer; order.receivedAt = receivedAt; order.operatorName = op; order.note = note
         } else {
             do {
                 let no = try InboundOrder.nextOrderNo(for: receivedAt, in: context)
-                context.insert(InboundOrder(orderNo: no, customer: customer, receivedAt: receivedAt, operatorName: op, note: note))
+                new = InboundOrder(orderNo: no, customer: customer, receivedAt: receivedAt, operatorName: op, note: note)
+                context.insert(new!)
             } catch { self.error = "生成单号失败：\(error.localizedDescription)"; return }
         }
         do { try context.save() } catch { context.rollback(); self.error = "保存失败：\(error.localizedDescription)"; return }
+        if let new { onCreated(new) }
         dismiss()
     }
 }

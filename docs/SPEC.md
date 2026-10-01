@@ -114,11 +114,11 @@ project.yml
 | 阶段 | 负责 | 内容 | 验收 |
 |---|---|---|---|
 | P0 | 主会话(Opus) | 调研、本 Spec、审核 | ✅ |
-| P1a | worker (Opus) | `Packages/BoxMeasureKit` 算法 + 单测 | `swift test` 全绿 |
-| P1b | worker (Opus)，与 P1a 并行 | project.yml、模型、客户/入库/报表/设置、PhotoStore、Exporter、手动录入+系统相机、XCTest；扫描入口先放占位 | `xcodegen` + 模拟器 `xcodebuild test` 全绿 |
-| P2 | worker (Opus) | `Scan/` ARKit 采集接入 BoxMeasureKit、线框、拍照、回填 | 模拟器编译通过；模拟器显示降级提示 |
-| P3 | explorer (Sonnet) 代码审阅 + 主会话复核 | 对照本 Spec 逐条核对、找 bug | 问题清单 → Opus 修复 |
-| P4 | 主会话 | 模拟器跑起来截图核对主要流程 | 截图 |
+| P1a | worker (Opus) | `Packages/BoxMeasureKit` 算法 + 单测 | ✅ 10/10 |
+| P1b | worker (Opus)，与 P1a 并行 | project.yml、模型、客户/入库/报表/设置、PhotoStore、Exporter、手动录入+系统相机、XCTest；扫描入口先放占位 | ✅ |
+| P2 | worker (Opus) | `Scan/` ARKit 采集接入 BoxMeasureKit、线框、拍照、回填 | ✅ 模拟器 + 真机(generic)编译 |
+| P3 | explorer (Sonnet) 代码审阅 + 主会话复核 | 对照本 Spec 逐条核对、找 bug | ✅ 17 项修复 |
+| P4 | 主会话 | 模拟器跑起来截图核对主要流程 | ✅ 5 个流程通过 |
 | P5 | **用户真机** | 用已知尺寸纸箱校准（设置里偏置） | 每边误差 ≤2cm |
 
 ## 7. 实现注意

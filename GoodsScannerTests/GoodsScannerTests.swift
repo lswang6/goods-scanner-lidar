@@ -117,6 +117,30 @@ final class GoodsScannerTests: XCTestCase {
         XCTAssertTrue(text.hasSuffix("\r\nRK20261001-001,2026-10-01 10:00,,,,,,,,,,,,,,,,\r\n"), text)
     }
 
+    func testPDFExportMultiPage() throws {
+        let a = Customer(code: "C001", name: "甲公司"), b = Customer(code: "C002", name: "乙公司")
+        [a, b].forEach { context.insert($0) }
+        var orders: [InboundOrder] = []
+        for (n, c) in [a, b, a, b].enumerated() {
+            let o = try addOrder(date(2026, 10, 1 + n))
+            o.customer = c
+            orders.append(o)
+        }
+        // orders[3] stays empty; 30 item rows (~15 fit per page) force a second page.
+        for k in 0..<30 {
+            let i = CargoItem(name: "箱\(k)", lengthCm: 40, widthCm: 30, heightCm: 20, quantity: 2, weightKg: 5,
+                              photoFiles: ["missing.jpg"], method: k.isMultiple(of: 2) ? "lidar" : "manual")
+            context.insert(i); i.order = orders[k % 3]
+        }
+        try context.save()
+
+        let url = try Exporter.writePDF(orders, from: date(2026, 10, 1), to: date(2026, 10, 31), customerName: nil)
+        let data = try Data(contentsOf: url)
+        XCTAssertEqual(data.prefix(4), Data("%PDF".utf8))
+        let pages = try XCTUnwrap(CGPDFDocument(url as CFURL)).numberOfPages
+        XCTAssertGreaterThanOrEqual(pages, 2)
+    }
+
     func testFileName() {
         XCTAssertEqual(Exporter.fileName(date(2026, 10, 1), date(2026, 10, 31), ext: "csv"), "入库报表_20261001-20261031.csv")
     }

@@ -22,9 +22,11 @@ struct SettingsView: View {
                         TextField("0", value: $calibrationOffsetCm, format: .number)
                             .keyboardType(.numbersAndPunctuation).multilineTextAlignment(.trailing)
                     }
-                    LabeledContent("LiDAR", value: lidarAvailable ? "可用" : "不可用（手动录入）")
                 } header: { Text("测量校准") } footer: {
                     Text("用已知尺寸的纸箱扫描，若每边偏大 1cm 则填 1。正数表示扣减。")
+                }
+                Section {
+                    LabeledContent("LiDAR", value: lidarAvailable ? "可用" : "不可用（手动录入）")
                 }
                 Section("关于") {
                     LabeledContent("版本", value: version)

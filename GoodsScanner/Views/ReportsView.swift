@@ -11,6 +11,7 @@ struct ReportsView: View {
     @State private var customerID: PersistentIdentifier?
     @State private var share: ShareFile?
     @State private var error: String?
+    @State private var errorTitle = "导出失败"
     @State private var exporting = false
 
     private var to: Date { pickedTo ?? .now }
@@ -65,7 +66,7 @@ struct ReportsView: View {
             .overlay { if exporting { ProgressView("正在导出…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12)) } }
             .navigationTitle("报表")
             .sheet(item: $share) { ActivityView(items: [$0.url]) }
-            .alert("导出失败", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            .alert(errorTitle, isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("好", role: .cancel) {}
             } message: { Text(error ?? "") }
         }
@@ -77,7 +78,11 @@ struct ReportsView: View {
         exporting = true
         Task {
             try? await Task.sleep(for: .milliseconds(100))
-            do { share = ShareFile(url: try make()) } catch { self.error = error.localizedDescription }
+            do { share = ShareFile(url: try make()) } catch {
+                let e = error as NSError
+                errorTitle = e.domain == "Exporter" && e.code == 1 ? "无可导出内容" : "导出失败"  // code 1 = no photos
+                self.error = e.localizedDescription
+            }
             exporting = false
         }
     }
