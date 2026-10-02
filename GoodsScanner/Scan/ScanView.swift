@@ -27,7 +27,9 @@ private struct ARScanScreen: View {
     @AppStorage("calibrationOffsetCm") private var offsetCm = 0.0
     @Environment(\.dismiss) private var dismiss
     @State private var delivered = false
-    @State private var orbitHint = false
+    @State private var ringCenter: CGPoint?
+    @State private var tickShots = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("debugMode") private var debugMode = false
     @State private var review: Review?
 
@@ -46,10 +48,8 @@ private struct ARScanScreen: View {
     var body: some View {
         ZStack {
             ARContainer(view: scan.view).ignoresSafeArea()
-            if scan.phase == .aim {
-                Image(systemName: "plus").font(.system(size: 36, weight: .thin)).foregroundStyle(.white).shadow(radius: 2)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity).ignoresSafeArea()  // screen center == depth-map center
-            }
+            ScanGuidance(phase: scan.phase, surface: scan.aimSurface, progress: scan.lockProgress, ringCenter: ringCenter)
+                .frame(maxWidth: .infinity, maxHeight: .infinity).ignoresSafeArea()  // screen center == depth-map center
             VStack(spacing: 12) {
                 statusCapsule
                 if debugMode {
@@ -57,18 +57,12 @@ private struct ARScanScreen: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 Spacer()
-                if scan.phase == .aim {
-                    guide("ScanAim", "对准箱顶或侧面，保持 1 秒")
-                } else if orbitHint && scan.phase == .scan && coveredCount <= 1 {  // lock already covers 1 sector
-                    guide("ScanOrbit", "绕箱子走一圈")
-                }
                 bottomCard
             }
             .padding(16)
-            .animation(.easeInOut(duration: 0.3), value: scan.phase)
-            .animation(.easeInOut(duration: 0.3), value: orbitHint)
-            .animation(.easeInOut(duration: 0.3), value: coveredCount <= 1)
         }
+        .coordinateSpace(name: ScanGuidance.space)
+        .onPreferenceChange(RingCenterKey.self) { ringCenter = $0 }
         .environment(\.colorScheme, .dark)  // HUD over camera feed
         .onAppear { scan.debug = debugMode; scan.start() }
         .sheet(item: $review) { r in
@@ -77,12 +71,17 @@ private struct ARScanScreen: View {
                            onRescan: { review = nil; delivered = false; scan.reset() })
         }
         .onDisappear { scan.pause() }
-        .onChange(of: scan.phase) { _, p in if p == .done { deliver() } }
         .task(id: scan.phase) {
-            guard scan.phase == .scan else { orbitHint = false; return }
-            orbitHint = true
-            try? await Task.sleep(for: .seconds(3))
-            orbitHint = false
+            // Auto-finish: let SectorRing's completion sweep + ✓ play before delivering.
+            guard scan.phase == .done, await pause(reduceMotion ? 0.4 : 1.1) else { return }
+            deliver()
+        }
+        // Light tick per newly covered sector, except at the lock (success haptic) and when a C1 photo
+        // (own haptic) fired for it: takeShot is enqueued on main before the sectors publish.
+        .onChange(of: coveredCount) { old, new in
+            defer { tickShots = scan.shots.count }
+            guard new > old, old > 0, scan.phase == .scan, scan.shots.count == tickShots else { return }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
     }
 
@@ -101,21 +100,14 @@ private struct ARScanScreen: View {
         .background(.ultraThinMaterial, in: Capsule())
     }
 
-    private func guide(_ image: String, _ text: String) -> some View {
-        HStack(spacing: 12) {
-            Image(image).resizable().scaledToFit().frame(width: 72, height: 56)
-            Text(text).font(.subheadline.weight(.semibold))
-            Spacer(minLength: 0)
-        }
-        .padding(12)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .transition(.opacity)
-    }
-
     private var bottomCard: some View {
         VStack(spacing: 12) {
             HStack(spacing: 16) {
-                SectorRing(covered: scan.sectors)
+                SectorRing(covered: scan.sectors, done: scan.phase == .done)
+                    .background(GeometryReader { g in
+                        let f = g.frame(in: .named(ScanGuidance.space))
+                        Color.clear.preference(key: RingCenterKey.self, value: CGPoint(x: f.midX, y: f.midY))
+                    })
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Text(scan.median?.shape == .cylinder ? "直径 × 高" : "长 × 宽 × 高").font(.caption).foregroundStyle(.secondary)
@@ -178,25 +170,6 @@ private struct ARScanScreen: View {
             let id = review?.id
             ScanLogStore.save(cap, delivered: r) { ok in if ok, review?.id == id { review?.saved = true } }
         }
-    }
-}
-
-/// 12 arc segments, one per 30° azimuth sector around the box (not rotated to the camera heading).
-private struct SectorRing: View {
-    let covered: [Bool]
-    var body: some View {
-        ZStack {
-            ZStack {
-                ForEach(covered.indices, id: \.self) { i in
-                    let n = CGFloat(covered.count)
-                    Circle().trim(from: (CGFloat(i) + 0.08) / n, to: (CGFloat(i) + 0.92) / n)
-                        .stroke(covered[i] ? Color.scan : Color.secondary.opacity(0.35), lineWidth: 6)
-                }
-            }
-            .rotationEffect(.degrees(-90))
-            Text("\(covered.filter { $0 }.count)/\(covered.count)").font(.num(.caption2))
-        }
-        .frame(width: 60, height: 60)
     }
 }
 
