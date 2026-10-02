@@ -6,24 +6,22 @@ import XCTest
 /// Cylinder: max diameter 26.0 (lid rim, 2-3 cm tall, ~1.5 cm proud of a ~23 cm body), H 25.5.
 /// Big box: rigid 40x30x30.
 ///
-/// Known instrument artifact (scratchpad analysis 2026-10-02): fused LiDAR vertical walls bow ~1-1.3 cm per
-/// side outward at mid-height, anchored at the floor and top edges (big box cores 40.3x31.5 bottom,
-/// 42.8x33.5 mid, 39.3x30.8 top; even the gift box's 7 cm end panels: L cores 35.5 -> 37.5 -> 35.0).
-/// Max extent measures the bow, so big box and some gift-box L readings miss the tape. The cylinder's sparse
-/// lid rim is cut by the column-support/trim filters that remove gift-box edge bleed. Both are open: the
-/// strict targets are `XCTExpectFailure` so this test flags when a fix lands; the plain asserts guard against
-/// regressions from today's numbers.
+/// SPEC §13 (user decision): walls bow ~1-1.3 cm per side at mid-height (big box cores 40.3x31.5 bottom,
+/// 42.8x33.5 mid; gift box L cores 35.5 -> 37.5) and that belly counts under max extent. The cylinder is
+/// detected (E1) and measured by full-ring height bands (E2), so its lid rim (Ø26 over a ~22.5 body) counts.
 final class DeviceLogTests: XCTestCase {
-    struct Case { let name: String; let l, w, h: Float; let guardL, guardW, guardH: Float; let strict: Bool; let wMax: Float? }
-    // guard* = today's value +/- slack (regression); l/w/h = truth targets (strict = expected to pass now).
+    struct Case { let name: String; let l, w, h: Float; let guardL, guardW, guardH: Float; let shape: ShapeKind; let lMax: Float?; let wMax: Float? }
+    // guard* = today's replay (regression, +/-1 cm); l/w/h = truth targets (lMax: gift-box bow accepted, L 35.5-38).
     static let cases: [Case] = [
         // old cap build, back face missing: L/H only meaningful, W loose
-        Case(name: "20261002-103302", l: 0.355, w: 0.07, h: 0.40, guardL: 0.360, guardW: 0.070, guardH: 0.392, strict: true, wMax: 0.10),
-        Case(name: "20261002-110405", l: 0.355, w: 0.07, h: 0.40, guardL: 0.366, guardW: 0.100, guardH: 0.394, strict: true, wMax: 0.105),
-        Case(name: "20261002-110433", l: 0.355, w: 0.07, h: 0.40, guardL: 0.354, guardW: 0.096, guardH: 0.393, strict: true, wMax: 0.105),
-        Case(name: "20261002-113419", l: 0.355, w: 0.07, h: 0.40, guardL: 0.380, guardW: 0.105, guardH: 0.392, strict: false, wMax: 0.105),
-        Case(name: "20261002-113528", l: 0.26, w: 0.26, h: 0.255, guardL: 0.232, guardW: 0.226, guardH: 0.265, strict: false, wMax: nil),
-        Case(name: "20261002-113611", l: 0.40, w: 0.30, h: 0.30, guardL: 0.429, guardW: 0.342, guardH: 0.315, strict: false, wMax: nil),
+        Case(name: "20261002-103302", l: 0.355, w: 0.07, h: 0.40, guardL: 0.360, guardW: 0.070, guardH: 0.392, shape: .box, lMax: 0.38, wMax: 0.10),
+        Case(name: "20261002-110405", l: 0.355, w: 0.07, h: 0.40, guardL: 0.366, guardW: 0.100, guardH: 0.394, shape: .box, lMax: 0.38, wMax: 0.105),
+        Case(name: "20261002-110433", l: 0.355, w: 0.07, h: 0.40, guardL: 0.354, guardW: 0.096, guardH: 0.393, shape: .box, lMax: 0.38, wMax: 0.105),
+        Case(name: "20261002-113419", l: 0.355, w: 0.07, h: 0.40, guardL: 0.380, guardW: 0.105, guardH: 0.392, shape: .box, lMax: 0.38, wMax: 0.105),
+        // SPEC §13: max extent incl. the lid rim; body is ~22.5.
+        Case(name: "20261002-113528", l: 0.26, w: 0.26, h: 0.255, guardL: 0.266, guardW: 0.266, guardH: 0.265, shape: .cylinder, lMax: nil, wMax: nil),
+        // SPEC §13 E5: the bulge is real; max-extent belly reading.
+        Case(name: "20261002-113611", l: 0.428, w: 0.335, h: 0.315, guardL: 0.429, guardW: 0.342, guardH: 0.315, shape: .box, lMax: nil, wMax: nil),
     ]
 
     func testDeviceLogs() throws {
@@ -38,13 +36,12 @@ final class DeviceLogTests: XCTestCase {
             XCTAssertEqual(e.length, c.guardL, accuracy: 0.01, "L guard \(c.name)")
             XCTAssertEqual(e.width, c.guardW, accuracy: 0.01, "W guard \(c.name)")
             XCTAssertEqual(e.height, c.guardH, accuracy: 0.01, "H guard \(c.name)")
-            let target = {
-                XCTAssertEqual(e.length, c.l, accuracy: 0.015, "L target \(c.name)")
-                if let wMax = c.wMax { XCTAssertTrue(e.width >= c.w - 0.005 && e.width <= wMax, "W target \(c.name)") }
-                else { XCTAssertEqual(e.width, c.w, accuracy: 0.015, "W target \(c.name)") }
-                XCTAssertEqual(e.height, c.h, accuracy: 0.015, "H target \(c.name)")
-            }
-            if c.strict { target() } else { XCTExpectFailure("open: mid-height wall bow / cylinder rim (see type doc)", failingBlock: target) }
+            XCTAssertEqual(e.shape, c.shape, "shape \(c.name)")
+            if let lMax = c.lMax { XCTAssertTrue(e.length >= c.l - 0.005 && e.length <= lMax, "L target \(c.name)") }
+            else { XCTAssertEqual(e.length, c.l, accuracy: 0.015, "L target \(c.name)") }
+            if let wMax = c.wMax { XCTAssertTrue(e.width >= c.w - 0.005 && e.width <= wMax, "W target \(c.name)") }
+            else { XCTAssertEqual(e.width, c.w, accuracy: 0.015, "W target \(c.name)") }
+            XCTAssertEqual(e.height, c.h, accuracy: 0.015, "H target \(c.name)")
         }
     }
 }

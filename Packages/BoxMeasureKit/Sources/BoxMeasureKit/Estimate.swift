@@ -161,9 +161,98 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params, collect
     // rect angle is atan2(dz, dx) in (x, z); right-handed yaw about +y is its negation.
     var yaw = -rect.angle
     if yaw <= -.pi / 2 { yaw += .pi }
-    return (BoxEstimate(length: l, width: w, height: height,
+    var e = BoxEstimate(length: l, width: w, height: height,
                         center: SIMD3(rect.center.x, planeY, rect.center.y),
-                        yaw: yaw, planeY: planeY, pointCount: compPts.count), d)
+                        yaw: yaw, planeY: planeY, pointCount: compPts.count)
+    if p.detectShape && useMaxExtent, let f = shapeFeatures(compPts, planeY: planeY, height: height, rect: rect) {
+        e.shape = classify(f)
+        if e.shape == .cylinder, let dia = cylinderDiameter(compPts, center: f.center, planeY: planeY, p), dia <= p.maxBoxSize {
+            e.length = dia; e.width = dia; e.yaw = 0
+            e.center = SIMD3(f.center.x, planeY, f.center.y)
+        } else if e.shape == .cylinder { e.shape = .box }
+    }
+    return (e, d)
+}
+
+// MARK: - SPEC §13 shape detection
+
+/// Mid-height (planeY + 2 cm ... top - 2 cm) points of the object, which excludes floor noise and the top
+/// surface / its edge bleed. `circle` / `rect` = median distance to a robust circle fit / to the footprint
+/// rectangle's outline, both divided by the rectangle's half-size sqrt(L/2 * W/2). `coverage` = fraction of
+/// 36 x 10° sectors around the circle center holding >= 3 points.
+struct ShapeFeatures { var circle: Float; var rect: Float; var coverage: Float; var center: SIMD2<Float>; var radius: Float }
+
+func shapeFeatures(_ pts: [SIMD3<Float>], planeY: Float, height: Float, rect: (center: SIMD2<Float>, size: SIMD2<Float>, angle: Float)) -> ShapeFeatures? {
+    let lo = planeY + 0.02, hi = planeY + height - 0.02
+    let xz = pts.filter { $0.y > lo && $0.y < hi }.map { SIMD2($0.x, $0.z) }
+    guard xz.count >= 50, rect.size.y > 0 else { return nil }
+    guard var (c, r) = kasaCircle(xz) else { return nil }
+    // One robust refit: drop points beyond 3 x median residual + 2 mm (e.g. a rim or a handle).
+    var res = xz.map { abs(simd_distance($0, c) - r) }
+    let cut = 3 * medianOf(res) + 0.002
+    if let fit = kasaCircle(xz.indices.filter { res[$0] < cut }.map { xz[$0] }) { (c, r) = fit }
+    res = xz.map { abs(simd_distance($0, c) - r) }
+    let u = SIMD2<Float>(cos(rect.angle), sin(rect.angle)), v = SIMD2<Float>(-u.y, u.x)
+    let a = rect.size.x / 2, b = rect.size.y / 2, half = (a * b).squareRoot()
+    let rres = xz.map { q -> Float in
+        let d = q - rect.center
+        return min(abs(a - abs(simd_dot(d, u))), abs(b - abs(simd_dot(d, v))))
+    }
+    var sectors = [Int](repeating: 0, count: 36)
+    for q in xz { sectors[sectorIndex(q - c)] += 1 }
+    return ShapeFeatures(circle: medianOf(res) / half, rect: medianOf(rres) / half,
+                         coverage: Float(sectors.filter { $0 >= 3 }.count) / 36, center: c, radius: r)
+}
+
+@inline(__always) func sectorIndex(_ d: SIMD2<Float>) -> Int {
+    min(35, max(0, Int((atan2(d.y, d.x) + .pi) / (2 * .pi) * 36)))
+}
+
+/// Thresholds (device logs 2026-10-02, 11 scans): cylinder circle 0.034 / rect 0.126; boxes circle >= 0.125
+/// and circle/rect >= 1.3. Cylinder: circle < 0.06, circle < 0.5 x rect, coverage >= 0.75 (a full round
+/// wall, not an arc). Irregular: neither fits (both > 0.3). Else box.
+func classify(_ f: ShapeFeatures) -> ShapeKind {
+    if f.circle < 0.06 && f.circle < 0.5 * f.rect && f.coverage >= 0.75 { return .cylinder }
+    if f.circle > 0.3 && f.rect > 0.3 { return .irregular }
+    return .box
+}
+
+/// Algebraic (Kasa) least-squares circle in Double.
+func kasaCircle(_ pts: [SIMD2<Float>]) -> (SIMD2<Float>, Float)? {
+    guard pts.count >= 3 else { return nil }
+    let o = pts.reduce(.zero, +) / Float(pts.count)   // center the data for conditioning
+    var m = simd_double3x3(), rhs = SIMD3<Double>.zero
+    for q in pts {
+        let x = Double(q.x - o.x), z = Double(q.y - o.y), row = SIMD3(2 * x, 2 * z, 1)
+        m += simd_double3x3(rows: [row * row.x, row * row.y, row * row.z])
+        rhs += row * (x * x + z * z)
+    }
+    guard abs(m.determinant) > 1e-18 else { return nil }
+    let s = m.inverse * rhs
+    let r2 = s.z + s.x * s.x + s.y * s.y
+    guard r2 > 0 else { return nil }
+    return (o + SIMD2(Float(s.x), Float(s.y)), Float(r2.squareRoot()))
+}
+
+/// SPEC §13 E2: max over 1 cm height bands of the band's p90 radius about the axis, only for bands that go
+/// all the way round (>= 60 % of 36 sectors with >= 2 points, >= 50 points): a lid rim is a full ring and
+/// counts, edge bleed is patchy and does not. Bands start `cylinderBase` above the plane: glossy-floor
+/// noise forms a full ring around the base too (device log 113528: p95 14 cm at h 1-4 cm vs 13.3 rim).
+/// ponytail: fixed base offset; estimate it from the floor's noise if low flanges on matte floors matter.
+func cylinderDiameter(_ pts: [SIMD3<Float>], center c: SIMD2<Float>, planeY: Float, _ p: Params) -> Float? {
+    var bands: [Int: [SIMD2<Float>]] = [:]
+    let lo = planeY + p.cylinderBase
+    for q in pts where q.y >= lo { bands[Int(((q.y - lo) / p.binSize).rounded(.down)), default: []].append(SIMD2(q.x, q.z) - c) }
+    var best: Float?
+    for band in bands.values where band.count >= 50 {
+        var sectors = [Int](repeating: 0, count: 36)
+        for d in band { sectors[sectorIndex(d)] += 1 }
+        guard Float(sectors.filter { $0 >= 2 }.count) / 36 >= 0.6 else { continue }
+        let r = band.map { simd_length($0) }.sorted()
+        let p90 = r[min(r.count - 1, Int(0.9 * Float(r.count - 1)))]
+        best = max(best ?? 0, p90)
+    }
+    return best.map { 2 * $0 }
 }
 
 /// Cells with >= minCellPoints points and >= slabNeighbours occupied (present in `counts`) 8-neighbours.
@@ -310,6 +399,15 @@ func footprintRect(_ pts: [SIMD2<Float>], _ p: Params) -> (center: SIMD2<Float>,
             for x in proj where x >= from && x < to { count[min(n - 1, Int((x - from) / bin))] += 1 }
             let sm = count.indices.map { k in count[max(0, k - 1)...min(n - 1, k + 1)].reduce(0, +) }
             var i = sm.indices.max { sm[$0] < sm[$1] }!
+            // A second, outer wall (a real step / band protruding past the dense wall) wins if it is a local
+            // peak >= 30 % of the main one; a monotonic noise tail never is.
+            let floorCount = Float(sm[i]) * 0.3
+            var j = i + outward
+            while j >= 0 && j < n {
+                let inner = sm[j - outward], outer = j + outward >= 0 && j + outward < n ? sm[j + outward] : 0
+                if Float(sm[j]) >= floorCount && sm[j] > inner && sm[j] >= outer { i = j }
+                j += outward
+            }
             let half = sm[i] / 2
             while i + outward >= 0 && i + outward < n && sm[i + outward] >= half { i += outward }
             return from + Float(i) * bin + (outward > 0 ? bin : 0)

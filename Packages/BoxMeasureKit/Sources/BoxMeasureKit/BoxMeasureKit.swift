@@ -64,6 +64,10 @@ public struct Params: Sendable, Codable {
     /// > 0: after trimming, move each footprint edge to the densest 2.5 mm slab within this distance inside
     /// it (the wall's core, not its noise tail). 0 = off.
     public var wallBand: Float = 0
+    /// SPEC §13: classify box / cylinder / irregular (max-extent path only). Cylinder => L = W = diameter.
+    public var detectShape: Bool = false
+    /// Cylinder diameter bands start this far above the plane (floor noise forms a full ring below).
+    public var cylinderBase: Float = 0.04
     /// SPEC §10 C4 "按最大外形": footprint = minAreaRect over the component's points at ALL heights
     /// (cells with >= slabNeighbours occupied neighbours, then the same trim/refit), height = highest
     /// supported y (see `heightSupport`). false = v2 top-slab footprint + `heightPercentile` height.
@@ -83,7 +87,7 @@ public struct Params: Sendable, Codable {
     /// Footprint = vertically supported cells, 0.75 % trim per side (more cuts into a sparsely seen wall: synthetic 1 m box -2.3 cm at 1 %), no outward margin (device logs 2026-10-02:
     /// top-edge bleed shelves and glossy-floor noise inflated L/W by 7-11 cm). Single-view clouds keep the
     /// defaults: there the top is mostly unsupported by visible walls.
-    public static let fused: Params = { var p = Params(); p.columnBins = 6; p.trimFraction = 0.0075; p.trimMargin = 0; p.wallBand = 0.02; return p }()
+    public static let fused: Params = { var p = Params(); p.columnBins = 6; p.trimFraction = 0.0075; p.trimMargin = 0; p.wallBand = 0.02; p.detectShape = true; return p }()
 }
 
 public enum BoxMeasurer {
@@ -107,6 +111,10 @@ public struct BoxAggregator: Sendable {
     /// center / yaw / planeY / pointCount come from the latest sample.
     public func median() -> BoxEstimate? {
         guard var m = samples.last else { return nil }
+        // Shape: majority over retained samples; ties -> the most recent of the tied shapes.
+        var count: [ShapeKind: Int] = [:]
+        for s in samples { count[s.shape, default: 0] += 1 }
+        m.shape = samples.reversed().map(\.shape).max { count[$0]! < count[$1]! } ?? m.shape
         m.length = medianOf(samples.map(\.length))
         m.width = medianOf(samples.map(\.width))
         m.height = medianOf(samples.map(\.height))
