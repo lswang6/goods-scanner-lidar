@@ -4,7 +4,7 @@ import XCTest
 /// Real iPhone 17 Pro Max walk-around logs (2026-10-02), replayed with `Params.fused`.
 /// Gift box: tape L 35.5, W 7.0 (top edge), H 38 (+~2 cm rope, counted under max extent).
 /// Cylinder: max diameter 26.0 (lid rim, 2-3 cm tall, ~1.5 cm proud of a ~23 cm body), H 25.5.
-/// Big box: rigid 40x30x30.
+/// Big box: rigid 40x30x30. Stool 37x17x25.4. Coffee table 112 (tablecloth overhang) x 50 x 62.
 ///
 /// SPEC §13 (user decision): walls bow ~1-1.3 cm per side at mid-height (big box cores 40.3x31.5 bottom,
 /// 42.8x33.5 mid; gift box L cores 35.5 -> 37.5) and that belly counts under max extent. The cylinder is
@@ -22,18 +22,9 @@ final class DeviceLogTests: XCTestCase {
         Case(name: "20261002-122613", l: 0.428, w: 0.335, h: 0.315, guardL: 0.414, guardW: 0.335, guardH: 0.305, shape: .box, lMax: nil, wMax: nil),
         // Stool 37 x 17 x 25.4.
         Case(name: "20261002-122732", l: 0.37, w: 0.17, h: 0.254, guardL: 0.375, guardW: 0.173, guardH: 0.242, shape: .box, lMax: nil, wMax: nil),
-        // Coffee table, hollow underneath, items on top count. Tape 106 x 50 x 62; the cloud's top is 112-113 long
-        // with dense ends + edge faces (W edges match tape to 1 cm), tilted 2.3 cm end to end over a flat floor:
-        // drift or tape reference, open. L target is checked as an expected failure below.
-        Case(name: "20261002-122824", l: 1.121, w: 0.50, h: 0.62, guardL: 1.121, guardW: 0.497, guardH: 0.631, shape: .box, lMax: nil, wMax: nil),
+        // Coffee table, hollow underneath, items on top count. User re-tape incl. the overhanging tablecloth: 112 x 50 x 62.
+        Case(name: "20261002-122824", l: 1.12, w: 0.50, h: 0.62, guardL: 1.121, guardW: 0.497, guardH: 0.631, shape: .box, lMax: nil, wMax: nil),
     ]
-
-    func testTableLengthOpen() throws {
-        let dir = try XCTUnwrap(Bundle.module.url(forResource: "20261002-122824", withExtension: nil, subdirectory: "Fixtures"))
-        let (pts, log) = try ScanLogIO.read(from: dir)
-        let e = try XCTUnwrap(BoxMeasurer.estimate(points: pts, seed: log.seed, params: Params.fused))
-        XCTExpectFailure("table L reads 112 vs tape 106 (see cases)") { XCTAssertEqual(e.length, 1.06, accuracy: 0.015) }
-    }
 
     func testDeviceLogs() throws {
         for c in Self.cases {
