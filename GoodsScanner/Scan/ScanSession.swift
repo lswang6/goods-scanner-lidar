@@ -390,7 +390,9 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     private func finish(_ latest: BoxEstimate?, _ status: String, event: Event = .none, keepWireframe: Bool = false) {
         // Scan phase reports the fused estimates; until the first one exists, keep the aim result so 完成 works.
         let agg = qPhase != .aim && !scanAgg.samples.isEmpty ? scanAgg : aggregator
-        let med = agg.median(), sp = agg.spread, n = agg.samples.count, phase = qPhase, cov = covered
+        var med = agg.median()
+        med?.shape = Self.majorityShape(agg.samples.map(\.shape))
+        let sp = agg.spread, n = agg.samples.count, phase = qPhase, cov = covered
         var info = dbg
         info.history = Array(agg.samples.suffix(5))
         DispatchQueue.main.async {
@@ -448,6 +450,14 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     }
 
     private static func median(_ v: [Float]) -> Float { v.sorted()[v.count / 2] }
+
+    /// E4: the aggregated result's shape = most frequent among the retained samples (tie -> most recent),
+    /// so one odd estimate doesn't flip the type. Empty -> .box.
+    static func majorityShape(_ s: [ShapeKind]) -> ShapeKind {
+        let counts = Dictionary(s.map { ($0, 1) }, uniquingKeysWith: +)
+        let top = counts.values.max() ?? 0
+        return s.last { counts[$0] == top } ?? .box
+    }
 }
 
 /// Tight copy of a single-plane pixel buffer (honours row padding).

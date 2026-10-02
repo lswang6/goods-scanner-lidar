@@ -11,7 +11,7 @@ struct Summary {
 
 enum Exporter {
     static let csvColumns = ["入库单号", "入库时间", "客户代码", "客户名称", "联系人", "电话", "操作员", "品名", "长cm", "宽cm", "高cm",
-                             "件数", "单件体积m³", "总体积m³", "重量kg", "测量方式", "照片文件", "入库备注"]
+                             "件数", "单件体积m³", "总体积m³", "重量kg", "测量方式", "照片文件", "入库备注", "形状"]  // 形状 appended last (SPEC §13 E4)
 
     static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -65,7 +65,7 @@ enum Exporter {
                 let row: [String] = [o.orderNo, timeFormatter.string(from: o.receivedAt), c?.code ?? "", c?.name ?? "", c?.contact ?? "", c?.phone ?? "",
                            o.operatorName, i?.name ?? "", i?.lengthCm.cm ?? "", i?.widthCm.cm ?? "", i?.heightCm.cm ?? "", i.map { String($0.quantity) } ?? "",
                            i?.unitVolumeM3.fixed(4) ?? "", i?.totalVolumeM3.fixed(4) ?? "", i?.weightKg?.kg ?? "", i?.methodLabel ?? "",
-                           i?.photoFiles.joined(separator: ";") ?? "", o.note]
+                           i?.photoFiles.joined(separator: ";") ?? "", o.note, i?.shapeLabel ?? ""]
                 lines.append(row.enumerated().map { csvField($1, text: $0 == 2 || $0 == 5) }.joined(separator: ","))
             }
         }
@@ -112,7 +112,7 @@ enum Exporter {
             for o in orders {
                 for i in sortedItems(o) {
                     if y + rowH > page.height - margin { ctx.beginPage(); y = margin; header() }
-                    let dims: String = i.map { "\($0.lengthCm.cm)×\($0.widthCm.cm)×\($0.heightCm.cm)" } ?? ""
+                    let dims: String = i?.dimsText.replacingOccurrences(of: " ", with: "") ?? ""
                     let vals: [String] = [o.orderNo, o.customer?.name ?? "", i?.name ?? "", dims, i.map { String($0.quantity) } ?? "",
                                 i?.totalVolumeM3.m3 ?? "", i?.weightKg?.kg ?? "", i?.methodLabel ?? ""]
                     var x = margin

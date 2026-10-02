@@ -117,7 +117,10 @@ private struct ARScanScreen: View {
             HStack(spacing: 16) {
                 SectorRing(covered: scan.sectors)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("长 × 宽 × 高").font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        Text(scan.median?.shape == .cylinder ? "直径 × 高" : "长 × 宽 × 高").font(.caption).foregroundStyle(.secondary)
+                        if let m = scan.median { ShapeChip(shape: m.shape.rawValue) }
+                    }
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(dims).font(.num(.title))
                         Text("cm").font(.subheadline).foregroundStyle(.secondary)
@@ -145,6 +148,7 @@ private struct ARScanScreen: View {
 
     private var dims: String {
         guard let m = scan.median else { return "— × — × —" }
+        if m.shape == .cylinder { return String(format: "Ø %.1f × 高 %.1f", m.length * 100, m.height * 100) }
         return String(format: "%.1f × %.1f × %.1f", m.length * 100, m.width * 100, m.height * 100)
     }
 

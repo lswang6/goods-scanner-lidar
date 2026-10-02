@@ -67,17 +67,31 @@ import SwiftData
     var method: String  // "lidar" | "manual"
     var confidence: Double?
     var createdAt: Date
+    /// SPEC §13 E4: "box" | "cylinder" | "irregular" (cylinder: L = W = diameter). The default value lets
+    /// SwiftData lightweight-migrate stores created before this attribute existed.
+    var shape: String = "box"
 
     init(name: String = "", lengthCm: Double = 0, widthCm: Double = 0, heightCm: Double = 0, quantity: Int = 1,
-         weightKg: Double? = nil, photoFiles: [String] = [], method: String = "manual", confidence: Double? = nil, createdAt: Date = .now) {
+         weightKg: Double? = nil, photoFiles: [String] = [], method: String = "manual", confidence: Double? = nil,
+         shape: String = "box", createdAt: Date = .now) {
         self.name = name; self.lengthCm = lengthCm; self.widthCm = widthCm; self.heightCm = heightCm
         self.quantity = quantity; self.weightKg = weightKg; self.photoFiles = photoFiles
-        self.method = method; self.confidence = confidence; self.createdAt = createdAt
+        self.method = method; self.confidence = confidence; self.shape = shape; self.createdAt = createdAt
     }
 
     var unitVolumeM3: Double { CargoItem.volumeM3(lengthCm, widthCm, heightCm) }
     var totalVolumeM3: Double { unitVolumeM3 * Double(quantity) }
     var methodLabel: String { method == "lidar" ? "LiDAR" : "手动" }
+    var shapeLabel: String { CargoItem.shapeLabel(shape) }
+    /// "26 × 26 × 25.5" (box/irregular) or "Ø26 × 25.5" (cylinder), no unit.
+    var dimsText: String { CargoItem.dimsText(lengthCm, widthCm, heightCm, shape: shape) }
+
+    static let shapes = ["box", "cylinder", "irregular"]
+    static func shapeLabel(_ s: String) -> String { s == "cylinder" ? "圆柱" : s == "irregular" ? "异形" : "箱体" }
+    static func shapeIcon(_ s: String) -> String { s == "cylinder" ? "cylinder" : s == "irregular" ? "scribble.variable" : "shippingbox" }
+    static func dimsText(_ l: Double, _ w: Double, _ h: Double, shape: String) -> String {
+        shape == "cylinder" ? "Ø\(l.cm) × \(h.cm)" : "\(l.cm) × \(w.cm) × \(h.cm)"
+    }
 
     static func volumeM3(_ l: Double, _ w: Double, _ h: Double) -> Double { l * w * h / 1_000_000 }
 }

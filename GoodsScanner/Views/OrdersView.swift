@@ -197,7 +197,7 @@ private struct ItemRow: View {
                             Text(item.name.isEmpty ? "（未命名）" : item.name).font(.headline).lineLimit(1)
                             if item.method == "lidar" { Image(systemName: "viewfinder").font(.caption).foregroundStyle(.scanText) }
                         }
-                        DimsBadge(l: item.lengthCm, w: item.widthCm, h: item.heightCm)
+                        DimsBadge(l: item.lengthCm, w: item.widthCm, h: item.heightCm, shape: item.shape)
                         if let kg = item.weightKg { NumText(value: kg.kg, unit: "kg", style: .caption).foregroundStyle(.secondary) }
                     }
                     Spacer(minLength: 4)

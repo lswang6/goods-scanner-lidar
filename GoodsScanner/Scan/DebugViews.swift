@@ -112,10 +112,11 @@ struct ScanReviewView: View {
             PointCloudView(capture: capture, box: box)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             VStack(spacing: 4) {
-                DimsBadge(l: result.lengthCm, w: result.widthCm, h: result.heightCm)
+                DimsBadge(l: result.lengthCm, w: result.widthCm, h: result.heightCm, shape: result.shape)
                 Group {
                     if let e = capture.estimate {
-                        Text(String(format: "最终点云估计 %.1f × %.1f × %.1f cm", e.length * 100, e.width * 100, e.height * 100))
+                        Text("最终点云估计 " + CargoItem.dimsText(Double(e.length * 100), Double(e.width * 100), Double(e.height * 100),
+                                                               shape: e.shape.rawValue) + " cm · " + CargoItem.shapeLabel(e.shape.rawValue))
                     } else {
                         Text("最终点云估计失败：\(capture.debug.failure.map(ScanSession.text) ?? "—")")
                     }
