@@ -89,17 +89,33 @@ struct StatCard: View {
     }
 }
 
-/// `60 × 45 × 20 cm` capsule.
+/// `60 × 45 × 20 cm` capsule (`Ø26 × 25.5 cm` for cylinders), followed by the shape chip.
 struct DimsBadge: View {
     let l: Double, w: Double, h: Double
+    var shape = "box"
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 2) {
-            Text("\(l.cm) × \(w.cm) × \(h.cm)").font(.num(.subheadline))
-            Text("cm").font(.caption2).foregroundStyle(.secondary)
+        HStack(spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(CargoItem.dimsText(l, w, h, shape: shape)).font(.num(.subheadline))
+                Text("cm").font(.caption2).foregroundStyle(.secondary)
+            }
+            .lineLimit(1)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
+            ShapeChip(shape: shape)
         }
-        .lineLimit(1)
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
+    }
+}
+
+/// SPEC §13 E4: 箱体 / 圆柱 / 异形 tag with its SF Symbol.
+struct ShapeChip: View {
+    let shape: String
+    var body: some View {
+        // Text(Image) not Label: see SettingsView LiDAR row.
+        Text("\(Image(systemName: CargoItem.shapeIcon(shape))) \(CargoItem.shapeLabel(shape))")
+            .font(.caption.weight(.semibold)).lineLimit(1)
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
     }
 }
 

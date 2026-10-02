@@ -107,16 +107,31 @@ final class GoodsScannerTests: XCTestCase {
         let data = Exporter.csv([o])
         XCTAssertEqual(Array(data.prefix(3)), [0xEF, 0xBB, 0xBF])
         let text = String(decoding: data.dropFirst(3), as: UTF8.self)
-        let header = "入库单号,入库时间,客户代码,客户名称,联系人,电话,操作员,品名,长cm,宽cm,高cm,件数,单件体积m³,总体积m³,重量kg,测量方式,照片文件,入库备注"
+        let header = "入库单号,入库时间,客户代码,客户名称,联系人,电话,操作员,品名,长cm,宽cm,高cm,件数,单件体积m³,总体积m³,重量kg,测量方式,照片文件,入库备注,形状"
         XCTAssertTrue(text.hasPrefix(header + "\r\n"))
-        XCTAssertEqual(Exporter.csvColumns.count, 18)
-        XCTAssertTrue(text.contains("RK20261001-001,2026-10-01 10:00,C1,\"客户,甲\",\"张\"\"三\"\"\",,,箱子,40,30,20,2,0.024,0.048,,手动,a.jpg;b.jpg,\"两行\n备注\"\r\n"), text)
+        XCTAssertEqual(Exporter.csvColumns.count, 19)
+        XCTAssertTrue(text.contains("RK20261001-001,2026-10-01 10:00,C1,\"客户,甲\",\"张\"\"三\"\"\",,,箱子,40,30,20,2,0.024,0.048,,手动,a.jpg;b.jpg,\"两行\n备注\",箱体\r\n"), text)
+
+        let cyl = CargoItem(name: "桶", lengthCm: 26, widthCm: 26, heightCm: 25.5, method: "lidar", shape: "cylinder")
+        context.insert(cyl); cyl.order = o
+        try context.save()
+        let text2 = String(decoding: Exporter.csv([o]).dropFirst(3), as: UTF8.self)
+        XCTAssertTrue(text2.contains(",桶,26,26,25.5,1,0.0172,0.0172,,LiDAR,,\"两行\n备注\",圆柱\r\n"), text2)
+        XCTAssertEqual(cyl.dimsText, "Ø26 × 25.5")
+        XCTAssertEqual(CargoItem().shape, "box")
+        XCTAssertEqual(CargoItem.shapes.map(CargoItem.shapeLabel), ["箱体", "圆柱", "异形"])
+    }
+
+    func testMajorityShape() {
+        XCTAssertEqual(ScanSession.majorityShape([]), .box)
+        XCTAssertEqual(ScanSession.majorityShape([.cylinder, .box, .cylinder, .box]), .box, "tie -> most recent")
+        XCTAssertEqual(ScanSession.majorityShape([.cylinder, .cylinder, .irregular]), .cylinder)
     }
 
     func testCSVOrderWithoutItems() throws {
         let o = try addOrder(date(2026, 10, 1))
         let text = String(decoding: Exporter.csv([o]).dropFirst(3), as: UTF8.self)
-        XCTAssertTrue(text.hasSuffix("\r\nRK20261001-001,2026-10-01 10:00,,,,,,,,,,,,,,,,\r\n"), text)
+        XCTAssertTrue(text.hasSuffix("\r\nRK20261001-001,2026-10-01 10:00,,,,,,,,,,,,,,,,,\r\n"), text)
     }
 
     func testPDFExportMultiPage() throws {
@@ -179,5 +194,22 @@ final class GoodsScannerTests: XCTestCase {
             .image { _ in UIColor.gray.setFill(); UIRectFill(CGRect(origin: .zero, size: size)) }.cgImage)
         let out = PhotoAnnotator.annotate(image: photo, transform: T, intrinsics: K, imageResolution: res, box: box, labels: (30, 20, 20))
         XCTAssertEqual(out.size.width * out.scale, 144); XCTAssertEqual(out.size.height * out.scale, 192)
+
+        // Cylinder Ø26 × 25.5 cm on the optical axis 1 m ahead: every sampled ring point lands inside the image,
+        // rings are true circles of radius D/2 at the base and at +H.
+        var cyl = BoxEstimate(length: 0.26, width: 0.26, height: 0.255, center: SIMD3(0, -0.1, -1), yaw: 0, planeY: -0.1, pointCount: 1)
+        cyl.shape = .cylinder
+        let rings = PhotoAnnotator.cylinderRings(cyl)
+        XCTAssertEqual(rings.count, 2); XCTAssertEqual(rings[0].count, 48)
+        for (k, ring) in rings.enumerated() {
+            for p in ring {
+                XCTAssertEqual(simd_length(SIMD2(p.x - cyl.center.x, p.z - cyl.center.z)), 0.13, accuracy: 1e-5)
+                XCTAssertEqual(p.y, cyl.center.y + (k == 0 ? 0 : cyl.height), accuracy: 1e-6)
+                let q = try XCTUnwrap(proj(p))
+                XCTAssertTrue(CGRect(origin: .zero, size: size).contains(q), "\(q)")
+            }
+        }
+        let outCyl = PhotoAnnotator.annotate(image: photo, transform: T, intrinsics: K, imageResolution: res, box: cyl, labels: (26, 26, 25.5))
+        XCTAssertEqual(outCyl.size.width * outCyl.scale, 144)
     }
 }

@@ -11,13 +11,16 @@ struct ScanResult {
     var heightCm: Double
     var confidence: Double
     var photos: [UIImage]
+    var shape = "box"  // CargoItem.shape values
 }
 
 extension ScanResult {
     /// BoxEstimate is in meters; the app stores cm (A7).
+    /// Cylinder: width = length = diameter (a median over mixed-shape samples may not keep them equal).
     init(_ e: BoxEstimate, confidence: Double, photos: [UIImage]) {
-        self.init(lengthCm: Double(e.length * 100), widthCm: Double(e.width * 100), heightCm: Double(e.height * 100),
-                  confidence: confidence, photos: photos)
+        self.init(lengthCm: Double(e.length * 100), widthCm: Double((e.shape == .cylinder ? e.length : e.width) * 100),
+                  heightCm: Double(e.height * 100),
+                  confidence: confidence, photos: photos, shape: e.shape.rawValue)
     }
 }
 
@@ -44,6 +47,7 @@ struct ItemEditView: View {
     @State private var photos: [String]
     @State private var method: String
     @State private var confidence: Double?
+    @State private var shape: String
     @State private var addedPhotos: Set<String> = []
     @State private var showCamera = false
     @State private var showScan = false
@@ -63,9 +67,12 @@ struct ItemEditView: View {
         _photos = State(initialValue: item?.photoFiles ?? [])
         _method = State(initialValue: item?.method ?? "manual")
         _confidence = State(initialValue: item?.confidence)
+        _shape = State(initialValue: item?.shape ?? "box")
     }
 
-    private var unitVolume: Double { CargoItem.volumeM3(length ?? 0, width ?? 0, height ?? 0) }
+    private var isCylinder: Bool { shape == "cylinder" }
+    /// Bounding-box volume (E4); a cylinder's width is its diameter.
+    private var unitVolume: Double { CargoItem.volumeM3(length ?? 0, (isCylinder ? length : width) ?? 0, height ?? 0) }
 
     var body: some View {
         NavigationStack {
@@ -83,9 +90,17 @@ struct ItemEditView: View {
                     TextField("品名 / 备注", text: $name)
                 }
                 Section("尺寸 (cm)") {
+                    Picker("形状", selection: $shape) {
+                        ForEach(CargoItem.shapes, id: \.self) { Text(CargoItem.shapeLabel($0)).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
                     HStack(spacing: 8) {
-                        dimField("长", $length)
-                        dimField("宽", $width)
+                        if isCylinder {
+                            dimField("直径", $length)  // width follows length on save (L = W = diameter)
+                        } else {
+                            dimField("长", $length)
+                            dimField("宽", $width)
+                        }
                         dimField("高", $height)
                     }
                     Stepper(value: $quantity, in: 1...99_999) {
@@ -199,7 +214,7 @@ struct ItemEditView: View {
 
     func apply(_ r: ScanResult) {
         length = r.lengthCm; width = r.widthCm; height = r.heightCm
-        method = "lidar"; confidence = r.confidence
+        method = "lidar"; confidence = r.confidence; shape = r.shape
         r.photos.forEach(addPhoto)
     }
 
@@ -220,7 +235,9 @@ struct ItemEditView: View {
     }
 
     private func save() {
-        guard let l = length, let w = width, let h = height, l > 0, w > 0, h > 0 else { error = "长宽高必须大于 0"; return }
+        guard let l = length, let w = isCylinder ? length : width, let h = height, l > 0, w > 0, h > 0 else {
+            error = isCylinder ? "直径和高必须大于 0" : "长宽高必须大于 0"; return
+        }
         let trimmedWeight = weight.trimmingCharacters(in: .whitespaces)
         let kg = trimmedWeight.isEmpty ? nil : Double(trimmedWeight.replacingOccurrences(of: ",", with: "."))
         if !trimmedWeight.isEmpty && (kg == nil || kg! < 0) { error = "重量格式不正确"; return }
@@ -228,7 +245,7 @@ struct ItemEditView: View {
         let removed = Set(target.photoFiles).subtracting(photos)
         target.name = name.trimmingCharacters(in: .whitespacesAndNewlines); target.lengthCm = l; target.widthCm = w; target.heightCm = h
         target.quantity = quantity; target.weightKg = kg; target.photoFiles = photos
-        target.method = method; target.confidence = confidence
+        target.method = method; target.confidence = confidence; target.shape = shape
         if item == nil { context.insert(target); target.order = order }
         // Removed photos are deleted only after a successful save; on failure keep files and stay open.
         do { try context.save() } catch { context.rollback(); self.error = "保存失败：\(error.localizedDescription)"; return }

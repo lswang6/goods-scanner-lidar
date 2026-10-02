@@ -41,6 +41,17 @@ enum PhotoAnnotator {
         }
     }
 
+    /// Cylinder (E4): [bottom, top] rings of `n` points, radius length/2 (L = W = diameter) around the
+    /// footprint center, at the support plane (`center.y`, same base as `corners`) and `height` above it.
+    static func cylinderRings(_ b: BoxEstimate, n: Int = 48) -> [[SIMD3<Float>]] {
+        [0, b.height].map { dy in
+            (0..<n).map { i in
+                let a = Float(i) / Float(n) * 2 * .pi
+                return b.center + SIMD3(cos(a) * b.length / 2, dy, sin(a) * b.length / 2)
+            }
+        }
+    }
+
     /// `labels` are the delivered (post-calibration) cm values; geometry is the measured `box`.
     static func annotate(image: CGImage, transform: simd_float4x4, intrinsics: simd_float3x3, imageResolution: CGSize,
                          box: BoxEstimate, labels: (l: Double, w: Double, h: Double)) -> UIImage {
@@ -66,27 +77,54 @@ enum PhotoAnnotator {
         return UIGraphicsImageRenderer(size: size, format: format).image { ctx in
             UIImage(cgImage: image).draw(in: CGRect(origin: .zero, size: size))
             let g = ctx.cgContext
-            // Top face fill (corners 2, 3, 7, 6 in order around the face).
-            let top = [2, 3, 7, 6].compactMap { pts[$0] }
-            if top.count == 4 {
-                g.addLines(between: top); g.closePath()
-                g.setFillColor(green.withAlphaComponent(0.18).cgColor); g.fillPath()
-            }
             g.setStrokeColor(green.cgColor)
+            g.setFillColor(green.withAlphaComponent(0.18).cgColor)
             g.setLineWidth(max(2, w * 4 / 1440))
             g.setLineCap(.round)
-            for e in visible { g.move(to: pts[e.a]!); g.addLine(to: pts[e.b]!) }
-            g.strokePath()
-
             let font = UIFont.systemFont(ofSize: w * 0.035, weight: .bold)
-            for (bit, text) in [(1, String(format: "长 %.1f cm", labels.l)), (4, String(format: "宽 %.1f cm", labels.w)),
-                                (2, String(format: "高 %.1f cm", labels.h))] {
-                guard let (a, b) = pick(bit) else { continue }
-                let m = CGPoint(x: (pts[a]!.x + pts[b]!.x) / 2, y: (pts[a]!.y + pts[b]!.y) / 2)
-                capsule(text, font: font, center: m, in: size)
-            }
+            // Volume is the bounding box L×W×H for every shape (E4, freight basis).
             let vol = CargoItem.volumeM3(labels.l, labels.w, labels.h)
-            let caption = String(format: "L×W×H %.1f×%.1f×%.1f cm · ", labels.l, labels.w, labels.h) + vol.m3 + " m³ · 按最大外形"
+            let caption: String
+            if box.shape == .cylinder {
+                let rings = cylinderRings(box).map { $0.map { project($0, transform: transform, intrinsics: intrinsics,
+                                                                     imageResolution: imageResolution, imageSize: size) } }
+                let (bottom, top) = (rings[0], rings[1])
+                if top.allSatisfy({ $0 != nil }) { g.addLines(between: top.map { $0! }); g.closePath(); g.fillPath() }
+                // Closed polylines; a segment is skipped if either end is behind the camera.
+                for ring in rings {
+                    for i in ring.indices { if let a = ring[i], let b = ring[(i + 1) % ring.count] { g.move(to: a); g.addLine(to: b) } }
+                }
+                // Silhouette-ish verticals: leftmost/rightmost (image x) points of the two rings.
+                let t = top.compactMap { $0 }, bo = bottom.compactMap { $0 }
+                var hMid: CGPoint?
+                if let tl = t.min(by: { $0.x < $1.x }), let tr = t.max(by: { $0.x < $1.x }),
+                   let bl = bo.min(by: { $0.x < $1.x }), let br = bo.max(by: { $0.x < $1.x }) {
+                    g.move(to: tl); g.addLine(to: bl); g.move(to: tr); g.addLine(to: br)
+                    hMid = CGPoint(x: (tr.x + br.x) / 2, y: (tr.y + br.y) / 2)
+                }
+                g.strokePath()
+                if !t.isEmpty {
+                    let c = CGPoint(x: t.map(\.x).reduce(0, +) / CGFloat(t.count), y: t.map(\.y).reduce(0, +) / CGFloat(t.count))
+                    capsule(String(format: "直径 %.1f cm", labels.l), font: font, center: c, in: size)
+                }
+                if let hMid { capsule(String(format: "高 %.1f cm", labels.h), font: font, center: hMid, in: size) }
+                caption = String(format: "Ø×H %.1f×%.1f cm · ", labels.l, labels.h) + vol.m3 + " m³ · 圆柱 · 按最大外形"
+            } else {
+                // Top face fill (corners 2, 3, 7, 6 in order around the face).
+                let top = [2, 3, 7, 6].compactMap { pts[$0] }
+                if top.count == 4 { g.addLines(between: top); g.closePath(); g.fillPath() }
+                for e in visible { g.move(to: pts[e.a]!); g.addLine(to: pts[e.b]!) }
+                g.strokePath()
+
+                for (bit, text) in [(1, String(format: "长 %.1f cm", labels.l)), (4, String(format: "宽 %.1f cm", labels.w)),
+                                    (2, String(format: "高 %.1f cm", labels.h))] {
+                    guard let (a, b) = pick(bit) else { continue }
+                    let m = CGPoint(x: (pts[a]!.x + pts[b]!.x) / 2, y: (pts[a]!.y + pts[b]!.y) / 2)
+                    capsule(text, font: font, center: m, in: size)
+                }
+                caption = String(format: "L×W×H %.1f×%.1f×%.1f cm · ", labels.l, labels.w, labels.h) + vol.m3 + " m³ · "
+                    + (box.shape == .irregular ? "异形" : "箱体") + " · 按最大外形"
+            }
             let small = UIFont.systemFont(ofSize: w * 0.025, weight: .semibold)
             let cs = (caption as NSString).size(withAttributes: [.font: small])
             capsule(caption, font: small, center: CGPoint(x: w * 0.03 + cs.width / 2 + small.pointSize * 0.5,
