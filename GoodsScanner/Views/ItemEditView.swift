@@ -47,6 +47,7 @@ struct ItemEditView: View {
     @State private var addedPhotos: Set<String> = []
     @State private var showCamera = false
     @State private var showScan = false
+    @State private var viewing: PhotoSelection?
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var error: String?
 
@@ -123,15 +124,19 @@ struct ItemEditView: View {
                         HStack(spacing: 8) {
                             ForEach(photos, id: \.self) { f in
                                 ZStack(alignment: .topTrailing) {
-                                    Group {
-                                        if let img = PhotoStore.thumbnail(f, side: 240) { Image(uiImage: img).resizable().scaledToFill() }
-                                        else { Color.gray.opacity(0.2) }
+                                    // Pending (unsaved) photos are already on disk, so the viewer reads them like saved ones.
+                                    Button { viewing = PhotoSelection(files: photos, start: photos.firstIndex(of: f) ?? 0) } label: {
+                                        Group {
+                                            if let img = PhotoStore.thumbnail(f, side: 240) { Image(uiImage: img).resizable().scaledToFill() }
+                                            else { Color.gray.opacity(0.2) }
+                                        }
+                                        .frame(width: 88, height: 88).clipShape(RoundedRectangle(cornerRadius: Radius.tag, style: .continuous))
                                     }
-                                    .frame(width: 88, height: 88).clipShape(RoundedRectangle(cornerRadius: Radius.tag, style: .continuous))
+                                    .buttonStyle(.borderless).accessibilityLabel("查看照片")
                                     Button { removePhoto(f) } label: {
-                                        Image(systemName: "xmark.circle.fill").font(.title3).symbolRenderingMode(.palette).foregroundStyle(.white, .red)
+                                        Image(systemName: "xmark.circle.fill").font(.body).symbolRenderingMode(.palette).foregroundStyle(.white, .red)
                                     }
-                                    .buttonStyle(.borderless).padding(2)
+                                    .buttonStyle(.borderless).padding(4).accessibilityLabel("删除照片")
                                 }
                             }
                             Group {
@@ -156,6 +161,7 @@ struct ItemEditView: View {
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { if let img = $0 { addPhoto(img) } }.ignoresSafeArea()
             }
+            .fullScreenCover(item: $viewing) { PhotoViewer($0) }
             .fullScreenCover(isPresented: $showScan) {
                 ScanView(onResult: { apply($0); showScan = false })
             }
