@@ -164,8 +164,9 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             let seed = self.lockedSeed ?? self.lastSeed ?? .zero
             let vertical = locked ? self.lockedVertical : self.lastVertical
             let params = locked ? self.scanParams : vertical ? Self.aimSideParams : Self.aimParams
-            let pts = self.fusion?.points() ?? self.ring.flatMap(\.points)
-            let (e, d) = BoxMeasurer.estimateDebug(points: pts, seed: seed, params: params)
+            let t = self.fusion?.tagged()
+            let pts = t?.points ?? self.ring.flatMap(\.points)
+            let (e, d) = BoxMeasurer.estimateDebug(points: pts, seed: seed, params: params, incidence: t?.incidence)
             let cap = ScanCapture(points: pts, seed: seed, vertical: vertical, params: params, estimate: e, debug: d,
                                   sectors: self.covered.filter { $0 }.count, voxels: self.fusion?.cloud.count ?? 0,
                                   dir: self.recorder?.finish())
@@ -256,6 +257,10 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
 
         // Per-pixel surface normal + incidence for head-on-aware fusion (VoxelCloud.headOnFiltered).
         let inc = surfaceNormals(depth: s.depth, camera: cam)
+        // HUD: phone pitch (view direction elevation, negative = looking down) and incidence at the crosshair.
+        dbg.pitch = asin(max(-1, min(1, -s.transform.columns.2.y))) * 180 / .pi
+        let ci = inc[(s.h / 2) * s.w + s.w / 2].w
+        dbg.aimIncidence = ci > 0 ? acos(min(1, ci)) * 180 / .pi : nil
         let high = unproject(depth: s.depth, confidence: s.conf, camera: cam, incidence: inc, minConfidence: 2)
         let medium = unproject(depth: s.depth, confidence: s.conf, camera: cam, incidence: inc, minConfidence: 1, maxConfidence: 1)
         dbg.high = high.points.count; dbg.medium = medium.points.count
@@ -335,16 +340,18 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     /// `estimateDebug` re-runs at most every `reasonInterval` only to name the failure (the scan-phase
     /// cloud can be ~1M+ points, so never per attempt there). `dbg.failure` keeps the last known reason
     /// until the next success.
-    private func estimate(_ pts: [SIMD3<Float>], seed: SIMD3<Float>, params: Params, _ s: Snapshot) -> BoxEstimate? {
+    /// `incidence`: fused per-point incidence stats (scan phase) -> box incidence-bias correction.
+    private func estimate(_ pts: [SIMD3<Float>], seed: SIMD3<Float>, params: Params, _ s: Snapshot,
+                          incidence: [SIMD2<Float>]? = nil) -> BoxEstimate? {
         let t0 = CACurrentMediaTime()
         let e: BoxEstimate?
         if s.debug {
-            let (r, d) = BoxMeasurer.estimateDebug(points: pts, seed: seed, params: params)
+            let (r, d) = BoxMeasurer.estimateDebug(points: pts, seed: seed, params: params, incidence: incidence)
             e = r
             dbg.planeY = (r?.planeY ?? d.planeY).map { $0 - seed.y }
             dbg.failure = r == nil ? d.failure : nil
         } else {
-            e = BoxMeasurer.estimate(points: pts, seed: seed, params: params)
+            e = BoxMeasurer.estimate(points: pts, seed: seed, params: params, incidence: incidence)
             if e != nil { dbg.failure = nil } else if s.time - lastReasonTime >= Self.reasonInterval {
                 lastReasonTime = s.time
                 dbg.failure = BoxMeasurer.estimateDebug(points: pts, seed: seed, params: params).1.failure
@@ -387,7 +394,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         guard s.time - lastEstimateTime >= Self.estimateInterval, let fusion else { return finish(nil, hint, keepWireframe: true) }
         qEstimated = true
         let tagged = fusion.tagged()
-        let est = estimate(tagged.points, seed: seed, params: scanParams, s)
+        let est = estimate(tagged.points, seed: seed, params: scanParams, s, incidence: tagged.incidence)
         // Runs on `queue`; ARFrames arriving meanwhile are dropped (`busy`). A big box (~450k surface voxels)
         // costs ~250-400 ms, so space estimates >= 2x their cost to keep most frames for fusion.
         lastEstimateTime = s.time + max(0, 2 * dbg.millis / 1000 - Self.estimateInterval)
@@ -400,8 +407,10 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         self.fusion?.update(e)
         let cov = headOnCoverage(tagged, e)
         dbg.headOnWalls = cov.walls; dbg.headOnTop = cov.top
-        // B6 auto-finish (+ head-on coverage of walls and top; 完成 works regardless).
-        if remaining == 0, headOnOK, scanAgg.samples.count >= Self.finishSamples, scanAgg.spread <= Self.finishSpread {
+        // B6 auto-finish. Needs head-on coverage of walls and top, unless the box incidence-bias correction covered
+        // every face (then any phone height works); 完成 works regardless.
+        let corrected = e.shape == .box && scanParams.incidenceBias > 0 && (e.surfaces?.allSatisfy(\.fitted) ?? false)
+        if remaining == 0, headOnOK || corrected, scanAgg.samples.count >= Self.finishSamples, scanAgg.spread <= Self.finishSpread {
             qPhase = .done
             return finish(e, "完成", event: .done)
         }

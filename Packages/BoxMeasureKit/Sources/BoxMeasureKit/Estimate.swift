@@ -55,7 +55,9 @@ func findPlaneY(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> (y: Fl
 
 /// The one estimate pipeline. `collect` = also gather object/plane point indices (debug only;
 /// `estimate` passes false so it pays nothing extra). `d.failure` = first failing stage.
-func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params, collect: Bool) -> (BoxEstimate?, EstimateDebug) {
+func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params, collect: Bool,
+                  incidence: [SIMD2<Float>]? = nil) -> (BoxEstimate?, EstimateDebug) {
+    precondition(incidence == nil || incidence!.count == points.count)
     var d = EstimateDebug()
     func fail(_ f: EstimateFailure) -> (BoxEstimate?, EstimateDebug) { d.failure = f; return (nil, d) }
     guard p.gridCell > 0, p.binSize > 0, let plane = findPlaneY(points: points, seed: seed, p: p) else { return fail(.noPlane) }
@@ -110,11 +112,13 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params, collect
 
     var compPts: [SIMD3<Float>] = []
     var compKeys: [Int] = []
+    var compInc: [SIMD2<Float>] = []
     var slabPts: [(key: Int, xz: SIMD2<Float>)] = []
     var slabCount: [Int: Int] = [:]
     for (j, k) in keys.enumerated() where comp.contains(k) {
         let q = points[idx[j]]
         compPts.append(q); compKeys.append(k)
+        if let incidence { compInc.append(incidence[idx[j]]) }
         if collect { d.objectIndices.append(idx[j]) }
         if !useMaxExtent && abs(q.y - seed.y) <= p.topSlab {
             slabPts.append((k, SIMD2(q.x, q.z)))
@@ -171,7 +175,51 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params, collect
             e.center = SIMD3(f.center.x, planeY, f.center.y)
         } else if e.shape == .cylinder { e.shape = .box }
     }
+    if incidence != nil, e.shape == .box { correctIncidenceBias(&e, compPts, compInc, p) }
     return (e, d)
+}
+
+/// Incidence bias model (Params.incidenceBias): toward-camera offset of a surface seen at `thetaDeg` from `range` m.
+public func incidenceBias(thetaDeg: Float, range: Float, _ p: Params) -> Float {
+    p.incidenceBias * max(0, min(thetaDeg, 85) - p.biasStartDeg) * max(0, 1 + p.biasRangeGain * (range - 0.8))
+}
+
+/// Box only. Each footprint side (points within `biasBand` inside it, between planeY + 3 cm and top - 3 cm) and the
+/// top (within `biasBand` below it, footprint shrunk 2 cm) gets its median incidence and range; the side moves inward
+/// by `incidenceBias(...)`. Head-on surfaces (θ <= biasStartDeg) get 0. Points with range 0 (unknown) are skipped;
+/// a face with < biasMinPoints known points is not corrected (`fitted` false).
+func correctIncidenceBias(_ e: inout BoxEstimate, _ pts: [SIMD3<Float>], _ inc: [SIMD2<Float>], _ p: Params) {
+    let u = SIMD2(cos(e.yaw), -sin(e.yaw)), v = SIMD2(sin(e.yaw), cos(e.yaw)), c = SIMD2(e.center.x, e.center.z)
+    let hl = e.length / 2, hw = e.width / 2, topY = e.planeY + e.height, band = p.biasBand
+    var faces = [[SIMD2<Float>]](repeating: [], count: 5)   // +L, -L, +W, -W, top
+    for (q, s) in zip(pts, inc) where s.y > 0 {
+        let d = SIMD2(q.x, q.z) - c, a = simd_dot(d, u), b = simd_dot(d, v)
+        if q.y > topY - band, abs(a) < hl - 0.02, abs(b) < hw - 0.02 { faces[4].append(s); continue }
+        guard q.y > e.planeY + 0.03, q.y < topY - 0.03 else { continue }
+        if a > hl - band { faces[0].append(s) }
+        if a < band - hl { faces[1].append(s) }
+        if b > hw - band { faces[2].append(s) }
+        if b < band - hw { faces[3].append(s) }
+    }
+    func median(_ x: [Float]) -> Float { x.sorted()[x.count / 2] }
+    let names = ["+L", "-L", "+W", "-W", "top"]
+    let surf = faces.enumerated().map { i, f -> SurfaceBias in
+        guard f.count >= p.biasMinPoints else { return SurfaceBias(face: names[i], thetaDeg: 0, range: 0, delta: 0, points: f.count, fitted: false) }
+        let th = acos(min(1, max(0, median(f.map(\.x))))) * 180 / .pi, r = median(f.map(\.y))
+        return SurfaceBias(face: names[i], thetaDeg: th, range: r, delta: incidenceBias(thetaDeg: th, range: r, p), points: f.count, fitted: true)
+    }
+    let dl = (surf[0].delta, surf[1].delta), dw = (surf[2].delta, surf[3].delta)
+    e.length -= dl.0 + dl.1; e.width -= dw.0 + dw.1; e.height -= surf[4].delta
+    let shift = u * ((dl.1 - dl.0) / 2) + v * ((dw.1 - dw.0) / 2)
+    e.center.x += shift.x; e.center.z += shift.y
+    var faces2 = surf
+    if e.width > e.length {   // corrected W overtook L: length axis turns 90°, faces relabel
+        swap(&e.length, &e.width); e.yaw = e.yaw > 0 ? e.yaw - .pi / 2 : e.yaw + .pi / 2
+        faces2 = [surf[2], surf[3], surf[0], surf[1], surf[4]]
+        for (i, n) in ["+L", "-L", "+W", "-W"].enumerated() { faces2[i].face = n }
+    }
+    e.length = max(0.01, e.length); e.width = max(0.01, e.width); e.height = max(0.01, e.height)
+    e.surfaces = faces2
 }
 
 // MARK: - SPEC §13 shape detection

@@ -27,9 +27,38 @@ private func render(_ transform: simd_float4x4, _ hit: (SIMD3<Float>, SIMD3<Floa
 }
 
 /// Floor y = 0 plus `b` (oriented box on the floor).
-private func boxScene(_ b: Box) -> (SIMD3<Float>, SIMD3<Float>) -> Float? {
-    { o, d in
-        var best: Float = .infinity
+private func boxScene(_ b: Box) -> (SIMD3<Float>, SIMD3<Float>) -> Float? { { o, d in boxHit(b, o, d)?.t } }
+
+/// Floor + the 5 visible faces of `b`, each seen displaced outward (toward the camera) along its normal by
+/// `bias(θ)` m (walls tapered to 0 at the top edge), θ = this ray's incidence: the per-face model the estimator corrects.
+private func biasedBoxScene(_ b: Box, _ bias: @escaping (Float) -> Float) -> (SIMD3<Float>, SIMD3<Float>) -> Float? {
+    let c = SIMD3(b.cx, b.baseY + b.h / 2, b.cz), up = SIMD3<Float>(0, 1, 0)
+    // (normal, half-extent along normal, in-plane axes with half extents)
+    let faces: [(SIMD3<Float>, Float, SIMD3<Float>, Float, SIMD3<Float>, Float)] = [
+        (b.u, b.l / 2, b.v, b.w / 2, up, b.h / 2), (-b.u, b.l / 2, b.v, b.w / 2, up, b.h / 2),
+        (b.v, b.w / 2, b.u, b.l / 2, up, b.h / 2), (-b.v, b.w / 2, b.u, b.l / 2, up, b.h / 2),
+        (up, b.h / 2, b.u, b.l / 2, b.v, b.w / 2)]
+    return { o, d in
+        var best: Float = d.y < 0 ? -o.y / d.y : .infinity
+        for (n, hn, a1, h1, a2, h2) in faces {
+            let dn = simd_dot(d, n)
+            guard dn < 0 else { continue }
+            let full = bias(acos(-dn / simd_length(d)) * 180 / .pi)
+            func hit(_ off: Float) -> Float { simd_dot(c + n * (hn + off) - o, n) / dn }
+            // Walls attach at the top edge (device logs: +0.8 cm in the top 4 cm, full offset from ~8 cm down).
+            let taper = n.y > 0.5 ? 1 : min(1, max(0, (c.y + b.h / 2 - (o + d * hit(full)).y) / 0.08))
+            let t = hit(full * taper)
+            let q = o + d * t - c
+            if t > 0, t < best, abs(simd_dot(q, a1)) <= h1, abs(simd_dot(q, a2)) <= h2 { best = t }
+        }
+        return best.isFinite ? best : nil
+    }
+}
+
+/// Nearest hit; `n` = box face normal (nil for the floor).
+private func boxHit(_ b: Box, _ o: SIMD3<Float>, _ d: SIMD3<Float>) -> (t: Float, n: SIMD3<Float>?)? {
+    do {
+        var best: Float = .infinity, normal: SIMD3<Float>?
         if d.y < 0 { best = -o.y / d.y }
         // Slab test in box-local axes (u, y, v).
         let c = SIMD3(b.cx, b.baseY + b.h / 2, b.cz)
@@ -42,8 +71,14 @@ private func boxScene(_ b: Box) -> (SIMD3<Float>, SIMD3<Float>) -> Float? {
             let a = (-half[k] - lo[k]) / ld[k], z = (half[k] - lo[k]) / ld[k]
             t0 = max(t0, min(a, z)); t1 = min(t1, max(a, z))
         }
-        if t0 <= t1, t0 > 0 { best = min(best, t0) }
-        return best.isFinite ? best : nil
+        if t0 <= t1, t0 > 0, t0 < best {
+            best = t0
+            let lp = lo + ld * t0
+            let k = (0..<3).max { abs(lp[$0]) / half[$0] < abs(lp[$1]) / half[$1] }!
+            let axes = [b.u, SIMD3<Float>(0, 1, 0), b.v]
+            normal = axes[k] * (lp[k] > 0 ? 1 : -1)
+        }
+        return best.isFinite ? (best, normal) : nil
     }
 }
 
@@ -134,10 +169,44 @@ extension BoxMeasureKitTests {
         }
         try w.close()
         let r = try RawFrames(dir: dir)
-        let fused = try XCTUnwrap(r.refuse(params: .fused))
+        var p = Params.fused
+        p.incidenceBias = 0   // unbiased synthetic depth: the incidence-bias model must stay off
+        let fused = try XCTUnwrap(r.refuse(params: p))
         XCTAssertEqual(fused.frames, 9); XCTAssertEqual(fused.estimates, 2)
         print("  refuse: \(fused.fusion.cloud.count) voxels")
-        check(BoxMeasurer.estimate(points: fused.fusion.points(), seed: b.top, params: .fused), b)
+        let t = fused.fusion.tagged()
+        check(BoxMeasurer.estimate(points: t.points, seed: b.top, params: p, incidence: t.incidence), b)
+    }
+
+    /// Overhead walk-around (camera 0.7 m above the top, 0.45-0.6 m out) of a box whose faces carry the fitted
+    /// incidence bias: the plain fused estimate reads ~2 cm per wall too large, the corrected one is within 1.5 cm.
+    func testRefuseSyntheticBiasedBox() throws {
+        let b = Box(cx: 0.05, cz: -0.03, baseY: 0, l: 0.4, w: 0.3, h: 0.3, yaw: 20 * deg)
+        let p = Params.fused
+        let dir = tmpDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var index = RawFramesIndex(width: W, height: H, liveSource: .smoothed, fuseFrames: 3)
+        index.lockTime = 0; index.lockSeed = b.top; index.lockPlaneY = 0; index.seedOnSide = false
+        let w = try RawFramesWriter(dir: dir, index: index)
+        let scene = biasedBoxScene(b) { incidenceBias(thetaDeg: $0, range: 0.8, p) }
+        for i in 0..<17 {
+            let a = Float(i) / 16 * 2 * .pi + 0.1, r: Float = i % 2 == 0 ? 0.45 : 0.6
+            let m = lookAt(SIMD3(b.cx + r * cos(a), 1.0, b.cz + r * sin(a)), SIMD3(b.cx, 0.1, b.cz))
+            var f = RawFrame(timestamp: 0.2 * Double(i), phase: i == 0 ? 0 : 1, tracking: 2, thermal: 0, transform: m, intrinsics: K,
+                             imageResolution: res, raw: nil, rawConf: nil, smoothed: render(m, scene).map(Float16.init), smoothedConf: nil)
+            f.ring = i == 0; f.lock = i == 0; f.estimated = i % 4 == 0 && i > 0
+            try w.append(f)
+        }
+        try w.close()
+        let fused = try XCTUnwrap(try RawFrames(dir: dir).refuse(params: p)).fusion.tagged()
+        let plain = try XCTUnwrap(BoxMeasurer.estimate(points: fused.points, seed: b.top, params: p))
+        let fixed = try XCTUnwrap(BoxMeasurer.estimate(points: fused.points, seed: b.top, params: p, incidence: fused.incidence))
+        print(String(format: "  biased synthetic: plain %.1f x %.1f x %.1f  corrected %.1f x %.1f x %.1f", plain.length * 100, plain.width * 100,
+                     plain.height * 100, fixed.length * 100, fixed.width * 100, fixed.height * 100))
+        for f in fixed.surfaces ?? [] { print(String(format: "    %@ θ %.0f° δ %.1f cm", f.face, f.thetaDeg, f.delta * 100)) }
+        XCTAssertGreaterThan(plain.length, 0.42)
+        XCTAssertEqual(fixed.length, 0.40, accuracy: 0.015); XCTAssertEqual(fixed.width, 0.30, accuracy: 0.015)
+        XCTAssertEqual(fixed.height, 0.30, accuracy: 0.015)
     }
 
     func testDropGrazing() {
@@ -191,7 +260,8 @@ extension BoxMeasureKitTests {
 
     /// Device log F (2026-10-02 18:35, 40x30x30 box, phone at mid-wall height; every 2nd scan frame, 12 MB):
     /// walls were seen head-on, so head-on-aware fusion drops their grazing shells (L 42.9 -> 41.3). The top was only seen
-    /// grazing (camera ~12 cm above it): H keeps the old behaviour and top coverage is low (the app asks to film the top).
+    /// grazing (camera ~12 cm above it): H keeps the old behaviour and top coverage is low; the incidence-bias
+    /// correction then brings H down.
     func testRefuseDeviceLogF() throws {
         let dir = try XCTUnwrap(Bundle.module.url(forResource: "raw-20261002-183534", withExtension: nil, subdirectory: "Fixtures"))
         let frames = try RawFrames(dir: dir)
@@ -210,5 +280,13 @@ extension BoxMeasureKitTests {
         XCTAssertEqual(new.length, 0.40, accuracy: 0.015); XCTAssertEqual(new.width, 0.30, accuracy: 0.015)
         XCTAssertEqual(new.height, old.height, accuracy: 0.005)
         XCTAssertGreaterThan(cov.walls, 0.8); XCTAssertLessThan(cov.top, 0.3)
+        // + incidence-bias correction (Params.fused model): the grazing-only top comes down to ~30.
+        var o = RefuseOptions(); o.headOn = true
+        let f = try XCTUnwrap(frames.refuse(params: p, options: o)).fusion.tagged()
+        let fixed = try XCTUnwrap(BoxMeasurer.estimate(points: f.points, seed: seed, params: p, incidence: f.incidence))
+        print(String(format: "  F corrected: %.1f x %.1f x %.1f", fixed.length * 100, fixed.width * 100, fixed.height * 100))
+        XCTAssertEqual(fixed.length, 0.40, accuracy: 0.015); XCTAssertEqual(fixed.width, 0.30, accuracy: 0.015)
+        XCTAssertEqual(fixed.height, 0.30, accuracy: 0.015)
+        XCTAssertEqual(fixed.surfaces?.count, 5)
     }
 }

@@ -16,6 +16,8 @@ struct ScanDebugInfo {
     var history: [BoxEstimate] = []
     /// Fraction of wall / top voxels seen head-on (scan phase, last estimate).
     var headOnWalls: Float?, headOnTop: Float?
+    /// Phone view elevation (deg, negative = looking down) and surface incidence at the crosshair (deg).
+    var pitch: Float?, aimIncidence: Float?
 }
 
 /// Final fused cloud + its `estimateDebug`, captured when a debug-mode scan finishes.
@@ -157,6 +159,8 @@ struct DebugOverlay: View {
             Text("voxels \(info.voxels) / \(info.voxelCap)")
             Text(String(format: "est   %.0f ms", info.millis))
             Text("fail  \(info.failure?.rawValue ?? "—")")
+            Text("pitch " + (info.pitch.map { String(format: "%+.0f°", $0) } ?? "—")
+                 + "  aim θ " + (info.aimIncidence.map { String(format: "%.0f°", $0) } ?? "—"))
             Text("headOn " + (info.headOnWalls.map { String(format: "walls %.0f%% top %.0f%%", $0 * 100, (info.headOnTop ?? 0) * 100) } ?? "—"))
             ForEach(info.history.indices, id: \.self) { i in
                 let e = info.history[i]

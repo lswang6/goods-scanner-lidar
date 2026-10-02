@@ -68,7 +68,7 @@ if args.first == "--refuse" {
     p = try applying(sets, to: p)
     guard let seed = ix.lockSeed, let r = frames.refuse(params: p, options: o) else { die("no lock recorded in frames.json") }
     let tagged = r.fusion.tagged(), pts = tagged.points
-    let (e, d) = BoxMeasurer.estimateDebug(points: pts, seed: estSeed ?? seed, params: p)
+    let (e, d) = BoxMeasurer.estimateDebug(points: pts, seed: estSeed ?? seed, params: p, incidence: o.headOn ? tagged.incidence : nil)
     print("frames   \(dir)  \(ix.count) recorded (\(ix.width)x\(ix.height), live \(ix.liveSource.rawValue))  lock t=\(ix.lockTime ?? 0)  seed \(seed)  side \(p.seedOnSide)")
     if let saved = try? ScanLogIO.read(from: url) { print("saved    \(show(saved.log.estimate))  voxels \(saved.log.voxelCount)") }
     print("options  source \((o.source ?? ix.liveSource).rawValue)  min-conf \(o.minConfidence)  max-incidence \(o.maxIncidence.map { "\($0)°" } ?? "-")  depth-scale \(o.depthScale)  phase \(o.allPhases ? "all" : "scan")"
@@ -76,6 +76,9 @@ if args.first == "--refuse" {
     print("refuse   \(show(e))  failure \(d.failure?.rawValue ?? "-")")
     if let xyz {
         try zip(tagged.points, tagged.headOn).map { "\($0.0.x) \($0.0.y) \($0.0.z) \($0.1 ? 1 : 0)" }.joined(separator: "\n").write(toFile: xyz, atomically: true, encoding: .utf8)
+    }
+    for f in e?.surfaces ?? [] {
+        print(String(format: "         face %@  θ %.1f°  range %.2f m  δ %.2f cm  n=%d%@", f.face, f.thetaDeg, f.range, f.delta * 100, f.points, f.fitted ? "" : "  (not fitted)"))
     }
     if let e { let c = headOnCoverage(tagged, e); print(String(format: "         head-on coverage  walls %.0f%%  top %.0f%%", c.walls * 100, c.top * 100)) }
     print("         voxels \(r.fusion.cloud.count)  points(minHits \(ScanFusion.minHits)) \(pts.count)  frames fused \(r.frames)  in-loop estimates \(r.estimates)")

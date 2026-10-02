@@ -16,6 +16,8 @@ public struct BoxEstimate: Equatable, Sendable, Codable {
     public var yaw: Float            // radians, rotation of `length` axis around +y
     public var planeY: Float
     public var pointCount: Int
+    /// Box estimates from incidence-tagged clouds: per-face incidence / range / applied bias correction (+L, -L, +W, -W, top).
+    public var surfaces: [SurfaceBias]?
 
     public init(length: Float, width: Float, height: Float, center: SIMD3<Float>, yaw: Float, planeY: Float, pointCount: Int) {
         self.length = length; self.width = width; self.height = height
@@ -29,7 +31,17 @@ public struct BoxEstimate: Equatable, Sendable, Codable {
         height = try c.decode(Float.self, forKey: .height); center = try c.decode(SIMD3<Float>.self, forKey: .center)
         yaw = try c.decode(Float.self, forKey: .yaw); planeY = try c.decode(Float.self, forKey: .planeY)
         pointCount = try c.decode(Int.self, forKey: .pointCount)
+        surfaces = try c.decodeIfPresent([SurfaceBias].self, forKey: .surfaces)
     }
+}
+
+/// One face of a box estimate: median incidence (deg) and camera range (m) of the points defining it, and the
+/// inward correction applied (m). `fitted` false = too few incidence-tagged points, no correction.
+public struct SurfaceBias: Equatable, Sendable, Codable {
+    public var face: String
+    public var thetaDeg: Float, range: Float, delta: Float
+    public var points: Int
+    public var fitted: Bool
 }
 
 public struct Params: Sendable, Codable {
@@ -81,20 +93,37 @@ public struct Params: Sendable, Codable {
     /// SPEC §11: the seed lies on a vertical side face (not the top). Object points are admitted up to
     /// seed.y + maxBoxSize, and the footprint/height always use the max-extent path.
     public var seedOnSide: Bool = false
+    /// Incidence bias (device logs 2026-10-02, one brown cardboard box): a surface seen at θ > biasStartDeg reads
+    /// δ = incidenceBias * (min(θ, 85°) - biasStartDeg) * max(0, 1 + biasRangeGain * (range - 0.8 m)) toward the
+    /// camera (m; incidenceBias in m/deg). Box estimates only, and only when per-point incidence stats are passed
+    /// (`estimate(..., incidence:)`). 0 = off.
+    public var incidenceBias: Float = 0
+    public var biasStartDeg: Float = 40
+    public var biasRangeGain: Float = 0
+    /// Face points: within this distance inside the face; faces with fewer known points are not corrected.
+    public var biasBand: Float = 0.015
+    public var biasMinPoints: Int = 20
     public init() {}
 
     /// Walk-around (fused VoxelCloud) clouds: every side has walls, real surfaces are a ~5 mm-sigma shell.
     /// Footprint = vertically supported cells, 0.75 % trim per side (more cuts into a sparsely seen wall: synthetic 1 m box -2.3 cm at 1 %), no outward margin (device logs 2026-10-02:
     /// top-edge bleed shelves and glossy-floor noise inflated L/W by 7-11 cm). Single-view clouds keep the
     /// defaults: there the top is mostly unsupported by visible walls.
-    public static let fused: Params = { var p = Params(); p.columnBins = 6; p.trimFraction = 0.0075; p.trimMargin = 0; p.wallBand = 0.02; p.detectShape = true; return p }()
+    public static let fused: Params = { var p = Params(); p.columnBins = 6; p.trimFraction = 0.0075; p.trimMargin = 0; p.wallBand = 0.02; p.detectShape = true
+        // Incidence bias fit (2026-10-02, 5 raw logs of one 40x30x30 brown cardboard box, per-face edge excess vs
+        // median face incidence; leave-one-out rms 0.9 cm, 14/15 dims within 1.5 cm; a range term did not help).
+        p.incidenceBias = 0.00088; p.biasStartDeg = 40
+        return p }()
 }
 
 public enum BoxMeasurer {
     /// `yaw` follows a right-handed rotation about +y: the length axis is (cos yaw, 0, -sin yaw),
     /// normalized to (-pi/2, pi/2].
-    public static func estimate(points: [SIMD3<Float>], seed: SIMD3<Float>, params: Params = .init()) -> BoxEstimate? {
-        estimateImpl(points: points, seed: seed, p: params, collect: false).0
+    /// `incidence`: per point (mean cos incidence, mean camera range m; range 0 = unknown), e.g. ScanFusion.tagged().
+    /// Enables the box incidence-bias correction (Params.incidenceBias).
+    public static func estimate(points: [SIMD3<Float>], seed: SIMD3<Float>, params: Params = .init(),
+                                incidence: [SIMD2<Float>]? = nil) -> BoxEstimate? {
+        estimateImpl(points: points, seed: seed, p: params, collect: false, incidence: incidence).0
     }
 }
 

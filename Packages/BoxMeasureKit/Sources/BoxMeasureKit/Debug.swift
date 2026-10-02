@@ -25,9 +25,10 @@ public struct EstimateDebug: Sendable {
 
 extension BoxMeasurer {
     /// Same result as `estimate`, plus diagnostics. Slower (collects indices); use for debug UI / replay.
-    public static func estimateDebug(points: [SIMD3<Float>], seed: SIMD3<Float>, params: Params = .init()) -> (BoxEstimate?, EstimateDebug) {
+    public static func estimateDebug(points: [SIMD3<Float>], seed: SIMD3<Float>, params: Params = .init(),
+                                     incidence: [SIMD2<Float>]? = nil) -> (BoxEstimate?, EstimateDebug) {
         let t0 = DispatchTime.now().uptimeNanoseconds
-        var (e, d) = estimateImpl(points: points, seed: seed, p: params, collect: true)
+        var (e, d) = estimateImpl(points: points, seed: seed, p: params, collect: true, incidence: incidence)
         d.millis = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1e6
         return (e, d)
     }

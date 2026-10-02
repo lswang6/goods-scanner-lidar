@@ -140,14 +140,19 @@ public struct ScanFusion: Sendable {
     }
 
     /// Aim-phase frames fused at lock: upper crop only. `incidence`: per point (VoxelCloud.insert; nil = all head-on).
-    public mutating func insertAim(_ pts: [SIMD3<Float>], incidence: [SIMD4<Float>]? = nil) { insert(pts, incidence, bottom: -.infinity) }
-    public mutating func insert(_ pts: [SIMD3<Float>], incidence: [SIMD4<Float>]? = nil) { insert(pts, incidence, bottom: bottom) }
-    private mutating func insert(_ pts: [SIMD3<Float>], _ inc: [SIMD4<Float>]?, bottom: Float) {
+    /// `camera`: frame's camera position (incidence range stats).
+    public mutating func insertAim(_ pts: [SIMD3<Float>], incidence: [SIMD4<Float>]? = nil, camera: SIMD3<Float>? = nil) {
+        insert(pts, incidence, camera, bottom: -.infinity)
+    }
+    public mutating func insert(_ pts: [SIMD3<Float>], incidence: [SIMD4<Float>]? = nil, camera: SIMD3<Float>? = nil) {
+        insert(pts, incidence, camera, bottom: bottom)
+    }
+    private mutating func insert(_ pts: [SIMD3<Float>], _ inc: [SIMD4<Float>]?, _ camera: SIMD3<Float>?, bottom: Float) {
         guard let inc else { return cloud.insert(pts.filter { $0.y <= top && $0.y >= bottom }) }
         var p: [SIMD3<Float>] = [], c: [SIMD4<Float>] = []
         p.reserveCapacity(pts.count); c.reserveCapacity(pts.count)
         for (q, k) in zip(pts, inc) where q.y <= top && q.y >= bottom { p.append(q); c.append(k) }
-        cloud.insert(p, incidence: c)
+        cloud.insert(p, incidence: c, camera: camera)
     }
 
     /// ponytail: an early under-measured big box can crop its own far side until the estimate grows; cropMargin is the knob.
@@ -158,15 +163,16 @@ public struct ScanFusion: Sendable {
         top = min(top, e.planeY + maxBoxSize)
     }
 
-    /// Incidence-aware cloud (VoxelCloud.headOnFiltered) for the estimator, with head-on tags for `headOnCoverage`.
-    public func tagged() -> (points: [SIMD3<Float>], headOn: [Bool]) { cloud.headOnFiltered(minHits: Self.minHits) }
+    /// Incidence-aware cloud (VoxelCloud.headOnFiltered) for the estimator (pass `incidence` to `estimate`), with
+    /// head-on tags for `headOnCoverage`.
+    public func tagged() -> (points: [SIMD3<Float>], headOn: [Bool], incidence: [SIMD2<Float>]) { cloud.headOnFiltered(minHits: Self.minHits) }
     public func points() -> [SIMD3<Float>] { tagged().points }
 }
 
 /// Fraction of the object's wall / top voxels (relative to estimate `e`) that were seen head-on at least once.
 /// Walls: within 4 cm of the footprint outline (2 cm inside .. 4 cm outside), planeY + 3 cm .. top - 4 cm.
 /// Top: footprint shrunk 2 cm, top - 4 cm .. top + 4 cm. 0 when a class has no voxels.
-public func headOnCoverage(_ t: (points: [SIMD3<Float>], headOn: [Bool]), _ e: BoxEstimate) -> (walls: Float, top: Float) {
+public func headOnCoverage(_ t: (points: [SIMD3<Float>], headOn: [Bool], incidence: [SIMD2<Float>]), _ e: BoxEstimate) -> (walls: Float, top: Float) {
     let u = SIMD2(cos(e.yaw), -sin(e.yaw)), v = SIMD2(sin(e.yaw), cos(e.yaw))
     let hl = e.length / 2, hw = e.width / 2, topY = e.planeY + e.height
     var wall = (0, 0), top = (0, 0)
@@ -370,6 +376,7 @@ extension RawFrames {
         guard let seed = index.lockSeed, let planeY = index.lockPlaneY, let lockTime = index.lockTime else { return nil }
         let src = o.source ?? index.liveSource
         typealias Pts = (points: [SIMD3<Float>], cos: [SIMD4<Float>]?)
+        func cam(_ f: RawFrame) -> SIMD3<Float> { SIMD3(f.transform.columns.3.x, f.transform.columns.3.y, f.transform.columns.3.z) }
         func points(_ f: RawFrame, _ lo: UInt8, _ hi: UInt8 = .max) -> Pts {
             guard var d = f.depth(src) else { return ([], nil) }
             d = scaledDepth(d, by: o.depthScale)
@@ -390,17 +397,18 @@ extension RawFrames {
             for i in ring {
                 let f = self[i], high = points(f, 2)
                 let p = high.points.count >= ScanFusion.minHighPoints || o.minConfidence >= 2 ? high : join(high, points(f, o.minConfidence, 1))
-                fusion.insertAim(p.points, incidence: p.cos)
+                fusion.insertAim(p.points, incidence: p.cos, camera: cam(f))
                 frames += 1
             }
         }
         for i in 0..<count where o.allPhases || meta(i).phase == 1 {
             let f = self[i]
             let p = scanPoints(f)
-            fusion.insert(p.points, incidence: p.cos); frames += 1
+            fusion.insert(p.points, incidence: p.cos, camera: cam(f)); frames += 1
             if f.estimated {
                 estimates += 1
-                if let e = BoxMeasurer.estimate(points: fusion.points(), seed: seed, params: params) { fusion.update(e) }
+                let t = fusion.tagged()
+                if let e = BoxMeasurer.estimate(points: t.points, seed: seed, params: params, incidence: o.headOn ? t.incidence : nil) { fusion.update(e) }
             }
         }
         return (fusion, frames, estimates)
