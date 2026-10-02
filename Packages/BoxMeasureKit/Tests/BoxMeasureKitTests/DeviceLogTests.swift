@@ -30,8 +30,9 @@ final class DeviceLogTests: XCTestCase {
     ]
 
     func testDeviceLogs() throws {
-        for c in Self.cases {
-            let dir = try XCTUnwrap(Bundle.module.url(forResource: c.name, withExtension: nil, subdirectory: "Fixtures"))
+        let present = Self.cases.compactMap { c in deviceFixture(c.name).map { (c, $0) } }
+        try XCTSkipIf(present.isEmpty, "no device fixtures present (private, gitignored)")
+        for (c, dir) in present {
             let (pts, log) = try ScanLogIO.read(from: dir)
             var p = Params.fused
             p.seedOnSide = log.params.seedOnSide
@@ -48,4 +49,11 @@ final class DeviceLogTests: XCTestCase {
             if c.openLW { XCTExpectFailure("rigid boxes read large: per-scan distance-proportional error (type doc)", failingBlock: lw) } else { lw() }
         }
     }
+}
+
+/// Device scan logs are scans of the user's premises: private, NOT in git. Put them locally in
+/// Tests/BoxMeasureKitTests/Fixtures/<name>/ (gitignored); tests skip the ones that are missing.
+func deviceFixture(_ name: String) -> URL? {
+    let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/\(name)")
+    return FileManager.default.fileExists(atPath: url.path) ? url : nil
 }

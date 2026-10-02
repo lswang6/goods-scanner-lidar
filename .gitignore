@@ -6,3 +6,6 @@ build/
 .swiftpm/
 graft/
 .claude/
+
+# Device scan logs are private (scans of the user's premises) — keep local only
+Packages/BoxMeasureKit/Tests/BoxMeasureKitTests/Fixtures/

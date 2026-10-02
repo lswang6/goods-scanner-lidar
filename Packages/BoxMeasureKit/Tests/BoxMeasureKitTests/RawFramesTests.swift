@@ -263,7 +263,7 @@ extension BoxMeasureKitTests {
     /// grazing (camera ~12 cm above it): H keeps the old behaviour and top coverage is low; the incidence-bias
     /// correction then brings H down.
     func testRefuseDeviceLogF() throws {
-        let dir = try XCTUnwrap(Bundle.module.url(forResource: "raw-20261002-183534", withExtension: nil, subdirectory: "Fixtures"))
+        guard let dir = deviceFixture("raw-20261002-183534") else { throw XCTSkip("device fixture missing (private, gitignored)") }
         let frames = try RawFrames(dir: dir)
         var p = Params.fused
         p.seedOnSide = frames.index.seedOnSide ?? false
