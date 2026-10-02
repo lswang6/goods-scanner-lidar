@@ -26,6 +26,8 @@ struct ScanCapture {
     var debug: EstimateDebug
     var sectors: Int
     var voxels: Int
+    /// Scan dir already holding frames.bin (debug raw-frame recording); scan.json + points.ply go there too.
+    var dir: URL? = nil
 }
 
 /// `Documents/ScanLogs/<yyyyMMdd-HHmmss>/` (scan.json + points.ply via ScanLogIO). Visible in 文件 App
@@ -40,13 +42,21 @@ enum ScanLogStore {
 
     static func clear() { try? FileManager.default.removeItem(at: dir) }
 
-    /// Background write; `done(true)` on main when saved.
-    static func save(_ cap: ScanCapture, delivered: ScanResult, done: @escaping (Bool) -> Void) {
+    /// `ScanLogs/<yyyyMMdd-HHmmss>[-n]/` that does not exist yet (not created here).
+    static func newDir() -> URL {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyyMMdd-HHmmss"
+        let name = f.string(from: Date())
+        var url = dir.appending(path: name, directoryHint: .isDirectory), n = 1
+        while FileManager.default.fileExists(atPath: url.path) { n += 1; url = dir.appending(path: "\(name)-\(n)", directoryHint: .isDirectory) }
+        return url
+    }
+
+    /// Background write; `done(true)` on main when saved.
+    static func save(_ cap: ScanCapture, delivered: ScanResult, done: @escaping (Bool) -> Void) {
         let now = Date()
-        let url = dir.appending(path: f.string(from: now), directoryHint: .isDirectory)
+        let url = cap.dir ?? newDir()
         let log = ScanLog(date: now, seed: cap.seed, seedVertical: cap.vertical, params: cap.params,
                           estimate: cap.estimate, failure: cap.debug.failure,
                           deliveredCm: [delivered.lengthCm, delivered.widthCm, delivered.heightCm],
@@ -61,6 +71,70 @@ enum ScanLogStore {
                 ok = false
             }
             DispatchQueue.main.async { done(ok) }
+        }
+    }
+}
+
+/// One processed frame for `FrameRecorder` (Float32 depth as copied on main; Float16 conversion happens on `io`).
+struct FrameSample {
+    var time: Double, phase: UInt8, tracking: UInt8, thermal: UInt8
+    var transform: simd_float4x4, intrinsics: simd_float3x3, res: SIMD2<Float>
+    var w: Int, h: Int
+    var raw: [Float]?, rawConf: [UInt8]?, smoothed: [Float]?, smoothedConf: [UInt8]?
+    var live: DepthSource
+    var ring = false, estimated = false, lock = false
+}
+
+/// Debug mode: every processed frame -> `<scanDir>/frames.bin` (+ `frames.json` at finish) via
+/// BoxMeasureKit.RawFramesWriter. Call only from ScanSession's queue; file IO and Float16 conversion run on
+/// the shared serial `io` queue (one queue for all recorders, so a cancelled dir is deleted before the next
+/// recording creates its own). The dir is created on the first frame; `cancel` deletes it.
+final class FrameRecorder {
+    private static let io = DispatchQueue(label: "GoodsScanner.frames", qos: .utility)
+    private var writer: RawFramesWriter?   // io only
+    private(set) var dir: URL?
+    private(set) var locked = false
+    private var lockInfo: (time: Double, seed: SIMD3<Float>, planeY: Float, side: Bool)?
+
+    func append(_ s: FrameSample) {
+        if dir == nil { dir = ScanLogStore.newDir() }
+        let dir = dir!
+        Self.io.async { [self] in
+            if writer == nil {
+                writer = try? RawFramesWriter(dir: dir, index: RawFramesIndex(width: s.w, height: s.h, liveSource: s.live,
+                                                                             fuseFrames: ScanSession.fuseFrames))
+            }
+            let h = { (a: [Float]?) in a?.map(Float16.init) }
+            var f = RawFrame(timestamp: s.time, phase: s.phase, tracking: s.tracking, thermal: s.thermal, transform: s.transform,
+                             intrinsics: s.intrinsics, imageResolution: s.res, raw: h(s.raw), rawConf: s.rawConf,
+                             smoothed: h(s.smoothed), smoothedConf: s.smoothedConf)
+            f.ring = s.ring; f.estimated = s.estimated; f.lock = s.lock
+            try? writer?.append(f)   // a frame with other dims is skipped
+        }
+    }
+
+    func lock(time: Double, seed: SIMD3<Float>, planeY: Float, side: Bool) {
+        locked = true; lockInfo = (time, seed, planeY, side)
+    }
+
+    /// Writes frames.json; returns the scan dir (nil when nothing was recorded).
+    func finish() -> URL? {
+        let info = lockInfo
+        Self.io.async { [self] in
+            guard let w = writer else { return }
+            if let info { w.index.lockTime = info.time; w.index.lockSeed = info.seed; w.index.lockPlaneY = info.planeY; w.index.seedOnSide = info.side }
+            try? w.close()
+            writer = nil
+        }
+        return dir
+    }
+
+    /// Cancelled / restarted scan: drop the partial recording.
+    func cancel() {
+        let d = dir
+        Self.io.async { [self] in
+            writer = nil   // FileHandle closes on dealloc
+            if let d { try? FileManager.default.removeItem(at: d) }
         }
     }
 }

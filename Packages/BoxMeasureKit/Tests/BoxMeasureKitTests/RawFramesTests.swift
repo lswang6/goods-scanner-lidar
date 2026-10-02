@@ -1,0 +1,167 @@
+import XCTest
+import simd
+@testable import BoxMeasureKit
+
+/// ARKit-like intrinsics for a 1920x1440 capturedImage; depth maps are 256x192.
+private let K = simd_float3x3(SIMD3(1450, 0, 0), SIMD3(0, 1450, 0), SIMD3(960, 720, 1))
+private let res = SIMD2<Float>(1920, 1440)
+private let W = 256, H = 192
+
+private func lookAt(_ eye: SIMD3<Float>, _ target: SIMD3<Float>) -> simd_float4x4 {
+    let f = simd_normalize(target - eye), r = simd_normalize(simd_cross(f, SIMD3(0, 1, 0))), u = simd_cross(r, f)
+    return simd_float4x4(SIMD4(r, 0), SIMD4(u, 0), SIMD4(-f, 0), SIMD4(eye, 1))
+}
+
+/// Depth map (meters along -z) for a scene given as ray -> nearest hit distance `t` (ray dir has camera z = -1,
+/// so t is the depth). Exact inverse of DepthCamera.
+private func render(_ transform: simd_float4x4, _ hit: (SIMD3<Float>, SIMD3<Float>) -> Float?) -> [Float] {
+    let cam = DepthCamera(width: W, height: H, intrinsics: K, imageResolution: res, transform: transform)
+    let o = SIMD3(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
+    var d = [Float](repeating: .nan, count: W * H)
+    for v in 0..<H { for u in 0..<W {
+        let c = cam.cameraPoint(u, v, 1)
+        let w = transform * SIMD4(c, 0)
+        if let t = hit(o, SIMD3(w.x, w.y, w.z)) { d[v * W + u] = t }
+    } }
+    return d
+}
+
+/// Floor y = 0 plus `b` (oriented box on the floor).
+private func boxScene(_ b: Box) -> (SIMD3<Float>, SIMD3<Float>) -> Float? {
+    { o, d in
+        var best: Float = .infinity
+        if d.y < 0 { best = -o.y / d.y }
+        // Slab test in box-local axes (u, y, v).
+        let c = SIMD3(b.cx, b.baseY + b.h / 2, b.cz)
+        let lo = SIMD3(simd_dot(o - c, b.u), o.y - c.y, simd_dot(o - c, b.v))
+        let ld = SIMD3(simd_dot(d, b.u), d.y, simd_dot(d, b.v))
+        let half = SIMD3(b.l / 2, b.h / 2, b.w / 2)
+        var t0: Float = 0, t1: Float = .infinity
+        for k in 0..<3 {
+            if abs(ld[k]) < 1e-9 { if abs(lo[k]) > half[k] { t0 = .infinity }; continue }
+            let a = (-half[k] - lo[k]) / ld[k], z = (half[k] - lo[k]) / ld[k]
+            t0 = max(t0, min(a, z)); t1 = min(t1, max(a, z))
+        }
+        if t0 <= t1, t0 > 0 { best = min(best, t0) }
+        return best.isFinite ? best : nil
+    }
+}
+
+private func tmpDir() -> URL {
+    let u = FileManager.default.temporaryDirectory.appendingPathComponent("bmk-\(UUID().uuidString)")
+    return u
+}
+
+extension BoxMeasureKitTests {
+    func testUnprojectPlane() {
+        // Camera 1.5 m in front of a plane, rotated 90° about y and translated.
+        let t = simd_float4x4(simd_quatf(angle: .pi / 2, axis: SIMD3(0, 1, 0))) * simd_float4x4(diagonal: .one)
+        var m = t; m.columns.3 = SIMD4(1, 2, 3, 1)
+        let depth = [Float](repeating: 1.5, count: W * H)
+        let pts = unproject(depth: depth, confidence: nil, width: W, height: H, intrinsics: K, imageResolution: res, transform: m, minConfidence: 1)
+        XCTAssertEqual(pts.count, W * H)
+        let fwd = -SIMD3(m.columns.2.x, m.columns.2.y, m.columns.2.z), pos = SIMD3<Float>(1, 2, 3)
+        for p in pts { XCTAssertEqual(simd_dot(p - pos, fwd), 1.5, accuracy: 1e-4) }
+        // Intrinsics scaled to depth pixels, pixel-center origin: (960 + 0.5) * 256/1920 - 0.5.
+        let cam = DepthCamera(width: W, height: H, intrinsics: K, imageResolution: res, transform: m)
+        XCTAssertEqual(cam.cx, 127.5667, accuracy: 1e-3); XCTAssertEqual(cam.cy, 95.5667, accuracy: 1e-3)
+        XCTAssertEqual(cam.fx, 1450 * 256 / 1920, accuracy: 1e-3)
+        // Confidence window + stride.
+        var conf = [UInt8](repeating: 2, count: W * H); conf[0] = 0; conf[1] = 1
+        XCTAssertEqual(unproject(depth: depth, confidence: conf, camera: cam, minConfidence: 2).count, W * H - 2)
+        XCTAssertEqual(unproject(depth: depth, confidence: conf, camera: cam, minConfidence: 1, maxConfidence: 1).count, 1)
+        XCTAssertEqual(unproject(depth: depth, confidence: nil, camera: cam, minConfidence: 2, stride: 2).count, W * H / 4)
+        XCTAssertEqual(scaledDepth(depth, by: 2)[7], 3)
+    }
+
+    func testRawFramesRoundTrip() throws {
+        let dir = tmpDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var rng = SplitMix64(state: 3)
+        var index = RawFramesIndex(width: W, height: H, liveSource: .smoothed, fuseFrames: 3)
+        index.lockTime = 1.25; index.lockSeed = SIMD3(0.1, 0.2, 0.3); index.lockPlaneY = -0.9; index.seedOnSide = true
+        let w = try RawFramesWriter(dir: dir, index: index)
+        var written: [RawFrame] = []
+        for i in 0..<3 {
+            let h = { (0..<W * H).map { _ in Float16(bitPattern: UInt16.random(in: 0...UInt16.max, using: &rng)) } }
+            let c = { (0..<W * H).map { _ in UInt8.random(in: 0...2, using: &rng) } }
+            var f = RawFrame(timestamp: 1 + Double(i) * 0.2, phase: UInt8(i % 2), tracking: 2, thermal: UInt8(i),
+                             transform: lookAt(SIMD3(Float(i), 1, 2), .zero), intrinsics: K, imageResolution: res,
+                             raw: i == 2 ? nil : h(), rawConf: i == 2 ? nil : c(), smoothed: h(), smoothedConf: c())
+            f.ring = i == 0; f.lock = i == 1; f.estimated = i == 2
+            try w.append(f); written.append(f)
+        }
+        try w.close()
+        XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: dir.appendingPathComponent("frames.bin").path)[.size] as? Int,
+                       3 * (120 + W * H * 6))
+        let r = try RawFrames(dir: dir)
+        XCTAssertEqual(r.count, 3)
+        XCTAssertEqual(r.index.lockSeed, index.lockSeed); XCTAssertEqual(r.index.seedOnSide, true); XCTAssertEqual(r.index.liveSource, .smoothed)
+        for (i, a) in written.enumerated() {
+            let b = r[i]
+            XCTAssertEqual(a.timestamp, b.timestamp); XCTAssertEqual(a.phase, b.phase); XCTAssertEqual(a.thermal, b.thermal)
+            XCTAssertEqual(a.tracking, b.tracking)
+            XCTAssertEqual([a.ring, a.lock, a.estimated], [b.ring, b.lock, b.estimated])
+            XCTAssertEqual(a.transform, b.transform); XCTAssertEqual(a.intrinsics, b.intrinsics); XCTAssertEqual(a.imageResolution, b.imageResolution)
+            XCTAssertEqual(a.raw?.map(\.bitPattern), b.raw?.map(\.bitPattern))
+            XCTAssertEqual(a.smoothed?.map(\.bitPattern), b.smoothed?.map(\.bitPattern))
+            XCTAssertEqual(a.rawConf, b.rawConf); XCTAssertEqual(a.smoothedConf, b.smoothedConf)
+            XCTAssertEqual(r.meta(i).flags & 64 != 0, a.lock)
+        }
+        XCTAssertNil(r[2].raw)
+    }
+
+    /// Box + floor raycast from 8 poses, written with the shared writer, re-fused with the app's policy.
+    func testRefuseSyntheticBox() throws {
+        let b = Box(cx: 0.05, cz: -0.03, baseY: 0, l: 0.4, w: 0.3, h: 0.3, yaw: 20 * deg)
+        let dir = tmpDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        var index = RawFramesIndex(width: W, height: H, liveSource: .smoothed, fuseFrames: 3)
+        index.lockTime = 0; index.lockSeed = b.top; index.lockPlaneY = 0; index.seedOnSide = false
+        let w = try RawFramesWriter(dir: dir, index: index)
+        let scene = boxScene(b)
+        func frame(_ t: Double, _ a: Float, phase: UInt8) -> RawFrame {
+            let m = lookAt(SIMD3(b.cx + 1.2 * cos(a), 0.9, b.cz + 1.2 * sin(a)), SIMD3(b.cx, 0.15, b.cz))
+            return RawFrame(timestamp: t, phase: phase, tracking: 2, thermal: 0, transform: m, intrinsics: K, imageResolution: res,
+                            raw: nil, rawConf: nil, smoothed: render(m, scene).map(Float16.init), smoothedConf: nil)
+        }
+        var lock = frame(0, 0.1, phase: 0); lock.ring = true; lock.lock = true
+        try w.append(lock)
+        for i in 0..<8 {
+            var f = frame(0.2 * Double(i + 1), 0.1 + Float(i) / 8 * 2 * .pi + 0.05, phase: 1)
+            f.estimated = i == 3 || i == 7
+            try w.append(f)
+        }
+        try w.close()
+        let r = try RawFrames(dir: dir)
+        let fused = try XCTUnwrap(r.refuse(params: .fused))
+        XCTAssertEqual(fused.frames, 9); XCTAssertEqual(fused.estimates, 2)
+        print("  refuse: \(fused.fusion.cloud.count) voxels")
+        check(BoxMeasurer.estimate(points: fused.fusion.points(), seed: b.top, params: .fused), b)
+    }
+
+    func testDropGrazing() {
+        let cam = DepthCamera(width: W, height: H, intrinsics: K, imageResolution: res, transform: matrix_identity_float4x4)
+        let interior = (W - 2) * (H - 2)
+        var front = [Float](repeating: 1, count: W * H)
+        dropGrazing(depth: &front, camera: cam, maxDegrees: 60)
+        // Frontal plane: incidence <= ~33° at the corners, every interior pixel kept.
+        XCTAssertEqual(front.filter { !$0.isNaN }.count, interior)
+        // Plane through (0,0,-1) tilted 60° about x: incidence ~34°...86° across the image.
+        let n = SIMD3<Float>(0, sin(60 * deg), cos(60 * deg)), p0 = SIMD3<Float>(0, 0, -1)
+        var tilted = [Float](repeating: .nan, count: W * H), angle = [Float](repeating: 0, count: W * H)
+        for v in 0..<H { for u in 0..<W {
+            let dir = cam.cameraPoint(u, v, 1)
+            tilted[v * W + u] = simd_dot(n, p0) / simd_dot(n, dir)
+            angle[v * W + u] = acos(abs(simd_dot(n, dir)) / simd_length(dir)) / deg
+        } }
+        dropGrazing(depth: &tilted, camera: cam, maxDegrees: 60)
+        var grazing = 0, kept = 0
+        for v in 1..<(H - 1) { for u in 1..<(W - 1) {
+            let i = v * W + u
+            if angle[i] > 61 { grazing += 1; XCTAssert(tilted[i].isNaN, "grazing \(angle[i])° kept") }
+            if angle[i] < 59 { kept += 1; XCTAssertFalse(tilted[i].isNaN, "\(angle[i])° dropped") }
+        } }
+        XCTAssertGreaterThan(grazing, 1000); XCTAssertGreaterThan(kept, 1000)
+    }
+}

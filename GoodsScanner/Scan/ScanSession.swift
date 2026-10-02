@@ -52,12 +52,9 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     private var lockedSeed: SIMD3<Float>?
     private var lockedVertical = false
     private var scanParams = ScanSession.voxelParams
-    /// Voxel cloud upward crop: seed.y + maxAboveSeed (top seed) or + maxBoxSize (side seed, D1).
-    /// The estimator ignores points above this anyway; dropping them early keeps walls/ceiling out.
-    private var cloudTop: Float = 0
-    /// Lower insert crop: estimate planeY - 0.05 once an estimate exists (glossy-floor reflections below it).
-    private var cloudBottom: Float = -.infinity
-    private var cloud: VoxelCloud?
+    /// Voxel cloud + insert crop (BoxMeasureKit.ScanFusion: upper crop seed.y + maxAboveSeed / + maxBoxSize for a
+    /// side seed (D1), lower crop planeY - 0.05 and footprint radius once an estimate exists).
+    private var fusion: ScanFusion?
     private var scanAgg = BoxAggregator(capacity: ScanSession.finishSamples)
     private var lastScanEstimate: BoxEstimate?
     private var lastEstimateTime: TimeInterval = 0
@@ -67,20 +64,19 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     private var lastReasonTime: TimeInterval = -.infinity
     private var qSurface: SurfaceHint?
     private var qLockProgress = 0.0
+    /// Debug-mode raw-frame log (frames.bin) and the per-frame marks it records.
+    private var recorder: FrameRecorder?
+    private var qRing = false, qEstimated = false, qLock = false
 
     static let interval: TimeInterval = 0.2
     static let fuseFrames = 3
-    static let minHighPoints = 2000
+    static let minHighPoints = ScanFusion.minHighPoints
     static let seedJump: Float = 0.10
     static let stableSpread: Float = 0.05
     // walk-around (SPEC §9 B3-B6)
     static let lockDrift: Float = 0.05
     static let lockHold: TimeInterval = 1.0
     static let estimateInterval: TimeInterval = 0.5
-    static let cloudRadius: Float = 1.5     // insert crop until the first scan estimate; then estimate footprint + cropMargin
-    static let cropMargin: Float = 0.5
-    static let minCropRadius: Float = 0.6
-    static let minHits = 2
     static let voxelParams = Params.fused  // passes the orbit tests (BoxMeasureKitTests testOrbit*) + DeviceLogTests
     /// Aim phase is single-view: silhouette bleed inflates max-extent by ~2 cm, so use the top-slab footprint.
     static let aimParams: Params = { var p = Params(); p.maxExtent = false; return p }()
@@ -108,19 +104,31 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         let c = ARWorldTrackingConfiguration()
         c.planeDetection = []
         c.frameSemantics = ARWorldTrackingConfiguration.supportsFrameSemantics(.smoothedSceneDepth) ? .smoothedSceneDepth : .sceneDepth
+        // Debug raw-frame log records both; live fusion still prefers smoothed (`smoothedSceneDepth ?? sceneDepth`).
+        if debug, ARWorldTrackingConfiguration.supportsFrameSemantics([.sceneDepth, .smoothedSceneDepth]) {
+            c.frameSemantics = [.sceneDepth, .smoothedSceneDepth]
+        }
         if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) { c.sceneReconstruction = .mesh }
         view.session.run(c, options: [.resetTracking, .removeExistingAnchors])
         reset()
     }
 
-    func pause() { view.session.pause() }
+    /// Also drops an unfinished debug recording (scan cancelled).
+    func pause() {
+        view.session.pause()
+        queue.async { self.recorder?.cancel(); self.recorder = nil }
+    }
 
     /// Back to aim: clears seed lock, fused points, samples and coverage (重置 / tracking lost / 重新扫描).
+    /// Debug recording: kept across aim-phase resets (tracking init resets every frame); a recording that
+    /// already locked is discarded and a new one starts.
     func reset(status: String = ScanSession.aimHint) {
+        let debug = debug
         queue.async {
+            if self.recorder?.locked ?? true { self.recorder?.cancel(); self.recorder = debug ? FrameRecorder() : nil }
             self.qPhase = .aim
             self.ring.removeAll(); self.aggregator.reset(); self.lastSeed = nil; self.seedHistory.removeAll()
-            self.lockedSeed = nil; self.cloud = nil; self.scanAgg.reset(); self.lastScanEstimate = nil
+            self.lockedSeed = nil; self.fusion = nil; self.scanAgg.reset(); self.lastScanEstimate = nil
             self.covered = Array(repeating: false, count: Self.sectorCount); self.photoSectors.removeAll()
             self.dbg = ScanDebugInfo(); self.lastReasonTime = -.infinity
             self.qSurface = nil; self.qLockProgress = 0
@@ -153,10 +161,12 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             let seed = self.lockedSeed ?? self.lastSeed ?? .zero
             let vertical = locked ? self.lockedVertical : self.lastVertical
             let params = locked ? self.scanParams : vertical ? Self.aimSideParams : Self.aimParams
-            let pts = self.cloud?.centroids(minHits: Self.minHits) ?? Array(self.ring.joined())
+            let pts = self.fusion?.points() ?? Array(self.ring.joined())
             let (e, d) = BoxMeasurer.estimateDebug(points: pts, seed: seed, params: params)
             let cap = ScanCapture(points: pts, seed: seed, vertical: vertical, params: params, estimate: e, debug: d,
-                                  sectors: self.covered.filter { $0 }.count, voxels: self.cloud?.count ?? 0)
+                                  sectors: self.covered.filter { $0 }.count, voxels: self.fusion?.cloud.count ?? 0,
+                                  dir: self.recorder?.finish())
+            self.recorder = nil
             DispatchQueue.main.async { self.phase = .done; done(cap) }
         }
     }
@@ -188,9 +198,20 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
               CVPixelBufferGetPixelFormatType(depth.depthMap) == kCVPixelFormatType_DepthFloat32,
               let d = copyPixels(depth.depthMap, Float.self) else { return }
         let conf = depth.confidenceMap.flatMap { copyPixels($0, UInt8.self) }.flatMap { $0.w == d.w && $0.h == d.h ? $0 : nil }
-        let snap = Snapshot(depth: d.data, conf: conf?.data, w: d.w, h: d.h, transform: frame.camera.transform,
+        var snap = Snapshot(depth: d.data, conf: conf?.data, w: d.w, h: d.h, transform: frame.camera.transform,
                             intrinsics: frame.camera.intrinsics, res: frame.camera.imageResolution, time: frame.timestamp,
                             debug: debug)
+        if debug {
+            // Raw-frame log: the other depth map too (live uses smoothed when present, so the other is raw).
+            let live: DepthSource = frame.smoothedSceneDepth != nil ? .smoothed : .raw
+            let other = (live == .smoothed ? frame.sceneDepth : nil)
+                .flatMap { CVPixelBufferGetPixelFormatType($0.depthMap) == kCVPixelFormatType_DepthFloat32 ? $0 : nil }
+            let od = other.flatMap { copyPixels($0.depthMap, Float.self) }.flatMap { $0.w == d.w && $0.h == d.h ? $0 : nil }
+            let oc = od == nil ? nil : other?.confidenceMap.flatMap { copyPixels($0, UInt8.self) }.flatMap { $0.w == d.w && $0.h == d.h ? $0 : nil }
+            let tracking: UInt8 = switch frame.camera.trackingState { case .notAvailable: 0; case .limited: 1; case .normal: 2 }
+            snap.extra = .init(live: live, other: od?.data, otherConf: oc?.data, tracking: tracking,
+                               thermal: UInt8(ProcessInfo.processInfo.thermalState.rawValue))
+        }
         busy = true
         queue.async { self.process(snap) }
     }
@@ -201,37 +222,41 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         var depth: [Float]; var conf: [UInt8]?; var w: Int; var h: Int
         var transform: simd_float4x4; var intrinsics: simd_float3x3; var res: CGSize; var time: TimeInterval
         var debug: Bool
+        var extra: Extra?
+        /// Debug raw-frame log only.
+        struct Extra { var live: DepthSource; var other: [Float]?; var otherConf: [UInt8]?; var tracking: UInt8; var thermal: UInt8 }
+    }
+
+    /// Queue only. Appends the processed frame to the debug recording with this frame's ring/estimate/lock marks.
+    private func record(_ s: Snapshot, phase: Phase) {
+        guard let x = s.extra, let recorder else { return }
+        let smoothed = x.live == .smoothed
+        var f = FrameSample(time: s.time, phase: phase == .scan ? 1 : 0, tracking: x.tracking, thermal: x.thermal,
+                            transform: s.transform, intrinsics: s.intrinsics, res: SIMD2(Float(s.res.width), Float(s.res.height)),
+                            w: s.w, h: s.h, raw: smoothed ? x.other : s.depth, rawConf: smoothed ? x.otherConf : s.conf,
+                            smoothed: smoothed ? s.depth : nil, smoothedConf: smoothed ? s.conf : nil, live: x.live)
+        f.ring = qRing; f.estimated = qEstimated; f.lock = qLock
+        recorder.append(f)
     }
 
     private func process(_ s: Snapshot) {
         // A frame enqueued just before finishCapture / auto-finish: drop it, but release `busy`.
         guard qPhase != .done else { DispatchQueue.main.async { self.busy = false }; return }
-        // Intrinsics are for capturedImage (landscape, same orientation as the depth map); scale to
-        // depth-map pixels. Origin is the center of the upper-left pixel, hence the +/-0.5.
-        let sx = Float(s.w) / Float(s.res.width), sy = Float(s.h) / Float(s.res.height)
-        let K = s.intrinsics
-        let fx = K[0][0] * sx, fy = K[1][1] * sy
-        let cx = (K[2][0] + 0.5) * sx - 0.5, cy = (K[2][1] + 0.5) * sy - 0.5
-        // Camera space: x right, y up, looking down -z; image v grows downward -> flip y and z.
-        func world(_ u: Int, _ v: Int) -> SIMD3<Float>? {
-            let d = s.depth[v * s.w + u]
-            guard d.isFinite, d > 0 else { return nil }
-            let p = s.transform * SIMD4((Float(u) - cx) * d / fx, -(Float(v) - cy) * d / fy, -d, 1)
-            return SIMD3(p.x, p.y, p.z)
-        }
+        let phase0 = qPhase
+        qRing = false; qEstimated = false; qLock = false
+        defer { record(s, phase: phase0) }
+        // BoxMeasureKit.DepthCamera: intrinsics scaled to depth-map pixels, camera y/z flip.
+        let cam = DepthCamera(width: s.w, height: s.h, intrinsics: s.intrinsics,
+                              imageResolution: SIMD2(Float(s.res.width), Float(s.res.height)), transform: s.transform)
+        func world(_ u: Int, _ v: Int) -> SIMD3<Float>? { cam.point(u, v, s.depth[v * s.w + u]) }
         func level(_ u: Int, _ v: Int) -> UInt8 { s.conf?[v * s.w + u] ?? 2 }  // ARConfidenceLevel raw: 0 low, 1 medium, 2 high
 
-        var high: [SIMD3<Float>] = [], medium: [SIMD3<Float>] = []
-        high.reserveCapacity(s.w * s.h)
-        for v in 0..<s.h { for u in 0..<s.w {
-            let c = level(u, v)
-            guard c >= 1, let p = world(u, v) else { continue }
-            if c >= 2 { high.append(p) } else { medium.append(p) }
-        } }
+        let high = unproject(depth: s.depth, confidence: s.conf, camera: cam, minConfidence: 2)
+        let medium = unproject(depth: s.depth, confidence: s.conf, camera: cam, minConfidence: 1, maxConfidence: 1)
         dbg.high = high.count; dbg.medium = medium.count
 
         if qPhase == .scan, let seed = lockedSeed {
-            return scanStep(s, points: (high + medium).filter { $0.y <= cloudTop && $0.y >= cloudBottom }, seed: seed)
+            return scanStep(s, points: high + medium, seed: seed)   // ScanFusion applies the y crop
         }
         let points = high.count >= Self.minHighPoints ? high : high + medium
         qSurface = nil; qLockProgress = 0  // every aim-phase miss below publishes "no surface"
@@ -253,6 +278,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         dbg.vertical = vertical
 
         ring.append(points)
+        qRing = true
         if ring.count > Self.fuseFrames { ring.removeFirst(ring.count - Self.fuseFrames) }
         if let last = lastSeed, simd_length(SIMD2(seed.x - last.x, seed.z - last.z)) > Self.seedJump || vertical != lastVertical {
             aggregator.reset()  // don't mix top-seed and side-seed estimates in one median
@@ -284,10 +310,11 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             lockedVertical = vertical
             scanParams = Self.voxelParams
             scanParams.seedOnSide = vertical
-            cloudTop = seed.y + (vertical ? scanParams.maxBoxSize : scanParams.maxAboveSeed); cloudBottom = -.infinity
-            var c = VoxelCloud(center: seed, radius: Self.cloudRadius, floorY: e.planeY + scanParams.abovePlane)
-            for f in ring { c.insert(f.filter { $0.y <= cloudTop }) }
-            cloud = c
+            var f = ScanFusion(seed: seed, planeY: e.planeY, params: scanParams)
+            for r in ring { f.insertAim(r) }
+            fusion = f
+            qLock = true
+            recorder?.lock(time: s.time, seed: seed, planeY: e.planeY, side: vertical)
             lastEstimateTime = s.time
             updateCoverage(s, center: seed)
             photoSectors = [Self.sector(s.transform, center: seed)]
@@ -331,9 +358,9 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     }
 
     private func scanStep(_ s: Snapshot, points: [SIMD3<Float>], seed: SIMD3<Float>) {
-        cloud?.insert(points)
+        fusion?.insert(points)
         dbg.vertical = lockedVertical
-        dbg.voxels = cloud?.count ?? 0; dbg.voxelCap = cloud?.maxVoxels ?? 0
+        dbg.voxels = fusion?.cloud.count ?? 0; dbg.voxelCap = fusion?.cloud.maxVoxels ?? 0
         let center = lastScanEstimate.map { $0.center + SIMD3(0, $0.height / 2, 0) } ?? seed
         // C1: shoot when a newly covered sector is >= 90° from every photographed one.
         if let sec = updateCoverage(s, center: center), photoSectors.count < Self.maxShots,
@@ -347,8 +374,9 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         // D7: last known failure (cleared on success), so the text doesn't flicker between estimates.
         var hint: String { dbg.failure.map(Self.text) ?? coverage }
 
-        guard s.time - lastEstimateTime >= Self.estimateInterval, let cloud else { return finish(nil, hint, keepWireframe: true) }
-        let est = estimate(cloud.centroids(minHits: Self.minHits), seed: seed, params: scanParams, s)
+        guard s.time - lastEstimateTime >= Self.estimateInterval, let fusion else { return finish(nil, hint, keepWireframe: true) }
+        qEstimated = true
+        let est = estimate(fusion.points(), seed: seed, params: scanParams, s)
         // Runs on `queue`; ARFrames arriving meanwhile are dropped (`busy`). A big box (~450k surface voxels)
         // costs ~250-400 ms, so space estimates >= 2x their cost to keep most frames for fusion.
         lastEstimateTime = s.time + max(0, 2 * dbg.millis / 1000 - Self.estimateInterval)
@@ -358,11 +386,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         scanAgg.add(e)
         lastScanEstimate = e
         // Narrow the insert crop to the estimate (keeps the voxel cap from filling with far floor/clutter).
-        // ponytail: an early under-measured big box can crop its own far side until the estimate grows; cropMargin is the knob.
-        self.cloud?.center = e.center
-        self.cloud?.radius = max(Self.minCropRadius, (e.length * e.length + e.width * e.width).squareRoot() / 2 + Self.cropMargin)
-        cloudBottom = e.planeY - 0.05
-        cloudTop = min(cloudTop, e.planeY + scanParams.maxBoxSize)
+        self.fusion?.update(e)
         // B6 auto-finish.
         if remaining == 0, scanAgg.samples.count >= Self.finishSamples, scanAgg.spread <= Self.finishSpread {
             qPhase = .done
