@@ -28,6 +28,17 @@ private struct ARScanScreen: View {
     @Environment(\.dismiss) private var dismiss
     @State private var delivered = false
     @State private var orbitHint = false
+    @AppStorage("debugMode") private var debugMode = false
+    @State private var review: Review?
+
+    /// D4: debug-mode finish holds the already-built result until 使用此结果 / 重新扫描.
+    private struct Review: Identifiable {
+        let id = UUID()
+        let result: ScanResult
+        let box: BoxEstimate
+        let capture: ScanCapture
+        var saved = false
+    }
 
     private var stable: Bool { scan.spread <= ScanSession.stableSpread }
     private var coveredCount: Int { scan.sectors.filter { $0 }.count }
@@ -41,9 +52,13 @@ private struct ARScanScreen: View {
             }
             VStack(spacing: 12) {
                 statusCapsule
+                if debugMode {
+                    DebugOverlay(info: scan.debugInfo, spread: scan.spread, sectors: coveredCount, tracking: scan.tracking)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
                 Spacer()
                 if scan.phase == .aim {
-                    guide("ScanAim", "对准箱顶，保持 1 秒")
+                    guide("ScanAim", "对准箱顶或侧面，保持 1 秒")
                 } else if orbitHint && scan.phase == .scan && coveredCount <= 1 {  // lock already covers 1 sector
                     guide("ScanOrbit", "绕箱子走一圈")
                 }
@@ -55,7 +70,12 @@ private struct ARScanScreen: View {
             .animation(.easeInOut(duration: 0.3), value: coveredCount <= 1)
         }
         .environment(\.colorScheme, .dark)  // HUD over camera feed
-        .onAppear { scan.start() }
+        .onAppear { scan.debug = debugMode; scan.start() }
+        .sheet(item: $review) { r in
+            ScanReviewView(capture: r.capture, box: r.box, result: r.result, saved: r.saved,
+                           onUse: { review = nil; onResult(r.result) },
+                           onRescan: { review = nil; delivered = false; scan.reset() })
+        }
         .onDisappear { scan.pause() }
         .onChange(of: scan.phase) { _, p in if p == .done { deliver() } }
         .task(id: scan.phase) {
@@ -134,6 +154,8 @@ private struct ARScanScreen: View {
     /// last 5 fused estimates after lock, last 10 single-frame ones before).
     /// Photos (C2): every shot (or one current frame if none) annotated with the measured box geometry
     /// and the delivered, post-offset numbers.
+    /// Debug mode (D4/D5): the result is built here (photos need the current frame), then held while the
+    /// final cloud is captured on the scan queue, logged in the background and shown for review.
     private func deliver() {
         guard !delivered, let m = scan.median else { return }
         delivered = true
@@ -146,7 +168,12 @@ private struct ARScanScreen: View {
                                     imageResolution: $0.imageResolution, box: m, labels: (r.lengthCm, r.widthCm, r.heightCm))
         }
         scan.clearShots()
-        onResult(r)
+        guard debugMode else { return onResult(r) }
+        scan.finishCapture { cap in
+            review = Review(result: r, box: m, capture: cap)
+            let id = review?.id
+            ScanLogStore.save(cap, delivered: r) { ok in if ok, review?.id == id { review?.saved = true } }
+        }
     }
 }
 
