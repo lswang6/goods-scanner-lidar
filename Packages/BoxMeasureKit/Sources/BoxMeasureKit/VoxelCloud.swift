@@ -7,16 +7,21 @@ public struct VoxelCloud: Sendable {
     public let center: SIMD3<Float>
     public let radius: Float
     public let maxVoxels: Int
+    /// Voxels at y <= floorY (support plane + noise band, and glossy-floor reflections below it) may take
+    /// at most half of `maxVoxels`. A noisy floor alone otherwise fills the cap within seconds and every
+    /// object surface seen later (the far side of a walk-around) is silently dropped.
+    public let floorY: Float
+    private var floorVoxels = 0
     private var voxels: [Int: (hits: Int32, sum: SIMD3<Float>)] = [:]
 
-    public init(voxelSize: Float = 0.005, center: SIMD3<Float>, radius: Float = 2.0, maxVoxels: Int = 500_000) {
-        self.voxelSize = voxelSize; self.center = center; self.radius = radius; self.maxVoxels = maxVoxels
+    public init(voxelSize: Float = 0.005, center: SIMD3<Float>, radius: Float = 2.0, maxVoxels: Int = 500_000, floorY: Float = -.infinity) {
+        self.voxelSize = voxelSize; self.center = center; self.radius = radius; self.maxVoxels = maxVoxels; self.floorY = floorY
     }
 
     public var count: Int { voxels.count }
 
     /// Points farther than `radius` horizontally from `center` are ignored. Once `maxVoxels` voxels
-    /// exist, points only reinforce existing voxels.
+    /// exist (or maxVoxels/2 at y <= floorY for floor points), points only reinforce existing voxels.
     public mutating func insert(_ points: [SIMD3<Float>]) {
         let inv = 1 / voxelSize, r2 = radius * radius
         for q in points {
@@ -26,8 +31,9 @@ public struct VoxelCloud: Sendable {
             if let i = voxels.index(forKey: k) {
                 voxels.values[i].hits += 1
                 voxels.values[i].sum += q
-            } else if voxels.count < maxVoxels {
+            } else if voxels.count < maxVoxels, q.y > floorY || floorVoxels < maxVoxels / 2 {
                 voxels[k] = (1, q)
+                if q.y <= floorY { floorVoxels += 1 }
             }
         }
     }
@@ -40,7 +46,7 @@ public struct VoxelCloud: Sendable {
         return out
     }
 
-    public mutating func removeAll() { voxels.removeAll(keepingCapacity: true) }
+    public mutating func removeAll() { voxels.removeAll(keepingCapacity: true); floorVoxels = 0 }
 }
 
 /// 21 bits per axis (two's complement, masked): collision-free for indices in [-2^20, 2^20).

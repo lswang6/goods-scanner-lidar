@@ -42,6 +42,11 @@ public struct Params: Sendable, Codable {
     /// than `trimMargin` (m, ~ depth noise) outside the trimmed rectangle and refit.
     public var trimPoints: Int = 10
     public var trimMargin: Float = 0.005
+    /// ...and at least this fraction of the points per side.
+    public var trimFraction: Float = 0
+    /// maxExtent footprint: a 1 cm cell counts only if its points occupy >= this many distinct `binSize`
+    /// y-bins (capped at half the object's height in bins). 0 = off.
+    public var columnBins: Int = 0
     /// SPEC §10 C4 "按最大外形": footprint = minAreaRect over the component's points at ALL heights
     /// (cells with >= slabNeighbours occupied neighbours, then the same trim/refit), height = highest
     /// supported y (see `heightSupport`). false = v2 top-slab footprint + `heightPercentile` height.
@@ -56,6 +61,12 @@ public struct Params: Sendable, Codable {
     /// seed.y + maxBoxSize, and the footprint/height always use the max-extent path.
     public var seedOnSide: Bool = false
     public init() {}
+
+    /// Walk-around (fused VoxelCloud) clouds: every side has walls, real surfaces are a ~5 mm-sigma shell.
+    /// Footprint = vertically supported cells, 0.75 % trim per side (more cuts into a sparsely seen wall: synthetic 1 m box -2.3 cm at 1 %), no outward margin (device logs 2026-10-02:
+    /// top-edge bleed shelves and glossy-floor noise inflated L/W by 7-11 cm). Single-view clouds keep the
+    /// defaults: there the top is mostly unsupported by visible walls.
+    public static let fused: Params = { var p = Params(); p.columnBins = 6; p.trimFraction = 0.0075; p.trimMargin = 0; return p }()
 }
 
 public enum BoxMeasurer {

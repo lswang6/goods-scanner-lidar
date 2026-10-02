@@ -113,7 +113,14 @@ public enum ScanLogIO {
     public static func read(from dir: URL) throws -> (points: [SIMD3<Float>], log: ScanLog) {
         let dec = JSONDecoder()
         dec.dateDecodingStrategy = .iso8601
-        let log = try dec.decode(ScanLog.self, from: Data(contentsOf: dir.appendingPathComponent("scan.json")))
+        // Logs from older builds lack newer Params keys: fill them with today's defaults.
+        var obj = try JSONSerialization.jsonObject(with: Data(contentsOf: dir.appendingPathComponent("scan.json"))) as? [String: Any] ?? [:]
+        if let saved = obj["params"] as? [String: Any],
+           var params = try JSONSerialization.jsonObject(with: JSONEncoder().encode(Params())) as? [String: Any] {
+            params.merge(saved) { $1 }
+            obj["params"] = params
+        }
+        let log = try dec.decode(ScanLog.self, from: JSONSerialization.data(withJSONObject: obj))
         let data = try Data(contentsOf: dir.appendingPathComponent("points.ply"))
         func bad(_ why: String) -> Error { CocoaError(.fileReadCorruptFile, userInfo: [NSLocalizedDescriptionKey: "points.ply: \(why)"]) }
         guard let end = data.range(of: Data("end_header\n".utf8)) else { throw bad("no end_header") }

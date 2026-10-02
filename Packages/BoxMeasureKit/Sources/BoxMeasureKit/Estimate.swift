@@ -128,12 +128,23 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params, collect
     let height: Float
     if useMaxExtent {
         // C4: every height counts. Comp cells already have >= minCellPoints; drop cells with few
-        // occupied neighbours, then footprintRect trims stragglers.
-        let keep = denseCells(cellCount.filter { comp.contains($0.key) }, p)
-        let xz = compKeys.indices.filter { keep[compKeys[$0]] != nil }.map { allXZ[$0] }
-        rect = footprintRect(xz.count >= p.minBoxPoints ? xz : allXZ, p)
+        // occupied neighbours and cells without vertical support, then footprintRect trims stragglers.
         guard let top = supportedTop(compPts, p) else { return fail(.tooFewPoints) }
         height = top - planeY
+        let keep = denseCells(cellCount.filter { comp.contains($0.key) }, p)
+        // Vertical support: a footprint cell must hold points in >= `columnBins` distinct y-bins (capped at
+        // half the object's bins above `lo`, so low objects keep their walls). Walls pass; a flat shelf of
+        // edge bleed past a top edge, or glossy-floor noise just above `lo`, spans only 1-3 bins.
+        let need = min(p.columnBins, Int(0.5 * (top - lo) / p.binSize))
+        var bins: [Int: Set<Int>] = [:]
+        if need > 1 {
+            for (j, k) in compKeys.enumerated() where keep[k] != nil {
+                bins[k, default: []].insert(Int((compPts[j].y / p.binSize).rounded(.down)))
+            }
+        }
+        let ok = { (k: Int) in keep[k] != nil && (need <= 1 || bins[k]!.count >= need) }
+        let xz = compKeys.indices.filter { ok(compKeys[$0]) }.map { allXZ[$0] }
+        rect = footprintRect(xz.count >= p.minBoxPoints ? xz : allXZ, p)
     } else {
         // Footprint from top-slab points. Cell filters use slab-only counts, so sparse/isolated
         // bleed cells drop out. footprintRect then trims stragglers that survive next to the real edge.
@@ -258,21 +269,11 @@ func minAreaRectImpl(_ pts: [SIMD2<Float>]) -> (center: SIMD2<Float>, size: SIMD
 }
 
 
-/// k-th smallest and k-th largest of `vals` (k clamped to the data); O(n) for small k.
+/// k-th smallest and k-th largest of `vals` (k clamped to the data).
 func trimmedRange(_ vals: [Float], _ k: Int) -> (lo: Float, hi: Float) {
     let k = max(1, min(k, vals.count / 4))
-    var lows: [Float] = [], highs: [Float] = []   // ascending / descending, length <= k
-    for v in vals {
-        if lows.count < k || v < lows[k - 1] {
-            lows.insert(v, at: lows.firstIndex { $0 > v } ?? lows.count)
-            if lows.count > k { lows.removeLast() }
-        }
-        if highs.count < k || v > highs[k - 1] {
-            highs.insert(v, at: highs.firstIndex { $0 < v } ?? highs.count)
-            if highs.count > k { highs.removeLast() }
-        }
-    }
-    return (lows.last!, highs.last!)
+    let s = vals.sorted()
+    return (s[k - 1], s[s.count - k])
 }
 
 /// minAreaRect is decided by single extreme points, so a few stray (bleed) points tilt and inflate
@@ -285,7 +286,10 @@ func footprintRect(_ pts: [SIMD2<Float>], _ p: Params) -> (center: SIMD2<Float>,
         guard r.size.y > 0 else { return r }
         let u = SIMD2<Float>(cos(r.angle), sin(r.angle)), v = SIMD2<Float>(-u.y, u.x)
         let pu = pts.map { simd_dot($0, u) }, pv = pts.map { simd_dot($0, v) }
-        let ru = trimmedRange(pu, p.trimPoints), rv = trimmedRange(pv, p.trimPoints)
+        // Fused real surfaces are a ~5 mm-sigma shell with a cm-long outer tail: a fixed handful of trimmed
+        // points sits ~3 sigma out on dense clouds, so trim a fraction of the points too.
+        let k = max(p.trimPoints, Int(p.trimFraction * Float(pts.count)))
+        let ru = trimmedRange(pu, k), rv = trimmedRange(pv, k)
         let inliers = pts.indices.filter {
             pu[$0] >= ru.lo - p.trimMargin && pu[$0] <= ru.hi + p.trimMargin &&
             pv[$0] >= rv.lo - p.trimMargin && pv[$0] <= rv.hi + p.trimMargin

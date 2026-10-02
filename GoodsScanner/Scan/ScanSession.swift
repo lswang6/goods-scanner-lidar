@@ -69,7 +69,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     static let estimateInterval: TimeInterval = 0.5
     static let cloudRadius: Float = 1.5     // 2 m of floor alone is ~500k 5 mm voxels (the cap); estimator needs <= 1 m
     static let minHits = 2
-    static let voxelParams = Params()       // defaults pass the orbit tests (BoxMeasureKitTests testOrbit*)
+    static let voxelParams = Params.fused  // passes the orbit tests (BoxMeasureKitTests testOrbit*) + DeviceLogTests
     /// Aim phase is single-view: silhouette bleed inflates max-extent by ~2 cm, so use the top-slab footprint.
     static let aimParams: Params = { var p = Params(); p.maxExtent = false; return p }()
     /// D1 side seed (the kit forces the max-extent path for it).
@@ -264,7 +264,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             scanParams = Self.voxelParams
             scanParams.seedOnSide = vertical
             cloudTop = seed.y + (vertical ? scanParams.maxBoxSize : scanParams.maxAboveSeed)
-            var c = VoxelCloud(center: seed, radius: Self.cloudRadius)
+            var c = VoxelCloud(center: seed, radius: Self.cloudRadius, floorY: e.planeY + scanParams.abovePlane)
             for f in ring { c.insert(f.filter { $0.y <= cloudTop }) }
             cloud = c
             lastEstimateTime = s.time

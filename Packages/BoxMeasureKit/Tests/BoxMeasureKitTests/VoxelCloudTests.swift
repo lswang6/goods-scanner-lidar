@@ -3,7 +3,7 @@ import simd
 @testable import BoxMeasureKit
 
 /// Params for fused (voxel-centroid) input: defaults pass (see report); ScanSession uses `Params()` too.
-func voxelTestParams() -> Params { Params() }
+func voxelTestParams() -> Params { Params.fused }
 
 /// Full walk-around capture (SPEC §9 B3): `views` cameras on a circle around the scene, each sees every
 /// horizontal patch and the side faces that face it, +/-3 mm noise, plus flying-pixel outliers in mid-air.
@@ -158,5 +158,21 @@ extension BoxMeasureKitTests {
         let handle = Box(cx: 0, cz: 0, baseY: 0.2, l: 0.25, w: 0.03, h: 0.05, yaw: 30 * deg)
         let expect = Box(cx: 0, cz: 0, baseY: 0, l: 0.4, w: 0.3, h: 0.25, yaw: 30 * deg)
         assertDims(irregular([b, handle], seed: b.top + SIMD3(0, 0, 0.1), expect: expect), 0.4, 0.3, 0.25, tol: 0.01)
+    }
+}
+
+extension BoxMeasureKitTests {
+    /// Device logs 2026-10-02: a glossy floor filled the cap and the box's far side was never stored.
+    /// Floor voxels (y <= floorY) get at most half the cap; a wall seen afterwards still gets in.
+    func testVoxelCapKeepsRoomAboveFloor() {
+        var c = VoxelCloud(voxelSize: 0.005, center: .zero, radius: 2, maxVoxels: 1000, floorY: 0.015)
+        var floor: [SIMD3<Float>] = []
+        for i in 0..<100 { for j in 0..<100 { floor.append(SIMD3(Float(i) * 0.005, 0.002, Float(j) * 0.005)) } }
+        c.insert(floor); c.insert(floor)
+        XCTAssertEqual(c.count, 500)
+        var wall: [SIMD3<Float>] = []
+        for i in 0..<20 { for j in 0..<20 { wall.append(SIMD3(Float(i) * 0.005 + 0.0025, 0.05 + Float(j) * 0.005 + 0.0025, 0.3)) } }
+        c.insert(wall); c.insert(wall)
+        XCTAssertEqual(c.centroids(minHits: 2).filter { $0.y > 0.015 }.count, 400)
     }
 }

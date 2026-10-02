@@ -40,8 +40,8 @@ if !sets.isEmpty {
 
 func show(_ e: BoxEstimate?) -> String {
     guard let e else { return "nil" }
-    return String(format: "L %.1f  W %.1f  H %.1f cm  planeY %.3f  yaw %.1f°  n=%d",
-                  e.length * 100, e.width * 100, e.height * 100, e.planeY, e.yaw * 180 / .pi, e.pointCount)
+    return String(format: "L %.1f  W %.1f  H %.1f cm  planeY %.3f  yaw %.1f°  n=%d  center %.3f %.3f",
+                  e.length * 100, e.width * 100, e.height * 100, e.planeY, e.yaw * 180 / .pi, e.pointCount, e.center.x, e.center.z)
 }
 
 let (e, d) = BoxMeasurer.estimateDebug(points: points, seed: log.seed, params: params)
