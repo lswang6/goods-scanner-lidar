@@ -3,7 +3,12 @@ import simd
 // FROZEN INTERFACE (docs/SPEC.md §4). Algorithm internals live in Estimate.swift.
 // World space: meters, y up (gravity-aligned, as ARKit world tracking).
 
+/// SPEC §13: auto-detected object shape. cylinder => length == width == max diameter (rim included).
+public enum ShapeKind: String, Codable, Sendable { case box, cylinder, irregular }
+
 public struct BoxEstimate: Equatable, Sendable, Codable {
+    /// Defaults to .box; logs written before §13 decode as .box.
+    public var shape: ShapeKind = .box
     public var length: Float   // meters, length >= width
     public var width: Float
     public var height: Float
@@ -15,6 +20,15 @@ public struct BoxEstimate: Equatable, Sendable, Codable {
     public init(length: Float, width: Float, height: Float, center: SIMD3<Float>, yaw: Float, planeY: Float, pointCount: Int) {
         self.length = length; self.width = width; self.height = height
         self.center = center; self.yaw = yaw; self.planeY = planeY; self.pointCount = pointCount
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        shape = try c.decodeIfPresent(ShapeKind.self, forKey: .shape) ?? .box
+        length = try c.decode(Float.self, forKey: .length); width = try c.decode(Float.self, forKey: .width)
+        height = try c.decode(Float.self, forKey: .height); center = try c.decode(SIMD3<Float>.self, forKey: .center)
+        yaw = try c.decode(Float.self, forKey: .yaw); planeY = try c.decode(Float.self, forKey: .planeY)
+        pointCount = try c.decode(Int.self, forKey: .pointCount)
     }
 }
 
