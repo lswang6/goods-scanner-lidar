@@ -296,5 +296,28 @@ func footprintRect(_ pts: [SIMD2<Float>], _ p: Params) -> (center: SIMD2<Float>,
         }.map { pts[$0] }
         r = minAreaRect(inliers)
     }
-    return r
+    guard p.wallBand > 0, r.size.y > 0 else { return r }
+    // Each edge = outer half-max of the densest 2.5 mm slab (the wall) within wallBand inside the extent: fused LiDAR walls
+    // are a ~5 mm shell with a 1-2 cm outer tail, so the extent overshoots the surface on every side.
+    let u = SIMD2<Float>(cos(r.angle), sin(r.angle)), v = SIMD2<Float>(-u.y, u.x)
+    func edges(_ axis: SIMD2<Float>, _ size: Float) -> (Float, Float) {
+        let proj = pts.map { simd_dot($0, axis) }, c = simd_dot(r.center, axis)
+        let band = min(p.wallBand, size / 3)
+        // Outer half-max edge of the densest (3-slab smoothed) slab: ~1 sigma outside the shell core.
+        func core(_ from: Float, _ to: Float, outward: Int) -> Float {
+            let bin: Float = 0.0025, n = max(3, Int((to - from) / bin))
+            var count = [Int](repeating: 0, count: n)
+            for x in proj where x >= from && x < to { count[min(n - 1, Int((x - from) / bin))] += 1 }
+            let sm = count.indices.map { k in count[max(0, k - 1)...min(n - 1, k + 1)].reduce(0, +) }
+            var i = sm.indices.max { sm[$0] < sm[$1] }!
+            let half = sm[i] / 2
+            while i + outward >= 0 && i + outward < n && sm[i + outward] >= half { i += outward }
+            return from + Float(i) * bin + (outward > 0 ? bin : 0)
+        }
+        return (core(c - size / 2, c - size / 2 + band, outward: -1), core(c + size / 2 - band, c + size / 2, outward: 1))
+    }
+    let (u0, u1) = edges(u, r.size.x), (v0, v1) = edges(v, r.size.y)
+    let center = u * (u0 + u1) / 2 + v * (v0 + v1) / 2
+    return u1 - u0 >= v1 - v0 ? (center, SIMD2(u1 - u0, v1 - v0), r.angle)
+                              : (center, SIMD2(v1 - v0, u1 - u0), normAngle(r.angle + .pi / 2))
 }

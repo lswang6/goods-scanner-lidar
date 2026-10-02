@@ -31,11 +31,23 @@ public struct VoxelCloud: Sendable {
             if let i = voxels.index(forKey: k) {
                 voxels.values[i].hits += 1
                 voxels.values[i].sum += q
-            } else if voxels.count < maxVoxels, q.y > floorY || floorVoxels < maxVoxels / 2 {
+            } else if voxels.count < maxVoxels || evictSingles(), q.y > floorY || floorVoxels < maxVoxels / 2 {
                 voxels[k] = (1, q)
                 if q.y <= floorY { floorVoxels += 1 }
             }
         }
+    }
+
+    /// Full: drop voxels hit only once (flying pixels, floor-noise speckle; device log 2026-10-02 110433 had
+    /// 57 % of the cap in them). Only if that frees >= 10 % of the cap; otherwise stop trying (O(n) each).
+    private var canEvict = true
+    private mutating func evictSingles() -> Bool {
+        guard canEvict else { return false }
+        let kept = voxels.filter { $0.value.hits > 1 }
+        guard kept.count <= maxVoxels * 9 / 10 else { canEvict = false; return false }
+        voxels = kept
+        floorVoxels = voxels.values.filter { $0.sum.y / Float($0.hits) <= floorY }.count
+        return true
     }
 
     /// Centroid of every voxel hit at least `minHits` times.
@@ -46,7 +58,7 @@ public struct VoxelCloud: Sendable {
         return out
     }
 
-    public mutating func removeAll() { voxels.removeAll(keepingCapacity: true); floorVoxels = 0 }
+    public mutating func removeAll() { voxels.removeAll(keepingCapacity: true); floorVoxels = 0; canEvict = true }
 }
 
 /// 21 bits per axis (two's complement, masked): collision-free for indices in [-2^20, 2^20).

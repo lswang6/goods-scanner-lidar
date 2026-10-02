@@ -66,8 +66,9 @@ extension BoxMeasureKitTests {
         XCTAssertEqual(c.count, 2)
         XCTAssertEqual(c.centroids(minHits: 2), [SIMD3(0.002, 0.001, 0)])
         XCTAssertEqual(c.centroids(minHits: 1).count, 2)
-        c.insert([SIMD3(0.5, 0, 0), SIMD3(0.6, 0, 0)])  // cap: only one more voxel
-        XCTAssertEqual(c.count, 3)
+        c.insert([SIMD3(0.5, 0, 0), SIMD3(0.6, 0, 0)])  // cap: 0.5 fills it; 0.6 evicts the single-hit voxels
+        XCTAssertEqual(c.count, 2)
+        XCTAssertEqual(c.centroids(minHits: 1).count, 2)
         c.removeAll()
         XCTAssertEqual(c.count, 0)
         // Packing: negative / positive neighbours and extremes never collide.
@@ -174,5 +175,18 @@ extension BoxMeasureKitTests {
         for i in 0..<20 { for j in 0..<20 { wall.append(SIMD3(Float(i) * 0.005 + 0.0025, 0.05 + Float(j) * 0.005 + 0.0025, 0.3)) } }
         c.insert(wall); c.insert(wall)
         XCTAssertEqual(c.centroids(minHits: 2).filter { $0.y > 0.015 }.count, 400)
+    }
+}
+
+extension BoxMeasureKitTests {
+    /// Device log 110433: the cap was 57 % single-hit voxels. When full, singles are evicted once so a
+    /// surface seen repeatedly later still gets stored.
+    func testVoxelCapEvictsSingleHits() {
+        var c = VoxelCloud(voxelSize: 0.005, center: .zero, radius: 10, maxVoxels: 1000)
+        c.insert((0..<1000).map { SIMD3(Float($0) * 0.005 + 0.0025, 0.5, 0.0025) })   // 1000 one-hit speckles
+        XCTAssertEqual(c.count, 1000)
+        let wall = (0..<200).map { SIMD3(Float($0) * 0.005 + 0.0025, 0.1, 0.3) }
+        c.insert(wall); c.insert(wall)
+        XCTAssertEqual(c.centroids(minHits: 2).count, 200)
     }
 }
