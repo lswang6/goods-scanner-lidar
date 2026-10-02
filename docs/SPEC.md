@@ -169,3 +169,9 @@ project.yml
 | D5 | 调试模式下每次扫描保存 `Documents/ScanLogs/<时间>/scan.json + points.ply`；`UIFileSharingEnabled` 让「文件」App 可见；开发机用 `xcrun devicectl device copy from` 拉取 | 离线回放调参 |
 | D6 | BoxMeasureKit 增加 macOS 可执行目标 `bmk-replay <dir> [--param k=v ...]`：读取日志、重跑估计、打印对比、输出分割着色 PLY | 不用真机即可迭代参数 |
 | D7 | `estimate` 返回 nil 时 HUD 显示具体原因（无支撑面 / 准星处无物体 / 点太少 / 尺寸超范围）——由 `estimateDebug` 提供 | 替换笼统的"未识别到箱体" |
+
+## 12. 计量口径确认（2026-10-02 用户确认）
+
+- **按最大外形计量**：鼓包、提手、凸起都计入（软包装 / 鼓起纸箱读数会大于卷尺量顶边）。用于体积计费与装箱。
+- 真机回放基线（礼盒 35.5×7×38，加绳≈40，中部鼓包实宽≈8.5–9）：L/H 误差 ≤1.5 cm；W 残余边缘噪声 ≈1 cm。回归用例见 `Packages/BoxMeasureKit/Tests/BoxMeasureKitTests/DeviceLogTests.swift` + `Fixtures/`。
+- 待办：更多硬纸箱真机日志，进一步收紧 W 噪声（`trimFraction` / `wallBand` 仅在一个盒子一种地面上调过）。
