@@ -58,6 +58,51 @@ public func unproject(depth: [Float], confidence: [UInt8]?, camera cam: DepthCam
     return out
 }
 
+/// Per pixel |cos| of the angle between the local surface normal (cross product of the central differences of the
+/// 3D neighbours) and the view ray; 0 on the border, at invalid pixels or next to one (depth discontinuities).
+public func incidenceCos(depth: [Float], camera cam: DepthCamera) -> [Float] { surfaceNormals(depth: depth, camera: cam).map(\.w) }
+
+/// Per pixel: xyz = world-space unit surface normal turned to face the camera, w = |cos incidence| (normal vs view
+/// ray). Zero on the border, at invalid pixels or next to one.
+public func surfaceNormals(depth: [Float], camera cam: DepthCamera) -> [SIMD4<Float>] {
+    let w = cam.width, h = cam.height
+    var out = [SIMD4<Float>](repeating: .zero, count: depth.count)
+    let t = cam.transform
+    let rot = simd_float3x3(SIMD3(t.columns.0.x, t.columns.0.y, t.columns.0.z), SIMD3(t.columns.1.x, t.columns.1.y, t.columns.1.z),
+                            SIMD3(t.columns.2.x, t.columns.2.y, t.columns.2.z))
+    @inline(__always) func p(_ u: Int, _ v: Int) -> SIMD3<Float>? {
+        let d = depth[v * w + u]
+        return d.isFinite && d > 0 ? cam.cameraPoint(u, v, d) : nil
+    }
+    guard w > 2, h > 2 else { return out }
+    for v in 1..<(h - 1) { for u in 1..<(w - 1) {
+        guard let c = p(u, v), let l = p(u - 1, v), let r = p(u + 1, v), let t = p(u, v - 1), let b = p(u, v + 1) else { continue }
+        var n = simd_cross(r - l, b - t)
+        let nl = simd_length(n), cl = simd_length(c)
+        guard nl > 0, cl > 0 else { continue }
+        n /= nl
+        let d = simd_dot(n, c) / cl
+        if d > 0 { n = -n }   // face the camera (c points away from it)
+        out[v * w + u] = SIMD4(rot * n, abs(d))
+    } }
+    return out
+}
+
+/// Same as `unproject(depth:confidence:camera:...)`, plus each point's entry of `incidence` (per-pixel array).
+public func unproject(depth: [Float], confidence: [UInt8]?, camera cam: DepthCamera, incidence: [SIMD4<Float>], minConfidence: UInt8,
+                      maxConfidence: UInt8 = .max) -> (points: [SIMD3<Float>], incidence: [SIMD4<Float>]) {
+    precondition(depth.count == cam.width * cam.height && incidence.count == depth.count)
+    var out: [SIMD3<Float>] = [], cs: [SIMD4<Float>] = []
+    out.reserveCapacity(depth.count); cs.reserveCapacity(depth.count)
+    for v in 0..<cam.height { for u in 0..<cam.width {
+        let i = v * cam.width + u
+        let c = confidence?[i] ?? 2
+        guard c >= minConfidence, c <= maxConfidence, let p = cam.point(u, v, depth[i]) else { continue }
+        out.append(p); cs.append(incidence[i])
+    } }
+    return (out, cs)
+}
+
 /// Depth multiplied by `k` (scale-error experiment).
 public func scaledDepth(_ depth: [Float], by k: Float) -> [Float] { k == 1 ? depth : depth.map { $0 * k } }
 
@@ -65,20 +110,8 @@ public func scaledDepth(_ depth: [Float], by k: Float) -> [Float] { k == 1 ? dep
 /// from the view ray. Normal = cross product of the central differences of the 3D neighbours; pixels on the
 /// border or with an invalid neighbour are dropped too, so depth discontinuities (silhouettes) go as well.
 public func dropGrazing(depth: inout [Float], camera cam: DepthCamera, maxDegrees: Float) {
-    let src = depth, w = cam.width, h = cam.height
     let minCos = cos(maxDegrees * .pi / 180)
-    @inline(__always) func p(_ u: Int, _ v: Int) -> SIMD3<Float>? {
-        let d = src[v * w + u]
-        return d.isFinite && d > 0 ? cam.cameraPoint(u, v, d) : nil
-    }
-    for v in 0..<h { for u in 0..<w {
-        guard let c = p(u, v) else { continue }
-        guard u > 0, v > 0, u < w - 1, v < h - 1, let l = p(u - 1, v), let r = p(u + 1, v), let t = p(u, v - 1), let b = p(u, v + 1)
-        else { depth[v * w + u] = .nan; continue }
-        let n = simd_cross(r - l, b - t)
-        let len = simd_length(n) * simd_length(c)
-        if !(len > 0) || abs(simd_dot(n, c)) < minCos * len { depth[v * w + u] = .nan }
-    } }
+    for (i, c) in incidenceCos(depth: depth, camera: cam).enumerated() where c < minCos { depth[i] = .nan }
 }
 
 // MARK: - Scan-phase fusion policy (ScanSession and refuse)
@@ -106,9 +139,16 @@ public struct ScanFusion: Sendable {
         cloud = VoxelCloud(center: seed, radius: Self.initialRadius, floorY: planeY + params.abovePlane)
     }
 
-    /// Aim-phase frames fused at lock: upper crop only.
-    public mutating func insertAim(_ pts: [SIMD3<Float>]) { cloud.insert(pts.filter { $0.y <= top }) }
-    public mutating func insert(_ pts: [SIMD3<Float>]) { cloud.insert(pts.filter { $0.y <= top && $0.y >= bottom }) }
+    /// Aim-phase frames fused at lock: upper crop only. `incidence`: per point (VoxelCloud.insert; nil = all head-on).
+    public mutating func insertAim(_ pts: [SIMD3<Float>], incidence: [SIMD4<Float>]? = nil) { insert(pts, incidence, bottom: -.infinity) }
+    public mutating func insert(_ pts: [SIMD3<Float>], incidence: [SIMD4<Float>]? = nil) { insert(pts, incidence, bottom: bottom) }
+    private mutating func insert(_ pts: [SIMD3<Float>], _ inc: [SIMD4<Float>]?, bottom: Float) {
+        guard let inc else { return cloud.insert(pts.filter { $0.y <= top && $0.y >= bottom }) }
+        var p: [SIMD3<Float>] = [], c: [SIMD4<Float>] = []
+        p.reserveCapacity(pts.count); c.reserveCapacity(pts.count)
+        for (q, k) in zip(pts, inc) where q.y <= top && q.y >= bottom { p.append(q); c.append(k) }
+        cloud.insert(p, incidence: c)
+    }
 
     /// ponytail: an early under-measured big box can crop its own far side until the estimate grows; cropMargin is the knob.
     public mutating func update(_ e: BoxEstimate) {
@@ -118,7 +158,28 @@ public struct ScanFusion: Sendable {
         top = min(top, e.planeY + maxBoxSize)
     }
 
-    public func points() -> [SIMD3<Float>] { cloud.centroids(minHits: Self.minHits) }
+    /// Incidence-aware cloud (VoxelCloud.headOnFiltered) for the estimator, with head-on tags for `headOnCoverage`.
+    public func tagged() -> (points: [SIMD3<Float>], headOn: [Bool]) { cloud.headOnFiltered(minHits: Self.minHits) }
+    public func points() -> [SIMD3<Float>] { tagged().points }
+}
+
+/// Fraction of the object's wall / top voxels (relative to estimate `e`) that were seen head-on at least once.
+/// Walls: within 4 cm of the footprint outline (2 cm inside .. 4 cm outside), planeY + 3 cm .. top - 4 cm.
+/// Top: footprint shrunk 2 cm, top - 4 cm .. top + 4 cm. 0 when a class has no voxels.
+public func headOnCoverage(_ t: (points: [SIMD3<Float>], headOn: [Bool]), _ e: BoxEstimate) -> (walls: Float, top: Float) {
+    let u = SIMD2(cos(e.yaw), -sin(e.yaw)), v = SIMD2(sin(e.yaw), cos(e.yaw))
+    let hl = e.length / 2, hw = e.width / 2, topY = e.planeY + e.height
+    var wall = (0, 0), top = (0, 0)
+    for (p, good) in zip(t.points, t.headOn) {
+        let d = SIMD2(p.x - e.center.x, p.z - e.center.z)
+        let a = abs(simd_dot(d, u)), b = abs(simd_dot(d, v))
+        if a < hl - 0.02, b < hw - 0.02, abs(p.y - topY) < 0.04 {
+            top.0 += 1; if good { top.1 += 1 }
+        } else if a < hl + 0.04, b < hw + 0.04, a > hl - 0.02 || b > hw - 0.02, p.y > e.planeY + 0.03, p.y < topY - 0.04 {
+            wall.0 += 1; if good { wall.1 += 1 }
+        }
+    }
+    return (wall.0 > 0 ? Float(wall.1) / Float(wall.0) : 0, top.0 > 0 ? Float(top.1) / Float(top.0) : 0)
 }
 
 // MARK: - Raw frame log
@@ -296,6 +357,8 @@ public struct RefuseOptions: Sendable {
     /// false: what the app fused (the last `fuseFrames` ring frames up to the lock, then scan frames).
     /// true: every recorded frame, scan-phase rule.
     public var allPhases = false
+    /// Tag points with their incidence (incidence-aware fusion). false = pre-2026-10-02 fusion (all head-on).
+    public var headOn = true
     public init() {}
 }
 
@@ -306,15 +369,19 @@ extension RawFrames {
     public func refuse(params: Params, options o: RefuseOptions = .init()) -> (fusion: ScanFusion, frames: Int, estimates: Int)? {
         guard let seed = index.lockSeed, let planeY = index.lockPlaneY, let lockTime = index.lockTime else { return nil }
         let src = o.source ?? index.liveSource
-        func points(_ f: RawFrame, _ lo: UInt8, _ hi: UInt8 = .max) -> [SIMD3<Float>] {
-            guard var d = f.depth(src) else { return [] }
+        typealias Pts = (points: [SIMD3<Float>], cos: [SIMD4<Float>]?)
+        func points(_ f: RawFrame, _ lo: UInt8, _ hi: UInt8 = .max) -> Pts {
+            guard var d = f.depth(src) else { return ([], nil) }
             d = scaledDepth(d, by: o.depthScale)
             let cam = DepthCamera(width: index.width, height: index.height, intrinsics: f.intrinsics, imageResolution: f.imageResolution, transform: f.transform)
             if let deg = o.maxIncidence { dropGrazing(depth: &d, camera: cam, maxDegrees: deg) }
-            return unproject(depth: d, confidence: f.confidence(src), camera: cam, minConfidence: lo, maxConfidence: hi)
+            guard o.headOn else { return (unproject(depth: d, confidence: f.confidence(src), camera: cam, minConfidence: lo, maxConfidence: hi), nil) }
+            let r = unproject(depth: d, confidence: f.confidence(src), camera: cam, incidence: surfaceNormals(depth: d, camera: cam), minConfidence: lo, maxConfidence: hi)
+            return (r.points, r.incidence)
         }
-        func scanPoints(_ f: RawFrame) -> [SIMD3<Float>] {
-            o.minConfidence >= 2 ? points(f, 2) : points(f, 2) + points(f, o.minConfidence, 1)
+        func join(_ a: Pts, _ b: Pts) -> Pts { (a.points + b.points, a.cos.map { $0 + (b.cos ?? []) }) }
+        func scanPoints(_ f: RawFrame) -> Pts {
+            o.minConfidence >= 2 ? points(f, 2) : join(points(f, 2), points(f, o.minConfidence, 1))
         }
         var fusion = ScanFusion(seed: seed, planeY: planeY, params: params)
         var frames = 0, estimates = 0
@@ -322,13 +389,15 @@ extension RawFrames {
             let ring = (0..<count).filter { let m = meta($0); return m.flags & 16 != 0 && m.timestamp <= lockTime }.suffix(index.fuseFrames)
             for i in ring {
                 let f = self[i], high = points(f, 2)
-                fusion.insertAim(high.count >= ScanFusion.minHighPoints || o.minConfidence >= 2 ? high : high + points(f, o.minConfidence, 1))
+                let p = high.points.count >= ScanFusion.minHighPoints || o.minConfidence >= 2 ? high : join(high, points(f, o.minConfidence, 1))
+                fusion.insertAim(p.points, incidence: p.cos)
                 frames += 1
             }
         }
         for i in 0..<count where o.allPhases || meta(i).phase == 1 {
             let f = self[i]
-            fusion.insert(scanPoints(f)); frames += 1
+            let p = scanPoints(f)
+            fusion.insert(p.points, incidence: p.cos); frames += 1
             if f.estimated {
                 estimates += 1
                 if let e = BoxMeasurer.estimate(points: fusion.points(), seed: seed, params: params) { fusion.update(e) }

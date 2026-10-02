@@ -44,7 +44,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     // queue only
     private let queue = DispatchQueue(label: "GoodsScanner.scan", qos: .userInitiated)
     private var qPhase = Phase.aim
-    private var ring: [[SIMD3<Float>]] = []
+    private var ring: [(points: [SIMD3<Float>], incidence: [SIMD4<Float>])] = []
     private var aggregator = BoxAggregator(capacity: 10)
     private var lastSeed: SIMD3<Float>?
     private var lastVertical = false
@@ -91,6 +91,9 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     static let finishSpread: Float = 0.02
     static let maxShots = 4
     static let shotSectorGap = 3            // 90°
+    /// Auto-finish needs this fraction of wall and of top voxels seen head-on (<= 40°) at least once.
+    /// Device logs: overhead-only walk-arounds 0 % walls / 100 % top; low walk-around 96 % walls / 9 % top.
+    static let minHeadOn: Float = 0.5
 
     override init() {
         super.init()
@@ -161,7 +164,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             let seed = self.lockedSeed ?? self.lastSeed ?? .zero
             let vertical = locked ? self.lockedVertical : self.lastVertical
             let params = locked ? self.scanParams : vertical ? Self.aimSideParams : Self.aimParams
-            let pts = self.fusion?.points() ?? Array(self.ring.joined())
+            let pts = self.fusion?.points() ?? self.ring.flatMap(\.points)
             let (e, d) = BoxMeasurer.estimateDebug(points: pts, seed: seed, params: params)
             let cap = ScanCapture(points: pts, seed: seed, vertical: vertical, params: params, estimate: e, debug: d,
                                   sectors: self.covered.filter { $0 }.count, voxels: self.fusion?.cloud.count ?? 0,
@@ -251,14 +254,17 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         func world(_ u: Int, _ v: Int) -> SIMD3<Float>? { cam.point(u, v, s.depth[v * s.w + u]) }
         func level(_ u: Int, _ v: Int) -> UInt8 { s.conf?[v * s.w + u] ?? 2 }  // ARConfidenceLevel raw: 0 low, 1 medium, 2 high
 
-        let high = unproject(depth: s.depth, confidence: s.conf, camera: cam, minConfidence: 2)
-        let medium = unproject(depth: s.depth, confidence: s.conf, camera: cam, minConfidence: 1, maxConfidence: 1)
-        dbg.high = high.count; dbg.medium = medium.count
+        // Per-pixel surface normal + incidence for head-on-aware fusion (VoxelCloud.headOnFiltered).
+        let inc = surfaceNormals(depth: s.depth, camera: cam)
+        let high = unproject(depth: s.depth, confidence: s.conf, camera: cam, incidence: inc, minConfidence: 2)
+        let medium = unproject(depth: s.depth, confidence: s.conf, camera: cam, incidence: inc, minConfidence: 1, maxConfidence: 1)
+        dbg.high = high.points.count; dbg.medium = medium.points.count
 
-        if qPhase == .scan, let seed = lockedSeed {
-            return scanStep(s, points: high + medium, seed: seed)   // ScanFusion applies the y crop
+        if qPhase == .scan, let seed = lockedSeed {   // ScanFusion applies the y crop
+            return scanStep(s, points: high.points + medium.points, incidence: high.incidence + medium.incidence, seed: seed)
         }
-        let points = high.count >= Self.minHighPoints ? high : high + medium
+        let useHigh = high.points.count >= Self.minHighPoints
+        let points = useHigh ? high.points : high.points + medium.points
         qSurface = nil; qLockProgress = 0  // every aim-phase miss below publishes "no surface"
 
         // Seed: median of the central 5x5 window (depth-map center == screen center, portrait aspect-fill).
@@ -277,7 +283,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         let vertical = isVerticalSurface(normalWin)
         dbg.vertical = vertical
 
-        ring.append(points)
+        ring.append((points, useHigh ? high.incidence : high.incidence + medium.incidence))
         qRing = true
         if ring.count > Self.fuseFrames { ring.removeFirst(ring.count - Self.fuseFrames) }
         if let last = lastSeed, simd_length(SIMD2(seed.x - last.x, seed.z - last.z)) > Self.seedJump || vertical != lastVertical {
@@ -285,7 +291,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         }
         lastSeed = seed; lastVertical = vertical
 
-        guard let e = estimate(Array(ring.joined()), seed: seed, params: vertical ? Self.aimSideParams : Self.aimParams, s) else {
+        guard let e = estimate(ring.flatMap(\.points), seed: seed, params: vertical ? Self.aimSideParams : Self.aimParams, s) else {
             seedHistory.removeAll()
             return finish(nil, dbg.failure.map(Self.text)
                           ?? (points.count < Self.minHighPoints ? "点云不足，靠近一点" : "未识别到箱体：对准箱顶或侧面"))
@@ -311,7 +317,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             scanParams = Self.voxelParams
             scanParams.seedOnSide = vertical
             var f = ScanFusion(seed: seed, planeY: e.planeY, params: scanParams)
-            for r in ring { f.insertAim(r) }
+            for r in ring { f.insertAim(r.points, incidence: r.incidence) }
             fusion = f
             qLock = true
             recorder?.lock(time: s.time, seed: seed, planeY: e.planeY, side: vertical)
@@ -357,8 +363,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         }
     }
 
-    private func scanStep(_ s: Snapshot, points: [SIMD3<Float>], seed: SIMD3<Float>) {
-        fusion?.insert(points)
+    private func scanStep(_ s: Snapshot, points: [SIMD3<Float>], incidence: [SIMD4<Float>], seed: SIMD3<Float>) {
+        fusion?.insert(points, incidence: incidence)
         dbg.vertical = lockedVertical
         dbg.voxels = fusion?.cloud.count ?? 0; dbg.voxelCap = fusion?.cloud.maxVoxels ?? 0
         let center = lastScanEstimate.map { $0.center + SIMD3(0, $0.height / 2, 0) } ?? seed
@@ -370,13 +376,18 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         }
         let n = covered.filter { $0 }.count
         let remaining = max(0, Self.finishSectors - n)
-        let coverage = n <= 1 ? lockLabel + "，绕箱子走一圈" : remaining > 0 ? "还差 \(remaining) 个方向" : "覆盖完成，尺寸收敛中…"
+        // Head-on coverage (last estimate): grazing-only walls / top read ~2 cm toward the camera.
+        let headOnOK = (dbg.headOnWalls ?? 0) >= Self.minHeadOn && (dbg.headOnTop ?? 0) >= Self.minHeadOn
+        let coverage = n <= 1 ? lockLabel + "，绕箱子走一圈" : remaining > 0 ? "还差 \(remaining) 个方向"
+            : (dbg.headOnWalls ?? 1) < Self.minHeadOn ? "放低手机，正对侧面再绕半圈"
+            : (dbg.headOnTop ?? 1) < Self.minHeadOn ? "抬高手机，俯拍箱顶" : "覆盖完成，尺寸收敛中…"
         // D7: last known failure (cleared on success), so the text doesn't flicker between estimates.
         var hint: String { dbg.failure.map(Self.text) ?? coverage }
 
         guard s.time - lastEstimateTime >= Self.estimateInterval, let fusion else { return finish(nil, hint, keepWireframe: true) }
         qEstimated = true
-        let est = estimate(fusion.points(), seed: seed, params: scanParams, s)
+        let tagged = fusion.tagged()
+        let est = estimate(tagged.points, seed: seed, params: scanParams, s)
         // Runs on `queue`; ARFrames arriving meanwhile are dropped (`busy`). A big box (~450k surface voxels)
         // costs ~250-400 ms, so space estimates >= 2x their cost to keep most frames for fusion.
         lastEstimateTime = s.time + max(0, 2 * dbg.millis / 1000 - Self.estimateInterval)
@@ -387,8 +398,10 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         lastScanEstimate = e
         // Narrow the insert crop to the estimate (keeps the voxel cap from filling with far floor/clutter).
         self.fusion?.update(e)
-        // B6 auto-finish.
-        if remaining == 0, scanAgg.samples.count >= Self.finishSamples, scanAgg.spread <= Self.finishSpread {
+        let cov = headOnCoverage(tagged, e)
+        dbg.headOnWalls = cov.walls; dbg.headOnTop = cov.top
+        // B6 auto-finish (+ head-on coverage of walls and top; 完成 works regardless).
+        if remaining == 0, headOnOK, scanAgg.samples.count >= Self.finishSamples, scanAgg.spread <= Self.finishSpread {
             qPhase = .done
             return finish(e, "完成", event: .done)
         }

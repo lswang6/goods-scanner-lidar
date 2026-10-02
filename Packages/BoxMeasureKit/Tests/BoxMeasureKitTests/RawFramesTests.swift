@@ -165,3 +165,50 @@ extension BoxMeasureKitTests {
         XCTAssertGreaterThan(grazing, 1000); XCTAssertGreaterThan(kept, 1000)
     }
 }
+
+extension BoxMeasureKitTests {
+    /// Grazing-only shell 2 cm in front of a head-on wall (normal +z) is dropped; a grazing-only patch far away is kept.
+    func testHeadOnFiltered() {
+        var c = VoxelCloud(center: .zero, radius: 3)
+        var wall: [SIMD3<Float>] = [], shell: [SIMD3<Float>] = [], far: [SIMD3<Float>] = []
+        for i in 0..<40 { for j in 0..<40 {
+            let x = Float(i) * 0.005 + 0.0025, y = Float(j) * 0.005 + 0.0025
+            wall.append(SIMD3(x, y, 0.0025)); shell.append(SIMD3(x, y, 0.0225)); far.append(SIMD3(x + 1, y, 0.0025))
+        } }
+        for _ in 0..<2 {
+            c.insert(wall, incidence: Array(repeating: SIMD4(0, 0, 1, 1), count: wall.count))
+            c.insert(shell + far, incidence: Array(repeating: SIMD4(0, 0, 1, 0.2), count: shell.count + far.count))
+        }
+        let t = c.headOnFiltered()
+        XCTAssertEqual(t.points.count, wall.count + far.count)
+        XCTAssertFalse(t.points.contains { abs($0.z - 0.0225) < 1e-4 })
+        XCTAssertEqual(t.headOn.filter { $0 }.count, wall.count)
+        XCTAssertEqual(c.centroids().count, 3 * wall.count)   // unfiltered API unchanged
+        var e = BoxEstimate(length: 0.2, width: 0.2, height: 0.2, center: SIMD3(0.1, 0, 0.1), yaw: 0, planeY: 0, pointCount: 0)
+        e.height = 0.5
+        _ = headOnCoverage(t, e)   // smoke
+    }
+
+    /// Device log F (2026-10-02 18:35, 40x30x30 box, phone at mid-wall height; every 2nd scan frame, 12 MB):
+    /// walls were seen head-on, so head-on-aware fusion drops their grazing shells (L 42.9 -> 41.3). The top was only seen
+    /// grazing (camera ~12 cm above it): H keeps the old behaviour and top coverage is low (the app asks to film the top).
+    func testRefuseDeviceLogF() throws {
+        let dir = try XCTUnwrap(Bundle.module.url(forResource: "raw-20261002-183534", withExtension: nil, subdirectory: "Fixtures"))
+        let frames = try RawFrames(dir: dir)
+        var p = Params.fused
+        p.seedOnSide = frames.index.seedOnSide ?? false
+        let seed = try XCTUnwrap(frames.index.lockSeed)
+        func run(_ headOn: Bool) throws -> (BoxEstimate, (walls: Float, top: Float)) {
+            var o = RefuseOptions(); o.headOn = headOn
+            let f = try XCTUnwrap(frames.refuse(params: p, options: o)).fusion.tagged()
+            let e = try XCTUnwrap(BoxMeasurer.estimate(points: f.points, seed: seed, params: p))
+            print(String(format: "  F headOn=%d: %.1f x %.1f x %.1f", headOn ? 1 : 0, e.length * 100, e.width * 100, e.height * 100))
+            return (e, headOnCoverage(f, e))
+        }
+        let (old, _) = try run(false), (new, cov) = try run(true)
+        XCTAssertGreaterThan(old.length, 0.42)
+        XCTAssertEqual(new.length, 0.40, accuracy: 0.015); XCTAssertEqual(new.width, 0.30, accuracy: 0.015)
+        XCTAssertEqual(new.height, old.height, accuracy: 0.005)
+        XCTAssertGreaterThan(cov.walls, 0.8); XCTAssertLessThan(cov.top, 0.3)
+    }
+}

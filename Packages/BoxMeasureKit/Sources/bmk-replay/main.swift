@@ -1,7 +1,7 @@
 // bmk-replay <scanDir> [--set key=value ...] [--out colored.ply]   (SPEC §11 D6)
 // Re-runs BoxMeasurer on a saved scan log with Params overrides; optional ASCII PLY colored by segmentation.
 // bmk-replay --refuse <scanDir> [--source smoothed|raw] [--min-conf 1|2] [--max-incidence DEG]
-//            [--depth-scale K] [--phase scan|all] [--set key=value ...]
+//            [--depth-scale K] [--phase scan|all] [--headon on|off] [--seed x,y,z] [--set key=value ...]
 // Re-fuses frames.bin (debug-mode raw frames) with the app's ScanFusion policy, then estimates with Params.fused.
 import Foundation
 import BoxMeasureKit
@@ -40,7 +40,7 @@ if args.first == "--refuse" {
     args.removeFirst()
     guard let dir = args.first, !dir.hasPrefix("-") else { die("--refuse needs <scanDir>") }
     args.removeFirst()
-    var o = RefuseOptions(), sets: [(String, String)] = [], estSeed: SIMD3<Float>?
+    var o = RefuseOptions(), sets: [(String, String)] = [], estSeed: SIMD3<Float>?, xyz: String?
     while !args.isEmpty {
         let flag = args.removeFirst()
         guard !args.isEmpty else { die("\(flag) needs a value") }
@@ -50,6 +50,8 @@ if args.first == "--refuse" {
         case "--min-conf": o.minConfidence = need(UInt8(v).flatMap { (0...2).contains($0) ? $0 : nil }, "--min-conf 0|1|2")
         case "--max-incidence": o.maxIncidence = need(Float(v), "bad --max-incidence \(v)")
         case "--depth-scale": o.depthScale = need(Float(v), "bad --depth-scale \(v)")
+        case "--xyz": xyz = v   // fused points as "x y z h" lines (h = head-on tag)
+        case "--headon": o.headOn = need(["on": true, "off": false][v], "--headon on|off")
         case "--phase": o.allPhases = need(["all": true, "scan": false][v], "--phase scan|all")
         case "--set", "--param": sets.append(parseSet(v))
         case "--seed":   // final estimate only (fusion keeps the logged lock seed)
@@ -65,19 +67,23 @@ if args.first == "--refuse" {
     p.seedOnSide = ix.seedOnSide ?? false
     p = try applying(sets, to: p)
     guard let seed = ix.lockSeed, let r = frames.refuse(params: p, options: o) else { die("no lock recorded in frames.json") }
-    let pts = r.fusion.points()
+    let tagged = r.fusion.tagged(), pts = tagged.points
     let (e, d) = BoxMeasurer.estimateDebug(points: pts, seed: estSeed ?? seed, params: p)
     print("frames   \(dir)  \(ix.count) recorded (\(ix.width)x\(ix.height), live \(ix.liveSource.rawValue))  lock t=\(ix.lockTime ?? 0)  seed \(seed)  side \(p.seedOnSide)")
     if let saved = try? ScanLogIO.read(from: url) { print("saved    \(show(saved.log.estimate))  voxels \(saved.log.voxelCount)") }
     print("options  source \((o.source ?? ix.liveSource).rawValue)  min-conf \(o.minConfidence)  max-incidence \(o.maxIncidence.map { "\($0)°" } ?? "-")  depth-scale \(o.depthScale)  phase \(o.allPhases ? "all" : "scan")"
           + (sets.isEmpty ? "" : "  set \(sets.map { "\($0.0)=\($0.1)" }.joined(separator: " "))"))
     print("refuse   \(show(e))  failure \(d.failure?.rawValue ?? "-")")
+    if let xyz {
+        try zip(tagged.points, tagged.headOn).map { "\($0.0.x) \($0.0.y) \($0.0.z) \($0.1 ? 1 : 0)" }.joined(separator: "\n").write(toFile: xyz, atomically: true, encoding: .utf8)
+    }
+    if let e { let c = headOnCoverage(tagged, e); print(String(format: "         head-on coverage  walls %.0f%%  top %.0f%%", c.walls * 100, c.top * 100)) }
     print("         voxels \(r.fusion.cloud.count)  points(minHits \(ScanFusion.minHits)) \(pts.count)  frames fused \(r.frames)  in-loop estimates \(r.estimates)")
     exit(0)
 }
 
 guard let dirArg = args.first, !dirArg.hasPrefix("-") else {
-    die("usage: bmk-replay <scanDir> [--set key=value ...] [--out colored.ply]\n       bmk-replay --refuse <scanDir> [--source smoothed|raw] [--min-conf 1|2] [--max-incidence DEG] [--depth-scale K] [--phase scan|all] [--seed x,y,z] [--set key=value ...]")
+    die("usage: bmk-replay <scanDir> [--set key=value ...] [--out colored.ply]\n       bmk-replay --refuse <scanDir> [--source smoothed|raw] [--min-conf 1|2] [--max-incidence DEG] [--depth-scale K] [--phase scan|all] [--headon on|off] [--seed x,y,z] [--set key=value ...]")
 }
 args.removeFirst()
 var sets: [(String, String)] = []
