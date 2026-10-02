@@ -49,6 +49,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     /// Voxel cloud upward crop: seed.y + maxAboveSeed (top seed) or + maxBoxSize (side seed, D1).
     /// The estimator ignores points above this anyway; dropping them early keeps walls/ceiling out.
     private var cloudTop: Float = 0
+    /// Lower insert crop: estimate planeY - 0.05 once an estimate exists (glossy-floor reflections below it).
+    private var cloudBottom: Float = -.infinity
     private var cloud: VoxelCloud?
     private var scanAgg = BoxAggregator(capacity: ScanSession.finishSamples)
     private var lastScanEstimate: BoxEstimate?
@@ -67,7 +69,9 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     static let lockDrift: Float = 0.05
     static let lockHold: TimeInterval = 1.0
     static let estimateInterval: TimeInterval = 0.5
-    static let cloudRadius: Float = 1.5     // 2 m of floor alone is ~500k 5 mm voxels (the cap); estimator needs <= 1 m
+    static let cloudRadius: Float = 1.5     // insert crop until the first scan estimate; then estimate footprint + cropMargin
+    static let cropMargin: Float = 0.5
+    static let minCropRadius: Float = 0.6
     static let minHits = 2
     static let voxelParams = Params.fused  // passes the orbit tests (BoxMeasureKitTests testOrbit*) + DeviceLogTests
     /// Aim phase is single-view: silhouette bleed inflates max-extent by ~2 cm, so use the top-slab footprint.
@@ -218,7 +222,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         dbg.high = high.count; dbg.medium = medium.count
 
         if qPhase == .scan, let seed = lockedSeed {
-            return scanStep(s, points: (high + medium).filter { $0.y <= cloudTop }, seed: seed)
+            return scanStep(s, points: (high + medium).filter { $0.y <= cloudTop && $0.y >= cloudBottom }, seed: seed)
         }
         let points = high.count >= Self.minHighPoints ? high : high + medium
 
@@ -263,7 +267,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             lockedVertical = vertical
             scanParams = Self.voxelParams
             scanParams.seedOnSide = vertical
-            cloudTop = seed.y + (vertical ? scanParams.maxBoxSize : scanParams.maxAboveSeed)
+            cloudTop = seed.y + (vertical ? scanParams.maxBoxSize : scanParams.maxAboveSeed); cloudBottom = -.infinity
             var c = VoxelCloud(center: seed, radius: Self.cloudRadius, floorY: e.planeY + scanParams.abovePlane)
             for f in ring { c.insert(f.filter { $0.y <= cloudTop }) }
             cloud = c
@@ -279,7 +283,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
 
     /// D7. Debug mode: `estimateDebug` every time (overlay data). Otherwise plain `estimate`; on a miss,
     /// `estimateDebug` re-runs at most every `reasonInterval` only to name the failure (the scan-phase
-    /// cloud can be ~500k points, so never per attempt there). `dbg.failure` keeps the last known reason
+    /// cloud can be ~1M+ points, so never per attempt there). `dbg.failure` keeps the last known reason
     /// until the next success.
     private func estimate(_ pts: [SIMD3<Float>], seed: SIMD3<Float>, params: Params, _ s: Snapshot) -> BoxEstimate? {
         let t0 = CACurrentMediaTime()
@@ -327,12 +331,21 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         var hint: String { dbg.failure.map(Self.text) ?? coverage }
 
         guard s.time - lastEstimateTime >= Self.estimateInterval, let cloud else { return finish(nil, hint, keepWireframe: true) }
-        lastEstimateTime = s.time
-        guard let e = estimate(cloud.centroids(minHits: Self.minHits), seed: seed, params: scanParams, s) else {
+        let est = estimate(cloud.centroids(minHits: Self.minHits), seed: seed, params: scanParams, s)
+        // Runs on `queue`; ARFrames arriving meanwhile are dropped (`busy`). A big box (~450k surface voxels)
+        // costs ~250-400 ms, so space estimates >= 2x their cost to keep most frames for fusion.
+        lastEstimateTime = s.time + max(0, 2 * dbg.millis / 1000 - Self.estimateInterval)
+        guard let e = est else {
             return finish(nil, hint, keepWireframe: true)
         }
         scanAgg.add(e)
         lastScanEstimate = e
+        // Narrow the insert crop to the estimate (keeps the voxel cap from filling with far floor/clutter).
+        // ponytail: an early under-measured big box can crop its own far side until the estimate grows; cropMargin is the knob.
+        self.cloud?.center = e.center
+        self.cloud?.radius = max(Self.minCropRadius, (e.length * e.length + e.width * e.width).squareRoot() / 2 + Self.cropMargin)
+        cloudBottom = e.planeY - 0.05
+        cloudTop = min(cloudTop, e.planeY + scanParams.maxBoxSize)
         // B6 auto-finish.
         if remaining == 0, scanAgg.samples.count >= Self.finishSamples, scanAgg.spread <= Self.finishSpread {
             qPhase = .done

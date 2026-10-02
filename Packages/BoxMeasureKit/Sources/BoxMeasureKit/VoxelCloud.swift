@@ -4,8 +4,8 @@ import simd
 /// Voxels hit only once (flying pixels, transient noise) are dropped by `centroids(minHits:)`.
 public struct VoxelCloud: Sendable {
     public let voxelSize: Float
-    public let center: SIMD3<Float>
-    public let radius: Float
+    public var center: SIMD3<Float>   // crop for NEW inserts only; moving it never drops stored voxels
+    public var radius: Float
     public let maxVoxels: Int
     /// Voxels at y <= floorY (support plane + noise band, and glossy-floor reflections below it) may take
     /// at most half of `maxVoxels`. A noisy floor alone otherwise fills the cap within seconds and every
@@ -14,7 +14,7 @@ public struct VoxelCloud: Sendable {
     private var floorVoxels = 0
     private var voxels: [Int: (hits: Int32, sum: SIMD3<Float>)] = [:]
 
-    public init(voxelSize: Float = 0.005, center: SIMD3<Float>, radius: Float = 2.0, maxVoxels: Int = 500_000, floorY: Float = -.infinity) {
+    public init(voxelSize: Float = 0.005, center: SIMD3<Float>, radius: Float = 2.0, maxVoxels: Int = 1_500_000, floorY: Float = -.infinity) {
         self.voxelSize = voxelSize; self.center = center; self.radius = radius; self.maxVoxels = maxVoxels; self.floorY = floorY
     }
 

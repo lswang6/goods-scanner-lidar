@@ -190,3 +190,70 @@ extension BoxMeasureKitTests {
         XCTAssertEqual(c.centroids(minHits: 2).count, 200)
     }
 }
+
+#if canImport(Darwin)
+import Darwin
+
+/// Perf/memory probe for the 1.5M voxel cap. Opt-in: `VOXEL_PERF=1 swift test -c release --filter testVoxelCapPerf`.
+extension BoxMeasureKitTests {
+    private func residentMB() -> Double {
+        var info = mach_task_basic_info()
+        var n = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size)
+        _ = withUnsafeMutablePointer(to: &info) { $0.withMemoryRebound(to: integer_t.self, capacity: Int(n)) {
+            task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &n) } }
+        return Double(info.resident_size) / 1_048_576
+    }
+
+    func testVoxelCapPerf() throws {
+        try XCTSkipUnless(ProcessInfo.processInfo.environment["VOXEL_PERF"] != nil, "set VOXEL_PERF=1")
+        let s: Float = 0.005, b = Box(cx: 0, cz: 0, baseY: 0, l: 1.2, w: 1.0, h: 1.0, yaw: 15 * deg)
+        var pts: [SIMD3<Float>] = []
+        func grid(_ a: Float, _ c: Float) -> [Float] { stride(from: a, to: c, by: s).map { $0 + s / 2 } }
+        // Floor: 1.5 m disc, 3 noise layers (fills the floor budget). Box: every face, 2 layers.
+        for x in grid(-1.5, 1.5) { for z in grid(-1.5, 1.5) where x * x + z * z <= 2.25 && !b.covers(x, z) {
+            for y in [-0.0025, 0.0025, 0.0075] as [Float] { pts.append(SIMD3(x, y, z)) } } }
+        for d in [Float(0), s] {
+            for x in grid(-b.l / 2, b.l / 2) { for z in grid(-b.w / 2, b.w / 2) { pts.append(b.at(x, z, b.h + d)) } }
+            for y in grid(0, b.h) {
+                for x in grid(-b.l / 2, b.l / 2) { pts.append(b.at(x, -b.w / 2 - d, y)); pts.append(b.at(x, b.w / 2 + d, y)) }
+                for z in grid(-b.w / 2, b.w / 2) { pts.append(b.at(-b.l / 2 - d, z, y)); pts.append(b.at(b.l / 2 + d, z, y)) }
+            }
+        }
+        // Clutter: surrounding objects on a 1.3-1.5 m ring up to 1 m high, until ~1.5M distinct voxels.
+        var rng = SplitMix64(state: 3)
+        while pts.count < 1_560_000 {
+            let a = Float.random(in: 0..<(2 * .pi), using: &rng), r = Float.random(in: 1.3...1.49, using: &rng)
+            pts.append(SIMD3(r * cos(a), Float.random(in: 0.03...1.0, using: &rng), r * sin(a)))
+        }
+        let before = residentMB()
+        var c = VoxelCloud(voxelSize: s, center: .zero, radius: 1.5, floorY: 0.015)
+        var t = CFAbsoluteTimeGetCurrent()
+        c.insert(pts.flatMap { [$0, $0] })   // every voxel hit twice (back to back, so the cap's eviction keeps them)
+        let insertMs = (CFAbsoluteTimeGetCurrent() - t) * 1000
+        let after = residentMB()
+        t = CFAbsoluteTimeGetCurrent()
+        let cen = c.centroids(minHits: 2)
+        let cenMs = (CFAbsoluteTimeGetCurrent() - t) * 1000
+        t = CFAbsoluteTimeGetCurrent()
+        let e = BoxMeasurer.estimate(points: cen, seed: b.top, params: .fused)
+        let estMs = (CFAbsoluteTimeGetCurrent() - t) * 1000
+        t = CFAbsoluteTimeGetCurrent()
+        _ = BoxMeasurer.estimateDebug(points: cen, seed: b.top, params: .fused)
+        let dbgMs = (CFAbsoluteTimeGetCurrent() - t) * 1000
+        print(String(format: "  PERF voxels %d (cap %d)  stride %d B  resident +%.0f MB (%.0f B/voxel)  insert(2x%d pts) %.0f ms  centroids %.0f ms  estimate %.0f ms  estimateDebug %.0f ms",
+                     c.count, c.maxVoxels, MemoryLayout<(hits: Int32, sum: SIMD3<Float>)>.stride, after - before,
+                     (after - before) * 1_048_576 / Double(c.count), pts.count, insertMs, cenMs, estMs, dbgMs))
+        var k = 0
+        let sub = cen.filter { q in k += 1; return q.y > 0.015 || k % 4 == 0 }
+        t = CFAbsoluteTimeGetCurrent()
+        let e2 = BoxMeasurer.estimate(points: sub, seed: b.top, params: .fused)
+        print(String(format: "  PERF floor 1/4: %d pts  estimate %.0f ms  L %.3f W %.3f H %.3f", sub.count, (CFAbsoluteTimeGetCurrent() - t) * 1000, e2?.length ?? 0, e2?.width ?? 0, e2?.height ?? 0))
+        let noClutter = cen.filter { $0.x * $0.x + $0.z * $0.z < 1.69 }
+        t = CFAbsoluteTimeGetCurrent()
+        _ = BoxMeasurer.estimate(points: noClutter, seed: b.top, params: .fused)
+        print(String(format: "  PERF r<1.3: %d pts  estimate %.0f ms", noClutter.count, (CFAbsoluteTimeGetCurrent() - t) * 1000))
+        if let e { print(String(format: "  PERF estimate L %.3f W %.3f H %.3f", e.length, e.width, e.height)) }
+        XCTAssertNotNil(e)
+    }
+}
+#endif
