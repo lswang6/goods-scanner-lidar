@@ -9,6 +9,8 @@ import BoxMeasureKit
 /// arrays on main (ARFrame is never retained) and processed on `queue`. Everything under "queue only"
 /// is touched only on `queue`; @Published state (incl. `shots`) and SceneKit only on main.
 /// Mesh overlay: see MeshOverlay (own queue).
+enum SurfaceHint { case top, side }
+
 final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     enum Phase { case aim, scan, done }
 
@@ -24,6 +26,10 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     /// D4 overlay data (published with every processed frame) and ARKit tracking state (debug only).
     @Published private(set) var debugInfo = ScanDebugInfo()
     @Published private(set) var tracking = ""
+    /// Aim-phase guidance (ScanGuidance): face under the crosshair with a valid estimate, and the
+    /// fraction of the `lockHold` window satisfied (< 1 until the lock fires; stays 1 after it).
+    @Published private(set) var aimSurface: SurfaceHint?
+    @Published private(set) var lockProgress = 0.0
     /// D4/D7: set by ScanView from 设置 → 调试模式 before `start()`. Main only (copied into each Snapshot).
     var debug = false
 
@@ -59,6 +65,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     private var photoSectors: [Int] = []
     private var dbg = ScanDebugInfo()
     private var lastReasonTime: TimeInterval = -.infinity
+    private var qSurface: SurfaceHint?
+    private var qLockProgress = 0.0
 
     static let interval: TimeInterval = 0.2
     static let fuseFrames = 3
@@ -115,6 +123,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             self.lockedSeed = nil; self.cloud = nil; self.scanAgg.reset(); self.lastScanEstimate = nil
             self.covered = Array(repeating: false, count: Self.sectorCount); self.photoSectors.removeAll()
             self.dbg = ScanDebugInfo(); self.lastReasonTime = -.infinity
+            self.qSurface = nil; self.qLockProgress = 0
             self.finish(nil, status)
         }
     }
@@ -225,6 +234,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             return scanStep(s, points: (high + medium).filter { $0.y <= cloudTop && $0.y >= cloudBottom }, seed: seed)
         }
         let points = high.count >= Self.minHighPoints ? high : high + medium
+        qSurface = nil; qLockProgress = 0  // every aim-phase miss below publishes "no surface"
 
         // Seed: median of the central 5x5 window (depth-map center == screen center, portrait aspect-fill).
         // D1: the surrounding 7x7 window (all conf >= 1) decides top vs side face.
@@ -260,9 +270,16 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         // with an estimate every frame.
         seedHistory.append((s.time, seed, vertical))
         seedHistory.removeAll { s.time - $0.t > Self.lockHold + 0.5 }
+        // UI only: time since the last entry that would block the lock, capped below 1 (an old blocking
+        // entry can still be in the window after 1 s of consistency).
+        let since = seedHistory.lastIndex { simd_length($0.p - seed) >= Self.lockDrift || $0.vertical != vertical }
+            .map { $0 + 1 } ?? 0
+        qSurface = vertical ? .side : .top
+        qLockProgress = since < seedHistory.count ? min(0.95, (s.time - seedHistory[since].t) / Self.lockHold) : 0
         if let first = seedHistory.first, s.time - first.t >= Self.lockHold,
            seedHistory.allSatisfy({ simd_length($0.p - seed) < Self.lockDrift && $0.vertical == vertical }) {
             qPhase = .scan
+            qLockProgress = 1
             lockedSeed = seed
             lockedVertical = vertical
             scanParams = Self.voxelParams
@@ -392,12 +409,15 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         let agg = qPhase != .aim && !scanAgg.samples.isEmpty ? scanAgg : aggregator
         let med = agg.median()   // shape = majority vote (BoxAggregator)
         let sp = agg.spread, n = agg.samples.count, phase = qPhase, cov = covered
+        let surface = qSurface, lockProgress = qLockProgress
         var info = dbg
         info.history = Array(agg.samples.suffix(5))
         DispatchQueue.main.async {
             self.busy = false
             self.debugInfo = info
             self.median = med; self.spread = sp; self.sampleCount = n; self.sectors = cov
+            if self.aimSurface != surface { self.aimSurface = surface }
+            if self.lockProgress != lockProgress { self.lockProgress = lockProgress }
             switch event {
             case .none: break
             case .locked(let seed):
