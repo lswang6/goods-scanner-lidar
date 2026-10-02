@@ -157,3 +157,15 @@ project.yml
 | C3 | `ScanResult.photo` → `photos: [UIImage]`，ItemEditView 全部加入照片 | |
 | C4 | **按最大外形计量**：footprint 用连通域**全部高度**点（经格子/邻居过滤 + 修剪）的最小外接矩形；高度取有支撑的最高点（稳健最大值而非 p98）。`Params.maxExtent = true` 默认开；旧的顶面薄层法保留为 `false` 供对比测试 | 规则箱结果不变，不规则物体（上小下大、袋装、异形）不漏算 |
 | C5 | 扫描 HUD 小字提示「按最大外形尺寸计量」 | 让操作员知道口径 |
+
+## 11. v4：侧面瞄准 + 照片查看 + 调试模式（2026-10-02 用户反馈）
+
+| # | 决策 | 理由 |
+|---|---|---|
+| D1 | 瞄准支持**箱顶或侧面**：准星窗口点用 `isVerticalSurface` 判断竖直/水平；侧面 → `Params.seedOnSide = true`（物体点上限 seed.y + maxBoxSize，强制最大外形路径），体素云纵向裁剪同样放宽到 maxBoxSize | 大件货物箱顶拍不全 |
+| D2 | 侧面种子的 flood-fill 从种子 XZ 所在列开始（侧面点投影即箱体边缘格子），无需先找到箱顶 | 复用现有分割 |
+| D3 | 照片点击 → 全屏查看器（分页滑动、双指缩放、分享） | |
+| D4 | 「设置 → 调试模式」开关（所有构建可用，不另做 Debug 版）：扫描 HUD 显示种子类型、planeY、帧点数/体素数/上限、估计耗时、失败原因、L/W/H 历史；完成后可 3D 查看点云（物体绿 / 支撑面蓝 / 其他灰） | 现场看问题 |
+| D5 | 调试模式下每次扫描保存 `Documents/ScanLogs/<时间>/scan.json + points.ply`；`UIFileSharingEnabled` 让「文件」App 可见；开发机用 `xcrun devicectl device copy from` 拉取 | 离线回放调参 |
+| D6 | BoxMeasureKit 增加 macOS 可执行目标 `bmk-replay <dir> [--param k=v ...]`：读取日志、重跑估计、打印对比、输出分割着色 PLY | 不用真机即可迭代参数 |
+| D7 | `estimate` 返回 nil 时 HUD 显示具体原因（无支撑面 / 准星处无物体 / 点太少 / 尺寸超范围）——由 `estimateDebug` 提供 | 替换笼统的"未识别到箱体" |

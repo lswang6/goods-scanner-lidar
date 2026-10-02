@@ -3,7 +3,7 @@ import simd
 // FROZEN INTERFACE (docs/SPEC.md §4). Algorithm internals live in Estimate.swift.
 // World space: meters, y up (gravity-aligned, as ARKit world tracking).
 
-public struct BoxEstimate: Equatable, Sendable {
+public struct BoxEstimate: Equatable, Sendable, Codable {
     public var length: Float   // meters, length >= width
     public var width: Float
     public var height: Float
@@ -18,7 +18,7 @@ public struct BoxEstimate: Equatable, Sendable {
     }
 }
 
-public struct Params: Sendable {
+public struct Params: Sendable, Codable {
     public var searchRadius: Float = 1.0
     public var maxSearchRadius: Float = 2.0
     public var binSize: Float = 0.01
@@ -52,6 +52,9 @@ public struct Params: Sendable {
     /// maxExtent height: a 1 cm y-bin counts as object top when its 3x3-cell XZ neighbourhood holds at
     /// least this many points in that bin plus the bin below.
     public var heightSupport: Int = 10
+    /// SPEC §11: the seed lies on a vertical side face (not the top). Object points are admitted up to
+    /// seed.y + maxBoxSize, and the footprint/height always use the max-extent path.
+    public var seedOnSide: Bool = false
     public init() {}
 }
 
