@@ -109,6 +109,7 @@ struct OrderDetailView: View {
     @State private var editingOrder = false
     @State private var addingItem = false
     @State private var editingItem: CargoItem?
+    @State private var viewing: PhotoSelection?
     @State private var confirmDelete = false
     @State private var error: String?
 
@@ -135,7 +136,8 @@ struct OrderDetailView: View {
             }
             Section("货物（\(order.items.count)）") {
                 ForEach(order.items.sorted { $0.createdAt < $1.createdAt }) { item in
-                    Button { editingItem = item } label: { ItemRow(item: item) }.tint(.primary)
+                    ItemRow(item: item, onEdit: { editingItem = item },
+                            onPhoto: { viewing = PhotoSelection(files: item.photoFiles, start: 0) })
                         .swipeActions {
                             Button("删除", role: .destructive) {
                                 do { try deleteItem(item, in: context) } catch { self.error = error.localizedDescription }
@@ -161,6 +163,7 @@ struct OrderDetailView: View {
         .sheet(isPresented: $editingOrder) { OrderForm(order: order) }
         .sheet(isPresented: $addingItem) { ItemEditView(order: order, item: nil) }
         .sheet(item: $editingItem) { ItemEditView(order: order, item: $0) }
+        .fullScreenCover(item: $viewing) { PhotoViewer($0) }
         .confirmationDialog("删除入库单及其全部货物和照片？", isPresented: $confirmDelete, titleVisibility: .visible) {
             Button("删除", role: .destructive) {
                 // Pop first so this view never re-renders against a deleted model.
@@ -174,34 +177,52 @@ struct OrderDetailView: View {
     }
 }
 
+/// Thumbnail and the rest of the row are sibling plain buttons so List hit-tests them separately:
+/// the thumbnail opens the photo viewer, anywhere else edits the item.
 private struct ItemRow: View {
     let item: CargoItem
+    let onEdit: () -> Void
+    let onPhoto: () -> Void
     var body: some View {
         HStack(spacing: 12) {
-            Group {
-                if let f = item.photoFiles.first, let img = PhotoStore.thumbnail(f, side: 200) {
-                    Image(uiImage: img).resizable().scaledToFill()
-                } else {
-                    Image(systemName: "shippingbox.fill").font(.title2).foregroundStyle(.brand)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.brand.opacity(0.12))
+            if let f = item.photoFiles.first {
+                Button(action: onPhoto) { thumb(PhotoStore.thumbnail(f, side: 200)) }
+                    .buttonStyle(.plain).accessibilityLabel("查看照片")
+            }
+            Button(action: onEdit) {
+                HStack(spacing: 12) {
+                    if item.photoFiles.isEmpty { thumb(nil) }
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            Text(item.name.isEmpty ? "（未命名）" : item.name).font(.headline).lineLimit(1)
+                            if item.method == "lidar" { Image(systemName: "viewfinder").font(.caption).foregroundStyle(.scanText) }
+                        }
+                        DimsBadge(l: item.lengthCm, w: item.widthCm, h: item.heightCm)
+                        if let kg = item.weightKg { NumText(value: kg.kg, unit: "kg", style: .caption).foregroundStyle(.secondary) }
+                    }
+                    Spacer(minLength: 4)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        NumText(value: item.totalVolumeM3.m3, unit: "m³", style: .headline)
+                        Text("× \(item.quantity)").font(.num(.subheadline)).foregroundStyle(.secondary)
+                    }
                 }
+                .contentShape(Rectangle())
             }
-            .frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: Radius.tag, style: .continuous))
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 6) {
-                    Text(item.name.isEmpty ? "（未命名）" : item.name).font(.headline).lineLimit(1)
-                    if item.method == "lidar" { Image(systemName: "viewfinder").font(.caption).foregroundStyle(.scanText) }
-                }
-                DimsBadge(l: item.lengthCm, w: item.widthCm, h: item.heightCm)
-                if let kg = item.weightKg { NumText(value: kg.kg, unit: "kg", style: .caption).foregroundStyle(.secondary) }
-            }
-            Spacer(minLength: 4)
-            VStack(alignment: .trailing, spacing: 2) {
-                NumText(value: item.totalVolumeM3.m3, unit: "m³", style: .headline)
-                Text("× \(item.quantity)").font(.num(.subheadline)).foregroundStyle(.secondary)
-            }
+            .buttonStyle(.plain)
         }
         .padding(.vertical, 2)
+    }
+
+    private func thumb(_ img: UIImage?) -> some View {
+        Group {
+            if let img {
+                Image(uiImage: img).resizable().scaledToFill()
+            } else {
+                Image(systemName: "shippingbox.fill").font(.title2).foregroundStyle(.brand)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity).background(Color.brand.opacity(0.12))
+            }
+        }
+        .frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: Radius.tag, style: .continuous))
     }
 }
 
