@@ -40,7 +40,7 @@ if args.first == "--refuse" {
     args.removeFirst()
     guard let dir = args.first, !dir.hasPrefix("-") else { die("--refuse needs <scanDir>") }
     args.removeFirst()
-    var o = RefuseOptions(), sets: [(String, String)] = []
+    var o = RefuseOptions(), sets: [(String, String)] = [], estSeed: SIMD3<Float>?
     while !args.isEmpty {
         let flag = args.removeFirst()
         guard !args.isEmpty else { die("\(flag) needs a value") }
@@ -52,6 +52,9 @@ if args.first == "--refuse" {
         case "--depth-scale": o.depthScale = need(Float(v), "bad --depth-scale \(v)")
         case "--phase": o.allPhases = need(["all": true, "scan": false][v], "--phase scan|all")
         case "--set", "--param": sets.append(parseSet(v))
+        case "--seed":   // final estimate only (fusion keeps the logged lock seed)
+            let c = v.split(separator: ",").compactMap { Float($0) }
+            guard c.count == 3 else { die("--seed x,y,z") }; estSeed = SIMD3(c[0], c[1], c[2])
         default: die("unknown flag \(flag)")
         }
     }
@@ -63,7 +66,7 @@ if args.first == "--refuse" {
     p = try applying(sets, to: p)
     guard let seed = ix.lockSeed, let r = frames.refuse(params: p, options: o) else { die("no lock recorded in frames.json") }
     let pts = r.fusion.points()
-    let (e, d) = BoxMeasurer.estimateDebug(points: pts, seed: seed, params: p)
+    let (e, d) = BoxMeasurer.estimateDebug(points: pts, seed: estSeed ?? seed, params: p)
     print("frames   \(dir)  \(ix.count) recorded (\(ix.width)x\(ix.height), live \(ix.liveSource.rawValue))  lock t=\(ix.lockTime ?? 0)  seed \(seed)  side \(p.seedOnSide)")
     if let saved = try? ScanLogIO.read(from: url) { print("saved    \(show(saved.log.estimate))  voxels \(saved.log.voxelCount)") }
     print("options  source \((o.source ?? ix.liveSource).rawValue)  min-conf \(o.minConfidence)  max-incidence \(o.maxIncidence.map { "\($0)°" } ?? "-")  depth-scale \(o.depthScale)  phase \(o.allPhases ? "all" : "scan")"
@@ -74,7 +77,7 @@ if args.first == "--refuse" {
 }
 
 guard let dirArg = args.first, !dirArg.hasPrefix("-") else {
-    die("usage: bmk-replay <scanDir> [--set key=value ...] [--out colored.ply]\n       bmk-replay --refuse <scanDir> [--source smoothed|raw] [--min-conf 1|2] [--max-incidence DEG] [--depth-scale K] [--phase scan|all] [--set key=value ...]")
+    die("usage: bmk-replay <scanDir> [--set key=value ...] [--out colored.ply]\n       bmk-replay --refuse <scanDir> [--source smoothed|raw] [--min-conf 1|2] [--max-incidence DEG] [--depth-scale K] [--phase scan|all] [--seed x,y,z] [--set key=value ...]")
 }
 args.removeFirst()
 var sets: [(String, String)] = []
