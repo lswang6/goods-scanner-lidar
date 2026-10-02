@@ -11,7 +11,10 @@ func medianOf(_ v: [Float]) -> Float {
 
 /// Nearest supporting surface below the seed (SPEC §4): scan the y histogram downward from
 /// seed.y - planeGap, first bin with enough points wins. Radius grows in 0.5 m steps.
-func findPlaneY(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> Float? {
+/// Returns the plane height and the search radius it was found at.
+/// Side seeds (seedOnSide): vertical faces spread over all y-bins (perimeter x binSize x density per
+/// bin), far below the 5%-of-radius threshold, so they are not picked as a plane.
+func findPlaneY(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> (y: Float, r: Float)? {
     let topY = seed.y - p.planeGap
     let topBin = Int((topY / p.binSize).rounded(.down))
     var r = p.searchRadius
@@ -42,7 +45,7 @@ func findPlaneY(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> Float?
                 while i + 1 < n && count[i + 1] > count[i] { i += 1 }
                 var c = 0, s: Float = 0
                 for j in max(0, i - 1)...min(n - 1, i + 1) { c += count[j]; s += sum[j] }
-                return s / Float(c)
+                return (s / Float(c), r)
             }
         }
         if r >= p.maxSearchRadius { return nil }
@@ -50,11 +53,26 @@ func findPlaneY(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> Float?
     }
 }
 
-func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> BoxEstimate? {
-    guard p.gridCell > 0, p.binSize > 0, let planeY = findPlaneY(points: points, seed: seed, p: p) else { return nil }
+/// The one estimate pipeline. `collect` = also gather object/plane point indices (debug only;
+/// `estimate` passes false so it pays nothing extra). `d.failure` = first failing stage.
+func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params, collect: Bool) -> (BoxEstimate?, EstimateDebug) {
+    var d = EstimateDebug()
+    func fail(_ f: EstimateFailure) -> (BoxEstimate?, EstimateDebug) { d.failure = f; return (nil, d) }
+    guard p.gridCell > 0, p.binSize > 0, let plane = findPlaneY(points: points, seed: seed, p: p) else { return fail(.noPlane) }
+    let planeY = plane.y
+    d.planeY = planeY
+    if collect {
+        let r2 = plane.r * plane.r
+        d.planeIndices = points.indices.filter {
+            let q = points[$0], dx = q.x - seed.x, dz = q.z - seed.z
+            return dx * dx + dz * dz <= r2 && abs(q.y - planeY) <= p.binSize
+        }
+    }
+    let useMaxExtent = p.maxExtent || p.seedOnSide
 
-    // Box candidates: above the plane, not far above the seed. Bucket into an XZ grid.
-    let lo = planeY + p.abovePlane, hi = seed.y + (p.maxExtent ? p.maxAboveSeed : p.topSlab * 2.5)
+    // Box candidates: above the plane, not far above the seed (side seed: up to a max-size box). XZ grid.
+    let lo = planeY + p.abovePlane
+    let hi = seed.y + (p.seedOnSide ? p.maxBoxSize : p.maxExtent ? p.maxAboveSeed : p.topSlab * 2.5)
     let inv = 1 / p.gridCell
     var idx: [Int] = []
     var keys: [Int] = []
@@ -77,7 +95,7 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> BoxE
         } }
         if let b = best { start = b.1; break search }
     }
-    guard let start else { return nil }
+    guard let start else { return fail(.noSeedCell) }
 
     // 8-connected flood fill.
     var comp: Set<Int> = [start]
@@ -97,23 +115,24 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> BoxE
     for (j, k) in keys.enumerated() where comp.contains(k) {
         let q = points[idx[j]]
         compPts.append(q); compKeys.append(k)
-        if abs(q.y - seed.y) <= p.topSlab {
+        if collect { d.objectIndices.append(idx[j]) }
+        if !useMaxExtent && abs(q.y - seed.y) <= p.topSlab {
             slabPts.append((k, SIMD2(q.x, q.z)))
             slabCount[k, default: 0] += 1
         }
     }
-    guard compPts.count >= p.minBoxPoints else { return nil }
+    guard compPts.count >= p.minBoxPoints else { return fail(.tooFewPoints) }
     let allXZ = compPts.map { SIMD2($0.x, $0.z) }
 
     let rect: (center: SIMD2<Float>, size: SIMD2<Float>, angle: Float)
     let height: Float
-    if p.maxExtent {
+    if useMaxExtent {
         // C4: every height counts. Comp cells already have >= minCellPoints; drop cells with few
         // occupied neighbours, then footprintRect trims stragglers.
         let keep = denseCells(cellCount.filter { comp.contains($0.key) }, p)
         let xz = compKeys.indices.filter { keep[compKeys[$0]] != nil }.map { allXZ[$0] }
         rect = footprintRect(xz.count >= p.minBoxPoints ? xz : allXZ, p)
-        guard let top = supportedTop(compPts, p) else { return nil }
+        guard let top = supportedTop(compPts, p) else { return fail(.tooFewPoints) }
         height = top - planeY
     } else {
         // Footprint from top-slab points. Cell filters use slab-only counts, so sparse/isolated
@@ -126,14 +145,14 @@ func estimateImpl(points: [SIMD3<Float>], seed: SIMD3<Float>, p: Params) -> BoxE
         height = ys[pi] - planeY
     }
     let (l, w) = (rect.size.x, rect.size.y)
-    guard l > 0, w > 0, height > 0, l <= p.maxBoxSize, w <= p.maxBoxSize, height <= p.maxBoxSize else { return nil }
+    guard l > 0, w > 0, height > 0, l <= p.maxBoxSize, w <= p.maxBoxSize, height <= p.maxBoxSize else { return fail(.outOfRange) }
 
     // rect angle is atan2(dz, dx) in (x, z); right-handed yaw about +y is its negation.
     var yaw = -rect.angle
     if yaw <= -.pi / 2 { yaw += .pi }
-    return BoxEstimate(length: l, width: w, height: height,
-                       center: SIMD3(rect.center.x, planeY, rect.center.y),
-                       yaw: yaw, planeY: planeY, pointCount: compPts.count)
+    return (BoxEstimate(length: l, width: w, height: height,
+                        center: SIMD3(rect.center.x, planeY, rect.center.y),
+                        yaw: yaw, planeY: planeY, pointCount: compPts.count), d)
 }
 
 /// Cells with >= minCellPoints points and >= slabNeighbours occupied (present in `counts`) 8-neighbours.
@@ -160,14 +179,19 @@ func supportedTop(_ pts: [SIMD3<Float>], _ p: Params) -> Float? {
     var bins: [Int: [Int: Int]] = [:]   // y-bin -> cell -> count
     for q in pts { let k = key(q); bins[k.b, default: [:]][k.cell, default: 0] += 1 }
     for b in bins.keys.sorted(by: >) {
+        // Best-supported neighbourhood in this bin (ties -> smaller key): Dictionary order is per-instance
+        // random, so "first qualifying cell" made the height non-deterministic run to run.
+        var best: (n: Int, k: Int)?
         for k in bins[b]!.keys {
             let ix = k >> 32, iz = Int(Int32(truncatingIfNeeded: k))
             var n = 0
             for dx in -1...1 { for dz in -1...1 { for bb in (b - 1)...b { n += bins[bb]?[cellKey(ix + dx, iz + dz)] ?? 0 } } }
-            guard n >= p.heightSupport else { continue }
-            let ys = pts.filter { let q = key($0); return abs(q.ix - ix) <= 1 && abs(q.iz - iz) <= 1 && (b - 1...b).contains(q.b) }.map(\.y)
-            return medianOf(ys)
+            if n >= p.heightSupport, best == nil || n > best!.n || (n == best!.n && k < best!.k) { best = (n, k) }
         }
+        guard let k = best?.k else { continue }
+        let ix = k >> 32, iz = Int(Int32(truncatingIfNeeded: k))
+        let ys = pts.filter { let q = key($0); return abs(q.ix - ix) <= 1 && abs(q.iz - iz) <= 1 && (b - 1...b).contains(q.b) }.map(\.y)
+        return medianOf(ys)
     }
     return nil
 }

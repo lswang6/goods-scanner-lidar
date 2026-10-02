@@ -62,7 +62,7 @@ public enum BoxMeasurer {
     /// `yaw` follows a right-handed rotation about +y: the length axis is (cos yaw, 0, -sin yaw),
     /// normalized to (-pi/2, pi/2].
     public static func estimate(points: [SIMD3<Float>], seed: SIMD3<Float>, params: Params = .init()) -> BoxEstimate? {
-        estimateImpl(points: points, seed: seed, p: params)
+        estimateImpl(points: points, seed: seed, p: params, collect: false).0
     }
 }
 
