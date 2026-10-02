@@ -37,6 +37,8 @@ targets:
         NSCameraUsageDescription: 用于扫描货物尺寸和拍摄入库照片
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        UIFileSharingEnabled: true          # SPEC §11 D5: Documents/ScanLogs visible in 文件 App
+        LSSupportsOpeningDocumentsInPlace: true
     settings:
       base:
         GENERATE_INFOPLIST_FILE: NO
