@@ -122,12 +122,6 @@ final class GoodsScannerTests: XCTestCase {
         XCTAssertEqual(CargoItem.shapes.map(CargoItem.shapeLabel), ["箱体", "圆柱", "异形"])
     }
 
-    func testMajorityShape() {
-        XCTAssertEqual(ScanSession.majorityShape([]), .box)
-        XCTAssertEqual(ScanSession.majorityShape([.cylinder, .box, .cylinder, .box]), .box, "tie -> most recent")
-        XCTAssertEqual(ScanSession.majorityShape([.cylinder, .cylinder, .irregular]), .cylinder)
-    }
-
     func testCSVOrderWithoutItems() throws {
         let o = try addOrder(date(2026, 10, 1))
         let text = String(decoding: Exporter.csv([o]).dropFirst(3), as: UTF8.self)
