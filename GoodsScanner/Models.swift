@@ -64,7 +64,7 @@ import SwiftData
     var quantity: Int
     var weightKg: Double?
     var photoFiles: [String]
-    var method: String  // "lidar" | "manual"
+    var method: String  // "lidar" | "camera" | "manual"
     var confidence: Double?
     var createdAt: Date
     /// SPEC §13 E4: "box" | "cylinder" | "irregular" (cylinder: L = W = diameter). The default value lets
@@ -81,7 +81,9 @@ import SwiftData
 
     var unitVolumeM3: Double { CargoItem.volumeM3(lengthCm, widthCm, heightCm) }
     var totalVolumeM3: Double { unitVolumeM3 * Double(quantity) }
-    var methodLabel: String { method == "lidar" ? "LiDAR" : "手动" }
+    var methodLabel: String { CargoItem.methodLabel(method) }
+    static func methodLabel(_ m: String) -> String { m == "lidar" ? "LiDAR" : m == "camera" ? "相机" : "手动" }
+    static func methodIcon(_ m: String) -> String { m == "lidar" ? "viewfinder" : m == "camera" ? "camera.viewfinder" : "hand.point.up.left" }
     var shapeLabel: String { CargoItem.shapeLabel(shape) }
     /// "26 × 26 × 25.5" (box/irregular) or "Ø26 × 25.5" (cylinder), no unit.
     var dimsText: String { CargoItem.dimsText(lengthCm, widthCm, heightCm, shape: shape) }

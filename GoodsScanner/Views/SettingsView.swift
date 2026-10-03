@@ -6,6 +6,8 @@ struct SettingsView: View {
     @AppStorage("calibrationOffsetCm") private var calibrationOffsetCm = 0.0
     /// SPEC §11 D4/D5: scan diagnostics + point-cloud review + scan logs (read by Scan/ScanView).
     @AppStorage("debugMode") private var debugMode = false
+    /// SPEC §14: LiDAR devices scan with the camera-only pipeline (testing the non-LiDAR path).
+    @AppStorage("forceCameraMode") private var forceCameraMode = false
     @State private var logCount = 0
     @State private var confirmClear = false
 
@@ -43,6 +45,7 @@ struct SettingsView: View {
                 }
                 Section {
                     Toggle("调试模式", isOn: $debugMode)
+                    if lidarAvailable { Toggle("强制相机模式", isOn: $forceCameraMode) }
                     LabeledContent("已保存调试数据") { Text("\(logCount) 次").font(.num(.body)) }
                     Button("清空调试数据", role: .destructive) { confirmClear = true }
                         .disabled(logCount == 0)
@@ -50,12 +53,12 @@ struct SettingsView: View {
                             Button("清空", role: .destructive) { ScanLogStore.clear(); logCount = ScanLogStore.count }
                         }
                 } header: { Text("开发者") } footer: {
-                    Text("开启后扫描页显示诊断信息，完成时可查看 3D 点云，并把每次扫描的点云和参数保存到「文件」App 的本 App 目录（ScanLogs），用于离线调参。")
+                    Text("开启后扫描页显示诊断信息，完成时可查看 3D 点云，并把每次扫描的点云和参数保存到「文件」App 的本 App 目录（ScanLogs），用于离线调参。强制相机模式：不用 LiDAR，只用相机画面测量（测试无 LiDAR 机型的流程）。")
                 }
                 Section {
                     // Text(Image) not Label: Label as LabeledContent content stretched the row (~225pt) on iOS 26.
                     LabeledContent("LiDAR") {
-                        Text("\(Image(systemName: lidarAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")) \(lidarAvailable ? "可用" : "不可用（手动录入）")")
+                        Text("\(Image(systemName: lidarAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")) \(lidarAvailable ? "可用" : (cameraScanAvailable ? "不可用（相机测量）" : "不可用（手动录入）"))")
                             .foregroundStyle(lidarAvailable ? Color.scanText : Color.warnText)
                     }
                 }

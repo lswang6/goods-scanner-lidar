@@ -2,18 +2,20 @@ import SwiftUI
 import ARKit
 import BoxMeasureKit
 
-/// LiDAR scan screen. Falls back to an explanation on simulator / non-LiDAR devices (`lidarAvailable`).
+/// Scan screen: LiDAR, or the camera-only pipeline (SPEC §14) without LiDAR / with 设置 → 强制相机模式.
+/// Falls back to an explanation on simulator / devices without world tracking.
 struct ScanView: View {
     let onResult: (ScanResult) -> Void
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("forceCameraMode") private var forceCamera = false
 
     var body: some View {
-        if lidarAvailable {
-            ARScanScreen(onResult: onResult)
+        if cameraScanAvailable {
+            ARScanScreen(onResult: onResult, cameraMode: !lidarAvailable || forceCamera)
         } else {
             NavigationStack {
-                EmptyState(image: "ScanAim", title: "无法使用 LiDAR 扫描",
-                           message: "本机或模拟器不支持 LiDAR 深度，请返回手动录入尺寸，并用「拍照」添加照片。",
+                EmptyState(image: "ScanAim", title: "无法使用 AR 扫描",
+                           message: "本机或模拟器不支持 AR 扫描，请返回手动录入尺寸，并用「拍照」添加照片。",
                            action: ("返回手动录入", { dismiss() }))
                     .toolbar { Button("关闭") { dismiss() } }
             }
@@ -23,6 +25,7 @@ struct ScanView: View {
 
 private struct ARScanScreen: View {
     let onResult: (ScanResult) -> Void
+    let cameraMode: Bool
     @StateObject private var scan = ScanSession()
     @AppStorage("calibrationOffsetCm") private var offsetCm = 0.0
     @Environment(\.dismiss) private var dismiss
@@ -64,7 +67,7 @@ private struct ARScanScreen: View {
         .coordinateSpace(name: ScanGuidance.space)
         .onPreferenceChange(RingCenterKey.self) { ringCenter = $0 }
         .environment(\.colorScheme, .dark)  // HUD over camera feed
-        .onAppear { scan.debug = debugMode; scan.start() }
+        .onAppear { scan.debug = debugMode; scan.cameraMode = cameraMode; scan.start() }
         .sheet(item: $review) { r in
             ScanReviewView(capture: r.capture, box: r.box, result: r.result, saved: r.saved,
                            onUse: { review = nil; onResult(r.result) },
@@ -118,7 +121,7 @@ private struct ARScanScreen: View {
                         Text("cm").font(.subheadline).foregroundStyle(.secondary)
                     }
                     .lineLimit(1).minimumScaleFactor(0.6)
-                    Text("按最大外形尺寸计量" + (scan.shots.isEmpty ? "" : " · 已拍 \(scan.shots.count)/\(ScanSession.maxShots)"))
+                    Text("按最大外形尺寸计量" + (cameraMode ? " · 相机估算" : "") + (scan.shots.isEmpty ? "" : " · 已拍 \(scan.shots.count)/\(ScanSession.maxShots)"))
                         .font(.caption2).foregroundStyle(.secondary)
                     if scan.sampleCount >= 2 {
                         Text(String(format: "离散度 %.1f%%（%d 次）", scan.spread * 100, scan.sampleCount)
@@ -156,6 +159,7 @@ private struct ARScanScreen: View {
         guard !delivered, let m = scan.median else { return }
         delivered = true
         var r = ScanResult(m, confidence: max(0, 1 - Double(scan.spread)), photos: [])
+        r.method = cameraMode ? "camera" : "lidar"
         let adj = { (cm: Double) in max(0.1, ((cm - offsetCm) * 10).rounded() / 10) }
         r.lengthCm = adj(r.lengthCm); r.widthCm = adj(r.widthCm); r.heightCm = adj(r.heightCm)
         let shots = scan.shots.isEmpty ? [scan.captureShot()].compactMap { $0 } : scan.shots

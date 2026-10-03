@@ -1,6 +1,7 @@
 import ARKit
 import SceneKit
 import CoreImage
+import Vision
 import BoxMeasureKit
 
 /// Walk-around scan (SPEC §9): aim (single-frame estimate on the crosshair seed) -> seed lock ->
@@ -32,6 +33,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     @Published private(set) var lockProgress = 0.0
     /// D4/D7: set by ScanView from 设置 → 调试模式 before `start()`. Main only (copied into each Snapshot).
     var debug = false
+    /// SPEC §14: camera-only pipeline (no depth: Vision foreground masks + visual hull). Set by ScanView before `start()`.
+    var cameraMode = false
 
     let view = ARSCNView(frame: .zero)
     private let overlay = MeshOverlay()
@@ -67,6 +70,11 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     /// Debug-mode raw-frame log (frames.bin) and the per-frame marks it records.
     private var recorder: FrameRecorder?
     private var qRing = false, qEstimated = false, qLock = false
+    // queue only, camera mode (SPEC §14): silhouettes since lock, support plane, hull surface of the last estimate.
+    private var qCamera = false
+    private var views: [Silhouette] = []
+    private var lastViewCamera: SIMD3<Float>?
+    private var camFloorY: Float?
 
     static let interval: TimeInterval = 0.2
     static let fuseFrames = 3
@@ -105,15 +113,21 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
 
     func start() {
         let c = ARWorldTrackingConfiguration()
-        c.planeDetection = []
-        c.frameSemantics = ARWorldTrackingConfiguration.supportsFrameSemantics(.smoothedSceneDepth) ? .smoothedSceneDepth : .sceneDepth
-        // Debug raw-frame log records both; live fusion still prefers smoothed (`smoothedSceneDepth ?? sceneDepth`).
-        if debug, ARWorldTrackingConfiguration.supportsFrameSemantics([.sceneDepth, .smoothedSceneDepth]) {
-            c.frameSemantics = [.sceneDepth, .smoothedSceneDepth]
+        if cameraMode {
+            c.planeDetection = [.horizontal]   // support plane (Self.floorY); no depth, no mesh
+        } else {
+            c.planeDetection = []
+            c.frameSemantics = ARWorldTrackingConfiguration.supportsFrameSemantics(.smoothedSceneDepth) ? .smoothedSceneDepth : .sceneDepth
+            // Debug raw-frame log records both; live fusion still prefers smoothed (`smoothedSceneDepth ?? sceneDepth`).
+            if debug, ARWorldTrackingConfiguration.supportsFrameSemantics([.sceneDepth, .smoothedSceneDepth]) {
+                c.frameSemantics = [.sceneDepth, .smoothedSceneDepth]
+            }
+            if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) { c.sceneReconstruction = .mesh }
         }
-        if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) { c.sceneReconstruction = .mesh }
+        let camera = cameraMode
+        queue.async { self.qCamera = camera }
         view.session.run(c, options: [.resetTracking, .removeExistingAnchors])
-        reset()
+        reset(status: camera ? Self.cameraAimHint : Self.aimHint)
     }
 
     /// Also drops an unfinished debug recording (scan cancelled).
@@ -135,7 +149,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             self.covered = Array(repeating: false, count: Self.sectorCount); self.photoSectors.removeAll()
             self.dbg = ScanDebugInfo(); self.lastReasonTime = -.infinity
             self.qSurface = nil; self.qLockProgress = 0
-            self.finish(nil, status)
+            self.views.removeAll(); self.lastViewCamera = nil
+            self.finish(nil, status == Self.aimHint && self.qCamera ? Self.cameraAimHint : status)
         }
     }
 
@@ -160,6 +175,17 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     func finishCapture(_ done: @escaping (ScanCapture) -> Void) {
         queue.async {
             self.qPhase = .done
+            if self.qCamera {
+                let c = self.lockedSeed ?? .zero, floorY = self.camFloorY ?? c.y
+                let r = self.views.isEmpty ? nil : SilhouetteHull.measure(self.views, floorY: floorY, center: SIMD2(c.x, c.z))
+                var d = EstimateDebug(); d.planeY = floorY
+                d.objectIndices = Array((r?.surface ?? []).indices)
+                let cap = ScanCapture(points: r?.surface ?? [], seed: c, vertical: false, params: Params(), estimate: r?.estimate, debug: d,
+                                      sectors: self.covered.filter { $0 }.count, voxels: self.views.count, dir: self.recorder?.finish())
+                self.recorder = nil
+                DispatchQueue.main.async { self.phase = .done; done(cap) }
+                return
+            }
             let locked = self.lockedSeed != nil
             let seed = self.lockedSeed ?? self.lastSeed ?? .zero
             let vertical = locked ? self.lockedVertical : self.lastVertical
@@ -197,6 +223,15 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             status = "缓慢移动，保持箱子和周围在画面内"; return
         default:
             return reset(status: "缓慢移动手机以完成追踪")
+        }
+        if cameraMode {
+            let tracking: UInt8 = switch frame.camera.trackingState { case .notAvailable: 0; case .limited: 1; case .normal: 2 }
+            let snap = CameraSnapshot(image: frame.capturedImage, transform: frame.camera.transform, intrinsics: frame.camera.intrinsics,
+                                      res: frame.camera.imageResolution, time: frame.timestamp, floorY: Self.floorY(frame.anchors),
+                                      tracking: tracking, thermal: UInt8(ProcessInfo.processInfo.thermalState.rawValue))
+            busy = true
+            queue.async { self.processCamera(snap) }
+            return
         }
         guard let depth = frame.smoothedSceneDepth ?? frame.sceneDepth,
               CVPixelBufferGetPixelFormatType(depth.depthMap) == kCVPixelFormatType_DepthFloat32,
@@ -241,12 +276,17 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
                             w: s.w, h: s.h, raw: smoothed ? x.other : s.depth, rawConf: smoothed ? x.otherConf : s.conf,
                             smoothed: smoothed ? s.depth : nil, smoothedConf: smoothed ? s.conf : nil, live: x.live)
         f.ring = qRing; f.estimated = qEstimated; f.lock = qLock
-        // Landscape as captured (matches intrinsics / imageResolution), half size: intrinsics scale by 960 / res.width.
-        let ci = CIImage(cvPixelBuffer: x.image)
-        f.jpeg = ciContext.jpegRepresentation(of: ci.transformed(by: .init(scaleX: 960 / ci.extent.width, y: 960 / ci.extent.width)),
-                                              colorSpace: CGColorSpaceCreateDeviceRGB(),
-                                              options: [CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String): 0.8])
+        f.jpeg = jpeg(x.image)
         recorder.append(f)
+    }
+
+    /// Debug log camera frame: landscape as captured (matches intrinsics / imageResolution), 960 px wide
+    /// (intrinsics scale by 960 / res.width).
+    private func jpeg(_ image: CVPixelBuffer) -> Data? {
+        let ci = CIImage(cvPixelBuffer: image)
+        return ciContext.jpegRepresentation(of: ci.transformed(by: .init(scaleX: 960 / ci.extent.width, y: 960 / ci.extent.width)),
+                                            colorSpace: CGColorSpaceCreateDeviceRGB(),
+                                            options: [CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String): 0.8])
     }
 
     private func process(_ s: Snapshot) {
@@ -429,15 +469,18 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     /// Returns the sector if it was newly covered by this frame.
     @discardableResult
     private func updateCoverage(_ s: Snapshot, center c: SIMD3<Float>) -> Int? {
-        let cam = s.transform.columns.3
+        updateCoverage(s.transform, s.intrinsics, s.res, center: c)
+    }
+    @discardableResult
+    private func updateCoverage(_ transform: simd_float4x4, _ K: simd_float3x3, _ res: CGSize, center c: SIMD3<Float>) -> Int? {
+        let cam = transform.columns.3
         let dist = simd_length(SIMD2(cam.x - c.x, cam.z - c.z))
         guard dist >= 0.3, dist <= 2.5 else { return nil }
-        let p = simd_inverse(s.transform) * SIMD4(c, 1)
+        let p = simd_inverse(transform) * SIMD4(c, 1)
         guard p.z < 0 else { return nil }
-        let K = s.intrinsics
         let u = K[0][0] * p.x / -p.z + K[2][0], v = K[2][1] - K[1][1] * p.y / -p.z
-        guard u >= 0, u < Float(s.res.width), v >= 0, v < Float(s.res.height) else { return nil }
-        let i = Self.sector(s.transform, center: c)
+        guard u >= 0, u < Float(res.width), v >= 0, v < Float(res.height) else { return nil }
+        let i = Self.sector(transform, center: c)
         guard !covered[i] else { return nil }
         covered[i] = true
         return i
@@ -523,6 +566,193 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     }
 
     private static func median(_ v: [Float]) -> Float { v.sorted()[v.count / 2] }
+}
+
+// MARK: - camera-only mode (SPEC §14)
+
+extension ScanSession {
+    static let cameraAimHint = "对准物体，周围留出地面"
+    /// Silhouettes bound the object only laterally: estimate once views span >= 180°.
+    static let cameraMinSectors = 6
+    /// Mask width (px); height follows the capture aspect (960 x 720 for 4:3).
+    static let maskWidth = 960
+    /// A new silhouette is kept only after the camera moved this far (bounds memory: 86 KB per view).
+    static let viewSpacing: Float = 0.03
+
+    fileprivate struct CameraSnapshot {
+        var image: CVPixelBuffer
+        var transform: simd_float4x4; var intrinsics: simd_float3x3; var res: CGSize; var time: TimeInterval
+        var floorY: Float?
+        var tracking: UInt8; var thermal: UInt8
+    }
+
+    /// Support plane height: lowest plane classified .floor, else the lowest horizontal plane >= 0.3 m² (a detected
+    /// box top is higher, and usually smaller).
+    fileprivate static func floorY(_ anchors: [ARAnchor]) -> Float? {
+        let planes = anchors.compactMap { $0 as? ARPlaneAnchor }.filter { $0.alignment == .horizontal }
+        let floors = planes.filter { $0.classification == .floor }
+        let pick = floors.isEmpty ? planes.filter { $0.planeExtent.width * $0.planeExtent.height >= 0.3 } : floors
+        return pick.map { ($0.transform * SIMD4($0.center, 1)).y }.min()
+    }
+
+    /// Queue only. Aim: Vision foreground instance under the crosshair -> floor anchor just inside its footprint;
+    /// lock after it holds (lockDrift / lockHold). Scan: silhouette of the instance at the projected anchor per frame,
+    /// visual hull (BoxMeasureKit.SilhouetteHull) every estimateInterval once >= cameraMinSectors are covered.
+    fileprivate func processCamera(_ s: CameraSnapshot) {
+        guard qPhase != .done else { DispatchQueue.main.async { self.busy = false }; return }
+        let phase0 = qPhase
+        qRing = false; qEstimated = false; qLock = false
+        defer { recordCamera(s, phase: phase0) }
+        if let y = s.floorY { camFloorY = y }
+        let w = Self.maskWidth, h = Int((CGFloat(w) * s.res.height / s.res.width).rounded())
+        let cam = DepthCamera(width: w, height: h, intrinsics: s.intrinsics,
+                              imageResolution: SIMD2(Float(s.res.width), Float(s.res.height)), transform: s.transform)
+        let camPos = SIMD3(s.transform.columns.3.x, s.transform.columns.3.y, s.transform.columns.3.z)
+        dbg.pitch = asin(max(-1, min(1, -s.transform.columns.2.y))) * 180 / .pi
+        guard let floorY = camFloorY else {
+            qSurface = nil; qLockProgress = 0
+            return finish(nil, "缓慢移动手机，扫一下地面")
+        }
+        dbg.planeY = floorY - camPos.y
+
+        if qPhase == .aim {
+            let t0 = CACurrentMediaTime()
+            let mask = objectMask(s.image, at: SIMD2(Float(w) / 2, Float(h) / 2), w: w, h: h)
+            dbg.millis = (CACurrentMediaTime() - t0) * 1000
+            guard let mask, let anchor = Self.footprintAnchor(mask, cam, floorY: floorY) else {
+                seedHistory.removeAll(); qSurface = nil; qLockProgress = 0
+                return finish(nil, Self.cameraAimHint)
+            }
+            seedHistory.append((s.time, anchor, false))
+            seedHistory.removeAll { s.time - $0.t > Self.lockHold + 0.5 }
+            let since = seedHistory.lastIndex { simd_length($0.p - anchor) >= Self.lockDrift }.map { $0 + 1 } ?? 0
+            qSurface = .top
+            qLockProgress = since < seedHistory.count ? min(0.95, (s.time - seedHistory[since].t) / Self.lockHold) : 0
+            guard let first = seedHistory.first, s.time - first.t >= Self.lockHold,
+                  seedHistory.allSatisfy({ simd_length($0.p - anchor) < Self.lockDrift }) else {
+                return finish(nil, "对准物体，保持 1 秒…")
+            }
+            qPhase = .scan; qLockProgress = 1; qLock = true
+            lockedSeed = anchor; lockedVertical = false
+            views = [Silhouette(mask: mask, width: w, height: h, intrinsics: s.intrinsics,
+                                imageResolution: SIMD2(Float(s.res.width), Float(s.res.height)), transform: s.transform)]
+            lastViewCamera = camPos
+            recorder?.lock(time: s.time, seed: anchor, planeY: floorY, side: false)
+            lastEstimateTime = s.time
+            updateCoverage(s.transform, s.intrinsics, s.res, center: anchor)
+            photoSectors = [Self.sector(s.transform, center: anchor)]
+            return finish(nil, "已锁定，绕物体走一圈", event: .locked(anchor))
+        }
+
+        guard let anchor = lockedSeed else { return finish(nil, Self.cameraAimHint) }
+        // The anchor lies inside the footprint, so it projects onto the object (or onto the object occluding it).
+        if lastViewCamera.map({ simd_length(camPos - $0) >= Self.viewSpacing }) ?? true,
+           let px = Self.project(anchor, cam), let mask = objectMask(s.image, at: px, w: w, h: h) {
+            views.append(Silhouette(mask: mask, width: w, height: h, intrinsics: s.intrinsics,
+                                    imageResolution: SIMD2(Float(s.res.width), Float(s.res.height)), transform: s.transform))
+            lastViewCamera = camPos
+            qRing = true
+        }
+        dbg.voxels = views.count
+        let center = lastScanEstimate.map { $0.center + SIMD3(0, $0.height / 2, 0) } ?? anchor
+        if let sec = updateCoverage(s.transform, s.intrinsics, s.res, center: center), photoSectors.count < Self.maxShots,
+           photoSectors.allSatisfy({ d in let a = abs(d - sec); return min(a, Self.sectorCount - a) >= Self.shotSectorGap }) {
+            photoSectors.append(sec)
+            DispatchQueue.main.async { self.takeShot() }
+        }
+        let n = covered.filter { $0 }.count
+        let remaining = max(0, Self.finishSectors - n)
+        let hint = n <= 1 ? "已锁定，绕物体走一圈" : remaining > 0 ? "还差 \(remaining) 个方向" : "覆盖完成，尺寸收敛中…"
+        guard n >= Self.cameraMinSectors, s.time - lastEstimateTime >= Self.estimateInterval else {
+            return finish(nil, hint, keepWireframe: true)
+        }
+        qEstimated = true
+        let t0 = CACurrentMediaTime()
+        let r = SilhouetteHull.measure(views, floorY: floorY, center: SIMD2(anchor.x, anchor.z))
+        dbg.millis = (CACurrentMediaTime() - t0) * 1000
+        // Same spacing rule as the LiDAR path: keep most frames for silhouettes / coverage.
+        lastEstimateTime = s.time + max(0, 2 * dbg.millis / 1000 - Self.estimateInterval)
+        guard let e = r?.estimate else { return finish(nil, hint, keepWireframe: true) }
+        scanAgg.add(e)
+        lastScanEstimate = e
+        if remaining == 0, scanAgg.samples.count >= Self.finishSamples, scanAgg.spread <= Self.finishSpread {
+            qPhase = .done
+            return finish(e, "完成", event: .done)
+        }
+        finish(e, hint)
+    }
+
+    /// Vision foreground instance at (or nearest to, within ~1/12 of the mask width) pixel `px` of the w x h
+    /// downscaled frame, as a 0/1 mask. nil: no foreground instance there.
+    private func objectMask(_ image: CVPixelBuffer, at px: SIMD2<Float>, w: Int, h: Int) -> [UInt8]? {
+        let ci = CIImage(cvPixelBuffer: image)
+        let k = CGFloat(w) / ci.extent.width
+        let handler = VNImageRequestHandler(ciImage: ci.transformed(by: .init(scaleX: k, y: k)))
+        let req = VNGenerateForegroundInstanceMaskRequest()
+        guard (try? handler.perform([req])) != nil, let o = req.results?.first else { return nil }
+        let im = o.instanceMask
+        CVPixelBufferLockBaseAddress(im, .readOnly)
+        let iw = CVPixelBufferGetWidth(im), ih = CVPixelBufferGetHeight(im), rb = CVPixelBufferGetBytesPerRow(im)
+        let base = CVPixelBufferGetBaseAddress(im)!.assumingMemoryBound(to: UInt8.self)
+        let cu = Int(px.x / Float(w) * Float(iw)), cv = Int(px.y / Float(h) * Float(ih)), r = max(4, iw / 12)
+        var label = 0, best = Int.max
+        for dv in -r...r { for du in -r...r {
+            let u = cu + du, v = cv + dv
+            guard u >= 0, u < iw, v >= 0, v < ih, base[v * rb + u] != 0, du * du + dv * dv < best else { continue }
+            best = du * du + dv * dv; label = Int(base[v * rb + u])
+        } }
+        CVPixelBufferUnlockBaseAddress(im, .readOnly)
+        guard label != 0, let m = try? o.generateScaledMaskForImage(forInstances: IndexSet(integer: label), from: handler) else { return nil }
+        CVPixelBufferLockBaseAddress(m, .readOnly)
+        defer { CVPixelBufferUnlockBaseAddress(m, .readOnly) }
+        guard CVPixelBufferGetWidth(m) == w, CVPixelBufferGetHeight(m) == h,
+              CVPixelBufferGetPixelFormatType(m) == kCVPixelFormatType_OneComponent32Float else { return nil }
+        let mb = CVPixelBufferGetBytesPerRow(m) / 4
+        let mp = CVPixelBufferGetBaseAddress(m)!.assumingMemoryBound(to: Float32.self)
+        var out = [UInt8](repeating: 0, count: w * h)
+        for v in 0..<h { for u in 0..<w where mp[v * mb + u] > 0.5 { out[v * w + u] = 1 } }
+        return out
+    }
+
+    /// Floor point just inside the object's near footprint edge. Mask pixel rays hit the floor at the near bottom edge
+    /// (the nearest hits) or behind the object: mean of the 2-10 % nearest hits, pushed 5 cm away from the camera.
+    fileprivate static func footprintAnchor(_ mask: [UInt8], _ cam: DepthCamera, floorY: Float) -> SIMD3<Float>? {
+        let t = cam.transform, o = SIMD3(t.columns.3.x, t.columns.3.y, t.columns.3.z)
+        var hits: [(d: Float, p: SIMD3<Float>)] = []
+        for v in stride(from: 0, to: cam.height, by: 4) { for u in stride(from: 0, to: cam.width, by: 4) where mask[v * cam.width + u] != 0 {
+            let d4 = t * SIMD4(cam.cameraPoint(u, v, 1), 0)
+            guard d4.y < -1e-3 else { continue }
+            let p = o + SIMD3(d4.x, d4.y, d4.z) * ((floorY - o.y) / d4.y)
+            hits.append((simd_length(SIMD2(p.x - o.x, p.z - o.z)), p))
+        } }
+        guard hits.count >= 50 else { return nil }
+        hits.sort { $0.d < $1.d }
+        let sel = hits[(hits.count / 50)...(hits.count / 10)]
+        var m = sel.reduce(SIMD3<Float>.zero) { $0 + $1.p } / Float(sel.count)
+        let away = simd_normalize(SIMD2(m.x - o.x, m.z - o.z)) * 0.05
+        m.x += away.x; m.z += away.y; m.y = floorY
+        return m
+    }
+
+    /// Pixel of world point `p` in `cam` (DepthCamera conventions); nil behind the camera or outside the image.
+    fileprivate static func project(_ p: SIMD3<Float>, _ cam: DepthCamera) -> SIMD2<Float>? {
+        let q = simd_inverse(cam.transform) * SIMD4(p, 1)
+        guard q.z < -0.05 else { return nil }
+        let u = q.x * cam.fx / -q.z + cam.cx, v = -q.y * cam.fy / -q.z + cam.cy
+        guard u >= 0, u < Float(cam.width), v >= 0, v < Float(cam.height) else { return nil }
+        return SIMD2(u, v)
+    }
+
+    /// Debug log, camera mode: pose + JPEG only (no depth; frames.bin records are header-only, width = height = 0).
+    private func recordCamera(_ s: CameraSnapshot, phase: Phase) {
+        guard let recorder else { return }
+        var f = FrameSample(time: s.time, phase: phase == .scan ? 1 : 0, tracking: s.tracking, thermal: s.thermal,
+                            transform: s.transform, intrinsics: s.intrinsics, res: SIMD2(Float(s.res.width), Float(s.res.height)),
+                            w: 0, h: 0, raw: nil, rawConf: nil, smoothed: nil, smoothedConf: nil, live: .smoothed)
+        f.ring = qRing; f.estimated = qEstimated; f.lock = qLock
+        f.jpeg = jpeg(s.image)
+        recorder.append(f)
+    }
 }
 
 /// Tight copy of a single-plane pixel buffer (honours row padding).

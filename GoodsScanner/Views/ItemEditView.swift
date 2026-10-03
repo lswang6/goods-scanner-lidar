@@ -12,6 +12,7 @@ struct ScanResult {
     var confidence: Double
     var photos: [UIImage]
     var shape = "box"  // CargoItem.shape values
+    var method = "lidar"  // CargoItem.method: "lidar" | "camera"
 }
 
 extension ScanResult {
@@ -29,6 +30,15 @@ var lidarAvailable: Bool {
     return false
     #else
     return ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth)
+    #endif
+}
+
+/// SPEC §14 camera-only scan: any world-tracking device. Used without LiDAR, or with 设置 → 强制相机模式.
+var cameraScanAvailable: Bool {
+    #if targetEnvironment(simulator)
+    return false
+    #else
+    return ARWorldTrackingConfiguration.isSupported
     #endif
 }
 
@@ -51,6 +61,7 @@ struct ItemEditView: View {
     @State private var addedPhotos: Set<String> = []
     @State private var showCamera = false
     @State private var showScan = false
+    @AppStorage("forceCameraMode") private var forceCamera = false
     @State private var viewing: PhotoSelection?
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var error: String?
@@ -79,10 +90,14 @@ struct ItemEditView: View {
             Form {
                 Section {
                     VStack(spacing: 8) {
-                        Button { showScan = true } label: { Label("LiDAR 环绕扫描", systemImage: "viewfinder") }
+                        let camera = !lidarAvailable || forceCamera
+                        Button { showScan = true } label: {
+                            Label(camera ? "相机环绕扫描" : "LiDAR 环绕扫描", systemImage: camera ? "camera.viewfinder" : "viewfinder")
+                        }
                             .buttonStyle(PrimaryButtonStyle())
-                            .disabled(!lidarAvailable)
-                        if !lidarAvailable { Text("本机无 LiDAR，请手动录入尺寸").font(.caption).foregroundStyle(.secondary) }
+                            .disabled(!cameraScanAvailable)
+                        if !cameraScanAvailable { Text("本机不支持 AR 扫描，请手动录入尺寸").font(.caption).foregroundStyle(.secondary) }
+                        else if camera { Text("相机测量，精度约 ±3 cm").font(.caption).foregroundStyle(.secondary) }
                     }
                     .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                 }
@@ -129,8 +144,8 @@ struct ItemEditView: View {
                     }
                     LabeledContent("测量方式") {
                         // Text(Image) not Label: see SettingsView LiDAR row.
-                        Text("\(Image(systemName: method == "lidar" ? "viewfinder" : "hand.point.up.left")) \(method == "lidar" ? "LiDAR" : "手动")")
-                            .foregroundStyle(method == "lidar" ? Color.scanText : .secondary)
+                        Text("\(Image(systemName: CargoItem.methodIcon(method))) \(CargoItem.methodLabel(method))")
+                            .foregroundStyle(method == "manual" ? .secondary : Color.scanText)
                     }
                     if let confidence { LabeledContent("置信度", value: confidence.formatted(.percent.precision(.fractionLength(0)))) }
                 }
@@ -214,7 +229,7 @@ struct ItemEditView: View {
 
     func apply(_ r: ScanResult) {
         length = r.lengthCm; width = r.widthCm; height = r.heightCm
-        method = "lidar"; confidence = r.confidence; shape = r.shape
+        method = r.method; confidence = r.confidence; shape = r.shape
         r.photos.forEach(addPhoto)
     }
 
