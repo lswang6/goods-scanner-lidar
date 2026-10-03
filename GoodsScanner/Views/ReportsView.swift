@@ -29,8 +29,8 @@ struct ReportsView: View {
         let filtered = orders
         let list = selectedIDs.map { ids in filtered.filter { ids.contains($0.persistentModelID) } } ?? filtered
         let customerName = customers.first { $0.persistentModelID == customerID }?.name
-        let scope: ExportScope = list.count < filtered.count
-            ? .picked(count: list.count, from: from, to: to) : .range(from: from, to: to, customer: customerName)
+        let scope: ExportScope = list.count == filtered.count ? .range(from: from, to: to, customer: customerName)
+            : list.count == 1 ? .order(list[0]) : .picked(count: list.count, from: from, to: to)
         let total = Summary(list)
         let byCustomer = Dictionary(grouping: list) { $0.customer?.code ?? "" }.sorted { $0.key < $1.key }
         NavigationStack {
