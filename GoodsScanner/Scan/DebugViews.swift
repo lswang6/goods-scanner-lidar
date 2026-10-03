@@ -203,19 +203,23 @@ struct ScanReviewView: View {
                 DimsBadge(l: result.lengthCm, w: result.widthCm, h: result.heightCm, shape: result.shape)
                 Group {
                     if let e = capture.estimate {
-                        Text("最终点云估计 " + CargoItem.dimsText(Double(e.length * 100), Double(e.width * 100), Double(e.height * 100),
-                                                               shape: e.shape.rawValue) + " cm · " + CargoItem.shapeLabel(e.shape.rawValue))
+                        let dims = CargoItem.dimsText(Double(e.length * 100), Double(e.width * 100), Double(e.height * 100), shape: e.shape.rawValue)
+                        Text("Final point-cloud estimate \(dims) cm · \(CargoItem.shapeLabel(e.shape.rawValue))")
                     } else {
-                        Text("最终点云估计失败：\(capture.debug.failure.map(ScanSession.text) ?? "—")")
+                        Text("Final point-cloud estimate failed: \(capture.debug.failure.map(ScanSession.text) ?? "—")")
                     }
-                    Text("\(capture.points.count) 点 · 物体 \(capture.debug.objectIndices.count) · 支撑面 \(capture.debug.planeIndices.count) · \(capture.vertical ? "侧面" : "箱顶")种子")
-                    if saved { Text("已保存调试数据").foregroundStyle(Color.scanText) }
+                    if capture.vertical {
+                        Text("\(capture.points.count) points · object \(capture.debug.objectIndices.count) · support \(capture.debug.planeIndices.count) · side seed")
+                    } else {
+                        Text("\(capture.points.count) points · object \(capture.debug.objectIndices.count) · support \(capture.debug.planeIndices.count) · top seed")
+                    }
+                    if saved { Text("Debug data saved").foregroundStyle(Color.scanText) }
                 }
                 .font(.caption).foregroundStyle(.secondary)
             }
             HStack(spacing: 8) {
-                Button("重新扫描", action: onRescan).buttonStyle(SecondaryButtonStyle())
-                Button("使用此结果", action: onUse).buttonStyle(PrimaryButtonStyle())
+                Button("Rescan", action: onRescan).buttonStyle(SecondaryButtonStyle())
+                Button("Use This Result", action: onUse).buttonStyle(PrimaryButtonStyle())
             }
         }
         .padding(16)

@@ -42,6 +42,16 @@ var cameraScanAvailable: Bool {
     #endif
 }
 
+/// Debug launch argument `-scanGuidanceDemo` (add `-lidar` for the LiDAR cycle): without AR (simulator), the scan
+/// button opens ScanGuidanceDemo so every guidance stage can be screenshotted. Always false in Release.
+var scanGuidanceDemo: Bool {
+    #if DEBUG
+    return CommandLine.arguments.contains("-scanGuidanceDemo")
+    #else
+    return false
+    #endif
+}
+
 struct ItemEditView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -61,7 +71,9 @@ struct ItemEditView: View {
     @State private var addedPhotos: Set<String> = []
     @State private var showCamera = false
     @State private var showScan = false
-    @AppStorage("forceCameraMode") private var forceCamera = false
+    @AppStorage("forceCameraMode") private var storedForceCamera = false
+    /// Release builds ignore the stored debug switch (same rule as ScanView).
+    private var forceCamera: Bool { storedForceCamera && DebugTools.available }
     @State private var viewing: PhotoSelection?
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var error: String?
@@ -92,64 +104,64 @@ struct ItemEditView: View {
                     VStack(spacing: 8) {
                         let camera = !lidarAvailable || forceCamera
                         Button { showScan = true } label: {
-                            Label(camera ? "相机环绕扫描" : "LiDAR 环绕扫描", systemImage: camera ? "camera.viewfinder" : "viewfinder")
+                            Label(camera ? "Camera walk-around scan" : "LiDAR walk-around scan", systemImage: camera ? "camera.viewfinder" : "viewfinder")
                         }
                             .buttonStyle(PrimaryButtonStyle())
-                            .disabled(!cameraScanAvailable)
-                        if !cameraScanAvailable { Text("本机不支持 AR 扫描，请手动录入尺寸").font(.caption).foregroundStyle(.secondary) }
-                        else if camera { Text("相机测量，精度约 ±3 cm").font(.caption).foregroundStyle(.secondary) }
+                            .disabled(!cameraScanAvailable && !scanGuidanceDemo)
+                        if !cameraScanAvailable { Text("AR scanning isn't supported on this device. Enter the size by hand.").font(.caption).foregroundStyle(.secondary) }
+                        else if camera { Text("Camera measurement, about ±3 cm").font(.caption).foregroundStyle(.secondary) }
                     }
                     .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                 }
                 Section {
-                    TextField("品名 / 备注", text: $name)
+                    TextField("Name / note", text: $name)
                 }
-                Section("尺寸 (cm)") {
-                    Picker("形状", selection: $shape) {
+                Section("Size (cm)") {
+                    Picker("Shape", selection: $shape) {
                         ForEach(CargoItem.shapes, id: \.self) { Text(CargoItem.shapeLabel($0)).tag($0) }
                     }
                     .pickerStyle(.segmented)
                     HStack(spacing: 8) {
                         if isCylinder {
-                            dimField("直径", $length)  // width follows length on save (L = W = diameter)
+                            dimField("Diameter", $length)  // width follows length on save (L = W = diameter)
                         } else {
-                            dimField("长", $length)
-                            dimField("宽", $width)
+                            dimField("Length", $length)
+                            dimField("Width", $width)
                         }
-                        dimField("高", $height)
+                        dimField("Height", $height)
                     }
                     Stepper(value: $quantity, in: 1...99_999) {
                         HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text("件数")
+                            Text("Quantity")
                             Text("\(quantity)").font(.num(.body))
                         }
                     }
                     HStack {
-                        Text("重量 (kg)")
-                        TextField("选填，本行合计", text: $weight).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
+                        Text("Weight (kg)")
+                        TextField("Optional, total for this line", text: $weight).keyboardType(.decimalPad).multilineTextAlignment(.trailing)
                             .font(.num(.body))
                     }
                 }
-                Section("体积") {
+                Section("Volume") {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("合计").font(.caption).foregroundStyle(.secondary)
+                            Text("Total").font(.caption).foregroundStyle(.secondary)
                             NumText(value: (unitVolume * Double(quantity)).m3, unit: "m³", style: .largeTitle)
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
-                            Text("单件").font(.caption).foregroundStyle(.secondary)
+                            Text("Per item").font(.caption).foregroundStyle(.secondary)
                             NumText(value: unitVolume.m3, unit: "m³", style: .headline)
                         }
                     }
-                    LabeledContent("测量方式") {
+                    LabeledContent("Method") {
                         // Text(Image) not Label: see SettingsView LiDAR row.
                         Text("\(Image(systemName: CargoItem.methodIcon(method))) \(CargoItem.methodLabel(method))")
                             .foregroundStyle(method == "manual" ? .secondary : Color.scanText)
                     }
-                    if let confidence { LabeledContent("置信度", value: confidence.formatted(.percent.precision(.fractionLength(0)))) }
+                    if let confidence { LabeledContent("Confidence", value: confidence.formatted(.percent.precision(.fractionLength(0)))) }
                 }
-                Section("照片（\(photos.count)）") {
+                Section("Photos (\(photos.count))") {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(photos, id: \.self) { f in
@@ -162,18 +174,18 @@ struct ItemEditView: View {
                                         }
                                         .frame(width: 88, height: 88).clipShape(RoundedRectangle(cornerRadius: Radius.tag, style: .continuous))
                                     }
-                                    .buttonStyle(.borderless).accessibilityLabel("查看照片")
+                                    .buttonStyle(.borderless).accessibilityLabel("View photo")
                                     Button { removePhoto(f) } label: {
                                         Image(systemName: "xmark.circle.fill").font(.body).symbolRenderingMode(.palette).foregroundStyle(.white, .red)
                                     }
-                                    .buttonStyle(.borderless).padding(4).accessibilityLabel("删除照片")
+                                    .buttonStyle(.borderless).padding(4).accessibilityLabel("Delete photo")
                                 }
                             }
                             Group {
                                 if UIImagePickerController.isSourceTypeAvailable(.camera) {
-                                    Button { showCamera = true } label: { addTile("拍照", "camera") }
+                                    Button { showCamera = true } label: { addTile("Take Photo", "camera") }
                                 } else {
-                                    PhotosPicker(selection: $pickerItems, matching: .images) { addTile("相册", "photo") }
+                                    PhotosPicker(selection: $pickerItems, matching: .images) { addTile("Library", "photo") }
                                 }
                             }
                             .buttonStyle(.borderless)
@@ -182,11 +194,11 @@ struct ItemEditView: View {
                 }
                 if let error { Text(error).foregroundStyle(.red) }
             }
-            .navigationTitle(item == nil ? "添加货物" : "编辑货物")
+            .navigationTitle(item == nil ? "Add Item" : "Edit Item")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消", action: cancel) }
-                ToolbarItem(placement: .confirmationAction) { Button("保存", action: save) }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: cancel) }
+                ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
             }
             .fullScreenCover(isPresented: $showCamera) {
                 CameraPicker { if let img = $0 { addPhoto(img) } }.ignoresSafeArea()
@@ -207,7 +219,7 @@ struct ItemEditView: View {
         .interactiveDismissDisabled()
     }
 
-    private func dimField(_ label: String, _ value: Binding<Double?>) -> some View {
+    private func dimField(_ label: LocalizedStringKey, _ value: Binding<Double?>) -> some View {
         VStack(spacing: 4) {
             Text(label).font(.caption).foregroundStyle(.secondary)
             TextField("0", value: value, format: .number).keyboardType(.decimalPad).multilineTextAlignment(.center)
@@ -217,7 +229,7 @@ struct ItemEditView: View {
         }
     }
 
-    private func addTile(_ title: String, _ icon: String) -> some View {
+    private func addTile(_ title: LocalizedStringKey, _ icon: String) -> some View {
         VStack(spacing: 4) {
             Image(systemName: icon).font(.title2)
             Text(title).font(.caption)
@@ -234,7 +246,7 @@ struct ItemEditView: View {
     }
 
     private func addPhoto(_ img: UIImage) {
-        guard let f = PhotoStore.save(img) else { error = "照片保存失败"; return }
+        guard let f = PhotoStore.save(img) else { error = String(localized: "Couldn't save the photo"); return }
         photos.append(f); addedPhotos.insert(f)
     }
 
@@ -251,11 +263,12 @@ struct ItemEditView: View {
 
     private func save() {
         guard let l = length, let w = isCylinder ? length : width, let h = height, l > 0, w > 0, h > 0 else {
-            error = isCylinder ? "直径和高必须大于 0" : "长宽高必须大于 0"; return
+            error = isCylinder ? String(localized: "Diameter and height must be greater than 0")
+                : String(localized: "Length, width and height must be greater than 0"); return
         }
         let trimmedWeight = weight.trimmingCharacters(in: .whitespaces)
         let kg = trimmedWeight.isEmpty ? nil : Double(trimmedWeight.replacingOccurrences(of: ",", with: "."))
-        if !trimmedWeight.isEmpty && (kg == nil || kg! < 0) { error = "重量格式不正确"; return }
+        if !trimmedWeight.isEmpty && (kg == nil || kg! < 0) { error = String(localized: "Invalid weight"); return }
         let target = item ?? CargoItem()
         let removed = Set(target.photoFiles).subtracting(photos)
         target.name = name.trimmingCharacters(in: .whitespacesAndNewlines); target.lengthCm = l; target.widthCm = w; target.heightCm = h
@@ -263,7 +276,7 @@ struct ItemEditView: View {
         target.method = method; target.confidence = confidence; target.shape = shape
         if item == nil { context.insert(target); target.order = order }
         // Removed photos are deleted only after a successful save; on failure keep files and stay open.
-        do { try context.save() } catch { context.rollback(); self.error = "保存失败：\(error.localizedDescription)"; return }
+        do { try context.save() } catch { context.rollback(); self.error = String(localized: "Save failed: \(error.localizedDescription)"); return }
         PhotoStore.delete(Array(removed))
         dismiss()
     }

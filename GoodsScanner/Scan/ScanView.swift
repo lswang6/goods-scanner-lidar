@@ -7,19 +7,32 @@ import BoxMeasureKit
 struct ScanView: View {
     let onResult: (ScanResult) -> Void
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("forceCameraMode") private var forceCamera = false
+    @AppStorage("forceCameraMode") private var storedForceCamera = false
+    /// Release builds ignore the stored debug switch (testers' phones may carry a stale `true`).
+    private var forceCamera: Bool { storedForceCamera && DebugTools.available }
 
     var body: some View {
         if cameraScanAvailable {
             ARScanScreen(onResult: onResult, cameraMode: !lidarAvailable || forceCamera)
+        } else if scanGuidanceDemo {
+            demo
         } else {
             NavigationStack {
-                EmptyState(image: "ScanAim", title: "无法使用 AR 扫描",
-                           message: "本机或模拟器不支持 AR 扫描，请返回手动录入尺寸，并用「拍照」添加照片。",
-                           action: ("返回手动录入", { dismiss() }))
-                    .toolbar { Button("关闭") { dismiss() } }
+                EmptyState(image: "ScanAim", title: "AR scanning unavailable",
+                           message: "This device or simulator doesn't support AR scanning. Go back to enter the size by hand, and use Take Photo to add photos.",
+                           action: ("Enter size manually", { dismiss() }))
+                    .toolbar { Button("Close") { dismiss() } }
             }
         }
+    }
+
+    /// `-scanGuidanceDemo` (Debug only, see `scanGuidanceDemo`).
+    @ViewBuilder private var demo: some View {
+        #if DEBUG
+        ScanGuidanceDemo(camera: !CommandLine.arguments.contains("-lidar")).overlay(alignment: .topTrailing) {
+            Button("Close") { dismiss() }.buttonStyle(.borderedProminent).padding(.top, 60).padding(.trailing, 16)
+        }
+        #endif
     }
 }
 
@@ -33,7 +46,8 @@ private struct ARScanScreen: View {
     @State private var ringCenter: CGPoint?
     @State private var tickShots = 0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage("debugMode") private var debugMode = false
+    @AppStorage("debugMode") private var storedDebugMode = false
+    private var debugMode: Bool { storedDebugMode && DebugTools.available }
     @State private var review: Review?
 
     /// D4: debug-mode finish holds the already-built result until 使用此结果 / 重新扫描.
@@ -51,7 +65,8 @@ private struct ARScanScreen: View {
     var body: some View {
         ZStack {
             ARContainer(view: scan.view).ignoresSafeArea()
-            ScanGuidance(phase: scan.phase, surface: scan.aimSurface, progress: scan.lockProgress, ringCenter: ringCenter)
+            ScanGuidance(phase: scan.phase, surface: scan.aimSurface, progress: scan.lockProgress, ringCenter: ringCenter,
+                         cameraStage: cameraMode ? scan.cameraStage : nil)
                 .frame(maxWidth: .infinity, maxHeight: .infinity).ignoresSafeArea()  // screen center == depth-map center
             VStack(spacing: 12) {
                 statusCapsule
@@ -104,47 +119,9 @@ private struct ARScanScreen: View {
     }
 
     private var bottomCard: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 16) {
-                SectorRing(covered: scan.sectors, done: scan.phase == .done)
-                    .background(GeometryReader { g in
-                        let f = g.frame(in: .named(ScanGuidance.space))
-                        Color.clear.preference(key: RingCenterKey.self, value: CGPoint(x: f.midX, y: f.midY))
-                    })
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(scan.median?.shape == .cylinder ? "直径 × 高" : "长 × 宽 × 高").font(.caption).foregroundStyle(.secondary)
-                        if let m = scan.median { ShapeChip(shape: m.shape.rawValue) }
-                    }
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(dims).font(.num(.title))
-                        Text("cm").font(.subheadline).foregroundStyle(.secondary)
-                    }
-                    .lineLimit(1).minimumScaleFactor(0.6)
-                    Text("按最大外形尺寸计量" + (cameraMode ? " · 相机估算" : "") + (scan.shots.isEmpty ? "" : " · 已拍 \(scan.shots.count)/\(ScanSession.maxShots)"))
-                        .font(.caption2).foregroundStyle(.secondary)
-                    if scan.sampleCount >= 2 {
-                        Text(String(format: "离散度 %.1f%%（%d 次）", scan.spread * 100, scan.sampleCount)
-                         + (stable ? "" : " 不稳定，建议重扫"))
-                            .font(.caption).foregroundStyle(stable ? Color.scan : Color.warn)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-            HStack(spacing: 8) {
-                Button("取消") { dismiss() }.buttonStyle(SecondaryButtonStyle())
-                Button("重置") { scan.reset() }.buttonStyle(SecondaryButtonStyle())
-                Button("完成", action: deliver).buttonStyle(PrimaryButtonStyle()).disabled(scan.median == nil)
-            }
-        }
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-    }
-
-    private var dims: String {
-        guard let m = scan.median else { return "— × — × —" }
-        if m.shape == .cylinder { return String(format: "Ø %.1f × 高 %.1f", m.length * 100, m.height * 100) }
-        return String(format: "%.1f × %.1f × %.1f", m.length * 100, m.width * 100, m.height * 100)
+        ScanCard(phase: scan.phase, cameraStage: cameraMode ? scan.cameraStage : nil, sectors: scan.sectors, median: scan.median,
+                 spread: scan.spread, sampleCount: scan.sampleCount, shots: scan.shots.count,
+                 onCancel: { dismiss() }, onReset: { scan.reset() }, onDone: deliver)
     }
 
     /// Single result path for 完成 and auto-finish. Calibration offset is applied here and only here:
@@ -181,4 +158,114 @@ private struct ARContainer: UIViewRepresentable {
     let view: ARSCNView
     func makeUIView(context: Context) -> ARSCNView { view }
     func updateUIView(_ uiView: ARSCNView, context: Context) {}
+}
+
+/// Bottom card of the scan screen: coverage ring, size readout, note, Cancel / Reset / Done.
+/// `cameraStage` nil = LiDAR. Camera mode shows "walk halfway around" progress instead of "— × — × —" until
+/// the first hull estimate (SPEC §14 F5: >= cameraMinSectors sectors). Also used by ScanGuidanceDemo.
+struct ScanCard: View {
+    let phase: ScanSession.Phase
+    let cameraStage: ScanSession.CameraStage?
+    let sectors: [Bool]
+    let median: BoxEstimate?
+    let spread: Float
+    let sampleCount: Int
+    let shots: Int
+    var onCancel: () -> Void = {}
+    var onReset: () -> Void = {}
+    var onDone: () -> Void = {}
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var stable: Bool { spread <= ScanSession.stableSpread }
+    private var camera: Bool { cameraStage != nil }
+    private var covered: Int { sectors.filter { $0 }.count }
+    /// Camera mode before the first estimate: sectors needed to measure (0 = enough, measuring).
+    private var gate: Int? {
+        guard camera, median == nil, phase != .done else { return nil }
+        return cameraStage == .measuring ? 0 : ScanSession.cameraMinSectors
+    }
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 16) {
+                SectorRing(covered: sectors, done: phase == .done, needed: camera ? ScanSession.cameraMinSectors : nil)
+                    .background(GeometryReader { g in
+                        let f = g.frame(in: .named(ScanGuidance.space))
+                        Color.clear.preference(key: RingCenterKey.self, value: CGPoint(x: f.midX, y: f.midY))
+                    })
+                VStack(alignment: .leading, spacing: 2) {
+                    if let gate { walkProgress(gate) } else { readout }
+                    HStack(spacing: 4) {
+                        Text(camera ? "Camera estimate · about ±3 cm" : "Measured by maximum outer dimensions")
+                        if shots > 0 { Text("· \(shots)/\(ScanSession.maxShots) photos") }
+                    }
+                    .font(.caption2).foregroundStyle(.secondary)
+                    if sampleCount >= 2 {
+                        let pct = Double(spread).formatted(.percent.precision(.fractionLength(1)))
+                        Group {
+                            if stable { Text("Spread \(pct) (\(sampleCount) samples)") }
+                            else { Text("Spread \(pct) (\(sampleCount) samples), unstable, rescan recommended") }
+                        }
+                        .font(.caption).foregroundStyle(stable ? Color.scan : Color.warn)
+                    }
+                }
+                .animation(reduceMotion ? .easeInOut(duration: 0.2) : .snappy, value: gate)
+                Spacer(minLength: 0)
+            }
+            HStack(spacing: 8) {
+                Button("Cancel", action: onCancel).buttonStyle(SecondaryButtonStyle())
+                Button("Reset", action: onReset).buttonStyle(SecondaryButtonStyle())
+                Button("Done", action: onDone).buttonStyle(PrimaryButtonStyle()).disabled(median == nil)
+                    .accessibilityHint(median != nil ? Text("") : camera ? Text("Available after walking halfway around the item")
+                                       : Text("Available once the size is measured"))
+            }
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+
+    /// Camera mode, no estimate yet: progress toward half a lap, or "Measuring…" once enough views exist.
+    @ViewBuilder private func walkProgress(_ needed: Int) -> some View {
+        if needed == 0 {
+            Text("Measuring…").font(.headline).transition(.opacity)
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Walk halfway around to measure").font(.headline)
+                // Plain bar, not ProgressView: renders in ImageRenderer (CameraStageRenderTests).
+                Capsule().fill(.white.opacity(0.2)).frame(height: 4)
+                    .overlay(alignment: .leading) {
+                        GeometryReader { g in
+                            Capsule().fill(Color.scan).frame(width: g.size.width * CGFloat(min(covered, needed)) / CGFloat(needed))
+                        }
+                    }
+                    .animation(reduceMotion ? nil : .snappy, value: covered)
+                    .accessibilityHidden(true)   // SectorRing carries the k/needed label
+            }
+            .transition(.opacity)
+        }
+    }
+
+    private var readout: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 6) {
+                Text(median?.shape == .cylinder ? "Diameter × H" : "L × W × H").font(.caption).foregroundStyle(.secondary)
+                if let m = median { ShapeChip(shape: m.shape.rawValue) }
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(dims).font(.num(.title))
+                    .contentTransition(reduceMotion ? .opacity : .numericText())
+                    .animation(reduceMotion ? .easeInOut(duration: 0.2) : .snappy, value: dims)
+                Text("cm").font(.subheadline).foregroundStyle(.secondary)
+            }
+            .lineLimit(1).minimumScaleFactor(0.6)
+        }
+        .transition(.opacity)
+    }
+
+    private var dims: String {
+        guard let m = median else { return "— × — × —" }
+        let f = { (v: Float) in String(format: "%.1f", v * 100) }
+        if m.shape == .cylinder { return String(localized: "Ø \(f(m.length)) × H \(f(m.height))") }
+        return "\(f(m.length)) × \(f(m.width)) × \(f(m.height))"
+    }
 }

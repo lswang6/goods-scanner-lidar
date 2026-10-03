@@ -10,7 +10,8 @@ import BoxMeasureKit
 /// arrays on main (ARFrame is never retained) and processed on `queue`. Everything under "queue only"
 /// is touched only on `queue`; @Published state (incl. `shots`) and SceneKit only on main.
 /// Mesh overlay: see MeshOverlay (own queue).
-enum SurfaceHint { case top, side }
+/// `object`: camera mode (no depth, so no top/side distinction).
+enum SurfaceHint { case top, side, object }
 
 final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     enum Phase { case aim, scan, done }
@@ -31,6 +32,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     /// fraction of the `lockHold` window satisfied (< 1 until the lock fires; stays 1 after it).
     @Published private(set) var aimSurface: SurfaceHint?
     @Published private(set) var lockProgress = 0.0
+    /// Camera mode only (SPEC §14): guidance / bottom-card stage, computed on `queue`, published in `finish`.
+    @Published private(set) var cameraStage = CameraStage.findingFloor
     /// D4/D7: set by ScanView from 设置 → 调试模式 before `start()`. Main only (copied into each Snapshot).
     var debug = false
     /// SPEC §14: camera-only pipeline (no depth: Vision foreground masks + visual hull). Set by ScanView before `start()`.
@@ -67,6 +70,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     private var lastReasonTime: TimeInterval = -.infinity
     private var qSurface: SurfaceHint?
     private var qLockProgress = 0.0
+    private var qCameraStage = CameraStage.findingFloor
     /// Debug-mode raw-frame log (frames.bin) and the per-frame marks it records.
     private var recorder: FrameRecorder?
     private var qRing = false, qEstimated = false, qLock = false
@@ -92,7 +96,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     static let aimParams: Params = { var p = Params(); p.maxExtent = false; return p }()
     /// D1 side seed (the kit forces the max-extent path for it).
     static let aimSideParams: Params = { var p = aimParams; p.seedOnSide = true; return p }()
-    static let aimHint = "对准箱顶或侧面，周围留出地面"
+    static let aimHint = String(localized: "Aim at the box top or a side, keep some floor around it")
     /// D7: without debug mode, estimateDebug runs only on a miss and at most this often (it is slower).
     static let reasonInterval: TimeInterval = 1.0
     static let sectorCount = 12
@@ -134,7 +138,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         let camera = cameraMode, depthRef = cameraMode && !c.frameSemantics.isEmpty
         queue.async { self.qCamera = camera; self.qCameraDepth = depthRef }
         view.session.run(c, options: [.resetTracking, .removeExistingAnchors])
-        reset(status: camera ? Self.cameraAimHint : Self.aimHint)
+        reset()
     }
 
     /// Also drops an unfinished debug recording (scan cancelled).
@@ -157,7 +161,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             self.dbg = ScanDebugInfo(); self.lastReasonTime = -.infinity
             self.qSurface = nil; self.qLockProgress = 0
             self.views.removeAll(); self.lastViewCamera = nil
-            self.finish(nil, status == Self.aimHint && self.qCamera ? Self.cameraAimHint : status)
+            self.qCameraStage = self.camFloorY == nil ? .findingFloor : .searching
+            self.finish(nil, status != Self.aimHint || !self.qCamera ? status : self.camFloorY == nil ? Self.floorHint : Self.cameraAimHint)
         }
     }
 
@@ -190,7 +195,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
                 let cap = ScanCapture(points: r?.surface ?? [], seed: c, vertical: false, params: Params(), estimate: r?.estimate, debug: d,
                                       sectors: self.covered.filter { $0 }.count, voxels: self.views.count, dir: self.recorder?.finish())
                 self.recorder = nil
-                DispatchQueue.main.async { self.phase = .done; done(cap) }
+                DispatchQueue.main.async { self.phase = .done; self.cameraStage = .done; done(cap) }
                 return
             }
             let locked = self.lockedSeed != nil
@@ -227,9 +232,9 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         case .normal: break
         case .limited where phase == .scan:
             // Keep seed + voxels; ARKit usually recovers in place. Resume on .normal.
-            status = "缓慢移动，保持箱子和周围在画面内"; return
+            status = String(localized: "Move slowly, keep the item and its surroundings in view"); return
         default:
-            return reset(status: "缓慢移动手机以完成追踪")
+            return reset(status: String(localized: "Move the phone slowly to start tracking"))
         }
         if cameraMode {
             let tracking: UInt8 = switch frame.camera.trackingState { case .notAvailable: 0; case .limited: 1; case .normal: 2 }
@@ -339,7 +344,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             if c >= 2 { win.append(p) } else { winMed.append(p) }
         } }
         if win.count < 5 { win += winMed }
-        guard win.count >= 5 else { seedHistory.removeAll(); return finish(nil, "准星处无有效深度，靠近一点") }
+        guard win.count >= 5 else { seedHistory.removeAll(); return finish(nil, String(localized: "No depth at the crosshair, move closer")) }
         let seed = SIMD3(Self.median(win.map(\.x)), Self.median(win.map(\.y)), Self.median(win.map(\.z)))
         let vertical = isVerticalSurface(normalWin)
         dbg.vertical = vertical
@@ -355,7 +360,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         guard let e = estimate(ring.flatMap(\.points), seed: seed, params: vertical ? Self.aimSideParams : Self.aimParams, s) else {
             seedHistory.removeAll()
             return finish(nil, dbg.failure.map(Self.text)
-                          ?? (points.count < Self.minHighPoints ? "点云不足，靠近一点" : "未识别到箱体：对准箱顶或侧面"))
+                          ?? (points.count < Self.minHighPoints ? String(localized: "Not enough points, move closer")
+                             : String(localized: "No box found: aim at the box top or a side")))
         }
         aggregator.add(e)
 
@@ -385,12 +391,14 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             lastEstimateTime = s.time
             updateCoverage(s, center: seed)
             photoSectors = [Self.sector(s.transform, center: seed)]
-            return finish(e, lockLabel + "，绕箱子走一圈", event: .locked(seed))
+            return finish(e, lockLabel, event: .locked(seed))
         }
-        finish(e, "对准箱顶或侧面，保持 1 秒…")
+        finish(e, String(localized: "Hold steady on the box for 1 second…"))
     }
 
-    private var lockLabel: String { lockedVertical ? "已锁定（侧面）" : "已锁定（箱顶）" }
+    private var lockLabel: String {
+        lockedVertical ? String(localized: "Locked on a side, walk around the box") : String(localized: "Locked on the top, walk around the box")
+    }
 
     /// D7. Debug mode: `estimateDebug` every time (overlay data). Otherwise plain `estimate`; on a miss,
     /// `estimateDebug` re-runs at most every `reasonInterval` only to name the failure (the scan-phase
@@ -419,10 +427,10 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
 
     static func text(_ f: EstimateFailure) -> String {
         switch f {
-        case .noPlane: "未找到地面/托盘，后退一点让支撑面入镜"
-        case .noSeedCell: "准星处没有物体"
-        case .tooFewPoints: "点太少，靠近一点"
-        case .outOfRange: "尺寸超出范围（>2.5 m）"
+        case .noPlane: String(localized: "No floor or pallet found, step back so the support surface is in view")
+        case .noSeedCell: String(localized: "Nothing under the crosshair")
+        case .tooFewPoints: String(localized: "Too few points, move closer")
+        case .outOfRange: String(localized: "Size out of range (> 2.5 m)")
         }
     }
 
@@ -441,9 +449,10 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         let remaining = max(0, Self.finishSectors - n)
         // Head-on coverage (last estimate): grazing-only walls / top read ~2 cm toward the camera.
         let headOnOK = (dbg.headOnWalls ?? 0) >= Self.minHeadOn && (dbg.headOnTop ?? 0) >= Self.minHeadOn
-        let coverage = n <= 1 ? lockLabel + "，绕箱子走一圈" : remaining > 0 ? "还差 \(remaining) 个方向"
-            : (dbg.headOnWalls ?? 1) < Self.minHeadOn ? "放低手机，正对侧面再绕半圈"
-            : (dbg.headOnTop ?? 1) < Self.minHeadOn ? "抬高手机，俯拍箱顶" : "覆盖完成，尺寸收敛中…"
+        let coverage = n <= 1 ? lockLabel : remaining > 0 ? Self.remainingHint(remaining)
+            : (dbg.headOnWalls ?? 1) < Self.minHeadOn ? String(localized: "Lower the phone, face the sides and walk another half lap")
+            : (dbg.headOnTop ?? 1) < Self.minHeadOn ? String(localized: "Raise the phone and look down at the top")
+            : String(localized: "Coverage complete, refining the size…")
         // D7: last known failure (cleared on success), so the text doesn't flicker between estimates.
         var hint: String { dbg.failure.map(Self.text) ?? coverage }
 
@@ -468,10 +477,12 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         let corrected = e.shape == .box && scanParams.incidenceBias > 0 && (e.surfaces?.allSatisfy(\.fitted) ?? false)
         if remaining == 0, headOnOK || corrected, scanAgg.samples.count >= Self.finishSamples, scanAgg.spread <= Self.finishSpread {
             qPhase = .done
-            return finish(e, "完成", event: .done)
+            return finish(e, String(localized: "Done"), event: .done)
         }
         finish(e, hint)
     }
+
+    static func remainingHint(_ remaining: Int) -> String { String(localized: "\(remaining) more directions to go") }
 
     /// B5: sector of the camera's azimuth around `center`, counted only at 0.3-2.5 m with the center in view.
     /// Returns the sector if it was newly covered by this frame.
@@ -514,7 +525,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         let agg = qPhase != .aim && !scanAgg.samples.isEmpty ? scanAgg : aggregator
         let med = agg.median()   // shape = majority vote (BoxAggregator)
         let sp = agg.spread, n = agg.samples.count, phase = qPhase, cov = covered
-        let surface = qSurface, lockProgress = qLockProgress
+        let surface = qSurface, lockProgress = qLockProgress, stage = qCameraStage
         var info = dbg
         info.history = Array(agg.samples.suffix(5))
         DispatchQueue.main.async {
@@ -523,6 +534,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             self.median = med; self.spread = sp; self.sampleCount = n; self.sectors = cov
             if self.aimSurface != surface { self.aimSurface = surface }
             if self.lockProgress != lockProgress { self.lockProgress = lockProgress }
+            if self.cameraStage != stage { self.cameraStage = stage }
             switch event {
             case .none: break
             case .locked(let seed):
@@ -579,7 +591,14 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
 // MARK: - camera-only mode (SPEC §14)
 
 extension ScanSession {
-    static let cameraAimHint = "对准物体，周围留出地面"
+    static let cameraAimHint = String(localized: "Aim at the item, keep some floor around it")
+    static let floorHint = String(localized: "Move the phone slowly to detect the floor")
+
+    /// Camera-mode guidance stages (SPEC §14, DESIGN scan page). `collecting`: locked, fewer than `needed` sectors.
+    /// `measuring`: enough views; numbers appear with the first hull estimate.
+    enum CameraStage: Equatable {
+        case findingFloor, searching, locking(Double), collecting(covered: Int, needed: Int), measuring, done
+    }
     /// Silhouettes bound the object only laterally: estimate once views span >= 180°.
     static let cameraMinSectors = 6
     /// Mask width (px); height follows the capture aspect (960 x 720 for 4:3).
@@ -635,8 +654,8 @@ extension ScanSession {
         let camPos = SIMD3(s.transform.columns.3.x, s.transform.columns.3.y, s.transform.columns.3.z)
         dbg.pitch = asin(max(-1, min(1, -s.transform.columns.2.y))) * 180 / .pi
         guard let floorY = camFloorY else {
-            qSurface = nil; qLockProgress = 0
-            return finish(nil, "缓慢移动手机，扫一下地面")
+            qSurface = nil; qLockProgress = 0; qCameraStage = .findingFloor
+            return finish(nil, Self.floorHint)
         }
         dbg.planeY = floorY - camPos.y
 
@@ -647,17 +666,18 @@ extension ScanSession {
             dbg.millis = (CACurrentMediaTime() - t0) * 1000
             dbg.high = mask.map { $0.reduce(0) { $0 + Int($1) } } ?? 0   // HUD "frame": object mask pixels
             guard let mask, let anchor = Self.footprintAnchor(mask, cam, floorY: floorY) else {
-                seedHistory.removeAll(); qSurface = nil; qLockProgress = 0
+                seedHistory.removeAll(); qSurface = nil; qLockProgress = 0; qCameraStage = .searching
                 return finish(nil, Self.cameraAimHint)
             }
             seedHistory.append((s.time, anchor, false))
             seedHistory.removeAll { s.time - $0.t > Self.lockHold + 0.5 }
             let since = seedHistory.lastIndex { simd_length($0.p - anchor) >= Self.lockDrift }.map { $0 + 1 } ?? 0
-            qSurface = .top
+            qSurface = .object
             qLockProgress = since < seedHistory.count ? min(0.95, (s.time - seedHistory[since].t) / Self.lockHold) : 0
+            qCameraStage = .locking(qLockProgress)
             guard let first = seedHistory.first, s.time - first.t >= Self.lockHold,
                   seedHistory.allSatisfy({ simd_length($0.p - anchor) < Self.lockDrift }) else {
-                return finish(nil, "对准物体，保持 1 秒…")
+                return finish(nil, String(localized: "Hold steady on the item for 1 second…"))
             }
             qPhase = .scan; qLockProgress = 1; qLock = true
             lockedSeed = anchor; lockedVertical = false
@@ -668,7 +688,8 @@ extension ScanSession {
             lastEstimateTime = s.time
             updateCoverage(s.transform, s.intrinsics, s.res, center: anchor)
             photoSectors = [Self.sector(s.transform, center: anchor)]
-            return finish(nil, "已锁定，绕物体走一圈", event: .locked(anchor))
+            qCameraStage = .collecting(covered: covered.filter { $0 }.count, needed: Self.cameraMinSectors)
+            return finish(nil, String(localized: "Locked, walk slowly around the item"), event: .locked(anchor))
         }
 
         guard let anchor = lockedSeed else { return finish(nil, Self.cameraAimHint) }
@@ -689,7 +710,11 @@ extension ScanSession {
         }
         let n = covered.filter { $0 }.count
         let remaining = max(0, Self.finishSectors - n)
-        let hint = n <= 1 ? "已锁定，绕物体走一圈" : remaining > 0 ? "还差 \(remaining) 个方向" : "覆盖完成，尺寸收敛中…"
+        let toMeasure = Self.cameraMinSectors - n
+        qCameraStage = toMeasure > 0 ? .collecting(covered: n, needed: Self.cameraMinSectors) : .measuring
+        let hint = n <= 1 ? String(localized: "Locked, walk slowly around the item")
+            : toMeasure > 0 ? String(localized: "Keep walking: \(toMeasure) more directions to measure")
+            : remaining > 0 ? Self.remainingHint(remaining) : String(localized: "Coverage complete, refining the size…")
         guard n >= Self.cameraMinSectors, s.time - lastEstimateTime >= Self.estimateInterval else {
             return finish(nil, hint, keepWireframe: true)
         }
@@ -703,8 +728,8 @@ extension ScanSession {
         scanAgg.add(e)
         lastScanEstimate = e
         if remaining == 0, scanAgg.samples.count >= Self.finishSamples, scanAgg.spread <= Self.finishSpread {
-            qPhase = .done
-            return finish(e, "完成", event: .done)
+            qPhase = .done; qCameraStage = .done
+            return finish(e, String(localized: "Done"), event: .done)
         }
         finish(e, hint)
     }

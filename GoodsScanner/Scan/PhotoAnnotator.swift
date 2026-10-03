@@ -85,6 +85,7 @@ enum PhotoAnnotator {
             // Volume is the bounding box L×W×H for every shape (E4, freight basis).
             let vol = CargoItem.volumeM3(labels.l, labels.w, labels.h)
             let caption: String
+            let f = { (cm: Double) in String(format: "%.1f", cm) }
             if box.shape == .cylinder {
                 let rings = cylinderRings(box).map { $0.map { project($0, transform: transform, intrinsics: intrinsics,
                                                                      imageResolution: imageResolution, imageSize: size) } }
@@ -105,10 +106,10 @@ enum PhotoAnnotator {
                 g.strokePath()
                 if !t.isEmpty {
                     let c = CGPoint(x: t.map(\.x).reduce(0, +) / CGFloat(t.count), y: t.map(\.y).reduce(0, +) / CGFloat(t.count))
-                    capsule(String(format: "直径 %.1f cm", labels.l), font: font, center: c, in: size)
+                    capsule(String(localized: "Diameter \(f(labels.l)) cm"), font: font, center: c, in: size)
                 }
-                if let hMid { capsule(String(format: "高 %.1f cm", labels.h), font: font, center: hMid, in: size) }
-                caption = String(format: "Ø×H %.1f×%.1f cm · ", labels.l, labels.h) + vol.m3 + " m³ · 圆柱 · 按最大外形"
+                if let hMid { capsule(String(localized: "H \(f(labels.h)) cm"), font: font, center: hMid, in: size) }
+                caption = String(localized: "Ø×H \(f(labels.l))×\(f(labels.h)) cm · \(vol.m3) m³ · cylinder · max outer dimensions")
             } else {
                 // Top face fill (corners 2, 3, 7, 6 in order around the face).
                 let top = [2, 3, 7, 6].compactMap { pts[$0] }
@@ -116,14 +117,15 @@ enum PhotoAnnotator {
                 for e in visible { g.move(to: pts[e.a]!); g.addLine(to: pts[e.b]!) }
                 g.strokePath()
 
-                for (bit, text) in [(1, String(format: "长 %.1f cm", labels.l)), (4, String(format: "宽 %.1f cm", labels.w)),
-                                    (2, String(format: "高 %.1f cm", labels.h))] {
+                for (bit, text) in [(1, String(localized: "L \(f(labels.l)) cm")), (4, String(localized: "W \(f(labels.w)) cm")),
+                                    (2, String(localized: "H \(f(labels.h)) cm"))] {
                     guard let (a, b) = pick(bit) else { continue }
                     let m = CGPoint(x: (pts[a]!.x + pts[b]!.x) / 2, y: (pts[a]!.y + pts[b]!.y) / 2)
                     capsule(text, font: font, center: m, in: size)
                 }
-                caption = String(format: "L×W×H %.1f×%.1f×%.1f cm · ", labels.l, labels.w, labels.h) + vol.m3 + " m³ · "
-                    + (box.shape == .irregular ? "异形" : "箱体") + " · 按最大外形"
+                caption = box.shape == .irregular
+                    ? String(localized: "L×W×H \(f(labels.l))×\(f(labels.w))×\(f(labels.h)) cm · \(vol.m3) m³ · irregular · max outer dimensions")
+                    : String(localized: "L×W×H \(f(labels.l))×\(f(labels.w))×\(f(labels.h)) cm · \(vol.m3) m³ · box · max outer dimensions")
             }
             let small = UIFont.systemFont(ofSize: w * 0.025, weight: .semibold)
             let cs = (caption as NSString).size(withAttributes: [.font: small])
