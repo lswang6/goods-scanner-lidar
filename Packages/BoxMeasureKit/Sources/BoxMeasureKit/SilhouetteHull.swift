@@ -51,7 +51,7 @@ public enum SilhouetteHull {
         let fine = Grid(lo: lo, hi: hi, voxel: max(fineVoxel, cbrt(vol / Float(maxFineVoxels))))
         let fk = fine.carve(views)
         guard !fk.isEmpty else { return nil }
-        return fine.box(fk, floorY: floorY)
+        return fine.box(fk, floorY: floorY)   // nil: the hull doesn't reach the floor (plane too low, object on a mat)
     }
 
     struct Grid {
@@ -98,7 +98,7 @@ public enum SilhouetteHull {
             return alive.indices.filter { Int(seen[$0]) >= minSeen }.map { alive[$0] }
         }
 
-        func box(_ alive: [Int32], floorY: Float) -> (estimate: BoxEstimate, surface: [SIMD3<Float>]) {
+        func box(_ alive: [Int32], floorY: Float) -> (estimate: BoxEstimate, surface: [SIMD3<Float>])? {
             var occ = [Bool](repeating: false, count: nx * ny * nz)
             for i in alive { occ[Int(i)] = true }
             // Columns: footprint (lowest 3 cm) and hull top height above floorY.
@@ -113,6 +113,7 @@ public enum SilhouetteHull {
                 top[ix * nz + iz] = Float(hTop + 1) * voxel + (lo.y - floorY)
             } }
             let cells = (0..<(nx * nz)).filter { foot[$0] }
+            guard !cells.isEmpty else { return nil }
             let xz = cells.map { SIMD2(lo.x + (Float($0 / nz) + 0.5) * voxel, lo.z + (Float($0 % nz) + 0.5) * voxel) }
 
             // Min-area rectangle, 0.5 % trimmed per side (stray columns).

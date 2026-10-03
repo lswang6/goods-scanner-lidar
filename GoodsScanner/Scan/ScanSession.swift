@@ -617,8 +617,10 @@ extension ScanSession {
 
         if qPhase == .aim {
             let t0 = CACurrentMediaTime()
+            dbg.medium = 0
             let mask = objectMask(s.image, at: SIMD2(Float(w) / 2, Float(h) / 2), w: w, h: h)
             dbg.millis = (CACurrentMediaTime() - t0) * 1000
+            dbg.high = mask.map { $0.reduce(0) { $0 + Int($1) } } ?? 0   // HUD "frame": object mask pixels
             guard let mask, let anchor = Self.footprintAnchor(mask, cam, floorY: floorY) else {
                 seedHistory.removeAll(); qSurface = nil; qLockProgress = 0
                 return finish(nil, Self.cameraAimHint)
@@ -706,7 +708,10 @@ extension ScanSession {
         CVPixelBufferLockBaseAddress(m, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(m, .readOnly) }
         guard CVPixelBufferGetWidth(m) == w, CVPixelBufferGetHeight(m) == h,
-              CVPixelBufferGetPixelFormatType(m) == kCVPixelFormatType_OneComponent32Float else { return nil }
+              CVPixelBufferGetPixelFormatType(m) == kCVPixelFormatType_OneComponent32Float else {
+            dbg.medium = -1   // HUD "frame …/-1": Vision mask size/format mismatch
+            return nil
+        }
         let mb = CVPixelBufferGetBytesPerRow(m) / 4
         let mp = CVPixelBufferGetBaseAddress(m)!.assumingMemoryBound(to: Float32.self)
         var out = [UInt8](repeating: 0, count: w * h)
