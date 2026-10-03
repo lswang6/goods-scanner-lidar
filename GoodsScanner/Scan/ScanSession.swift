@@ -72,6 +72,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     private var qRing = false, qEstimated = false, qLock = false
     // queue only, camera mode (SPEC §14): silhouettes since lock, support plane, hull surface of the last estimate.
     private var qCamera = false
+    /// Camera mode + debug on a LiDAR device: frames are logged with LiDAR depth (reference only); frames without it are not logged.
+    private var qCameraDepth = false
     private var views: [Silhouette] = []
     private var lastViewCamera: SIMD3<Float>?
     private var camFloorY: Float?
@@ -114,7 +116,12 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     func start() {
         let c = ARWorldTrackingConfiguration()
         if cameraMode {
-            c.planeDetection = [.horizontal]   // support plane (Self.floorY); no depth, no mesh
+            c.planeDetection = [.horizontal]   // support plane (Self.floorY); no mesh
+            // Debug on a LiDAR device: record depth as a reference for offline checks; the camera pipeline ignores it.
+            if debug, ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+                c.frameSemantics = ARWorldTrackingConfiguration.supportsFrameSemantics([.sceneDepth, .smoothedSceneDepth])
+                    ? [.sceneDepth, .smoothedSceneDepth] : .sceneDepth
+            }
         } else {
             c.planeDetection = []
             c.frameSemantics = ARWorldTrackingConfiguration.supportsFrameSemantics(.smoothedSceneDepth) ? .smoothedSceneDepth : .sceneDepth
@@ -124,8 +131,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             }
             if ARWorldTrackingConfiguration.supportsSceneReconstruction(.mesh) { c.sceneReconstruction = .mesh }
         }
-        let camera = cameraMode
-        queue.async { self.qCamera = camera }
+        let camera = cameraMode, depthRef = cameraMode && !c.frameSemantics.isEmpty
+        queue.async { self.qCamera = camera; self.qCameraDepth = depthRef }
         view.session.run(c, options: [.resetTracking, .removeExistingAnchors])
         reset(status: camera ? Self.cameraAimHint : Self.aimHint)
     }
@@ -228,7 +235,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             let tracking: UInt8 = switch frame.camera.trackingState { case .notAvailable: 0; case .limited: 1; case .normal: 2 }
             let snap = CameraSnapshot(image: frame.capturedImage, transform: frame.camera.transform, intrinsics: frame.camera.intrinsics,
                                       res: frame.camera.imageResolution, time: frame.timestamp, floorY: Self.floorY(frame.anchors),
-                                      tracking: tracking, thermal: UInt8(ProcessInfo.processInfo.thermalState.rawValue))
+                                      tracking: tracking, thermal: UInt8(ProcessInfo.processInfo.thermalState.rawValue),
+                                      depth: debug ? Self.referenceDepth(frame) : nil)
             busy = true
             queue.async { self.processCamera(snap) }
             return
@@ -584,6 +592,23 @@ extension ScanSession {
         var transform: simd_float4x4; var intrinsics: simd_float3x3; var res: CGSize; var time: TimeInterval
         var floorY: Float?
         var tracking: UInt8; var thermal: UInt8
+        var depth: ReferenceDepth?
+    }
+
+    /// Debug log only: LiDAR depth recorded in camera mode as a reference (never used for measuring).
+    fileprivate struct ReferenceDepth { var w: Int, h: Int; var raw: [Float]?, rawConf: [UInt8]?, smoothed: [Float]?, smoothedConf: [UInt8]? }
+
+    fileprivate static func referenceDepth(_ frame: ARFrame) -> ReferenceDepth? {
+        func copy(_ d: ARDepthData?) -> (data: [Float], conf: [UInt8]?, w: Int, h: Int)? {
+            guard let d, CVPixelBufferGetPixelFormatType(d.depthMap) == kCVPixelFormatType_DepthFloat32,
+                  let m = copyPixels(d.depthMap, Float.self) else { return nil }
+            let c = d.confidenceMap.flatMap { copyPixels($0, UInt8.self) }.flatMap { $0.w == m.w && $0.h == m.h ? $0.data : nil }
+            return (m.data, c, m.w, m.h)
+        }
+        let s = copy(frame.smoothedSceneDepth)
+        guard let first = s ?? copy(frame.sceneDepth) else { return nil }
+        let r = copy(frame.sceneDepth).flatMap { $0.w == first.w && $0.h == first.h ? $0 : nil }
+        return ReferenceDepth(w: first.w, h: first.h, raw: r?.data, rawConf: r?.conf, smoothed: s?.data, smoothedConf: s?.conf)
     }
 
     /// Support plane height: lowest plane classified .floor, else the lowest horizontal plane >= 0.3 m² (a detected
@@ -748,12 +773,15 @@ extension ScanSession {
         return SIMD2(u, v)
     }
 
-    /// Debug log, camera mode: pose + JPEG only (no depth; frames.bin records are header-only, width = height = 0).
+    /// Debug log, camera mode: pose + JPEG, plus LiDAR reference depth on LiDAR devices (else frames.bin records are
+    /// header-only, width = height = 0).
     private func recordCamera(_ s: CameraSnapshot, phase: Phase) {
-        guard let recorder else { return }
+        guard let recorder, !qCameraDepth || s.depth != nil else { return }   // one record size per log
+        let d = s.depth
         var f = FrameSample(time: s.time, phase: phase == .scan ? 1 : 0, tracking: s.tracking, thermal: s.thermal,
                             transform: s.transform, intrinsics: s.intrinsics, res: SIMD2(Float(s.res.width), Float(s.res.height)),
-                            w: 0, h: 0, raw: nil, rawConf: nil, smoothed: nil, smoothedConf: nil, live: .smoothed)
+                            w: d?.w ?? 0, h: d?.h ?? 0, raw: d?.raw, rawConf: d?.rawConf, smoothed: d?.smoothed,
+                            smoothedConf: d?.smoothedConf, live: d?.smoothed != nil ? .smoothed : .raw)
         f.ring = qRing; f.estimated = qEstimated; f.lock = qLock
         f.jpeg = jpeg(s.image)
         recorder.append(f)
