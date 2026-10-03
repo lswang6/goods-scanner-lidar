@@ -39,14 +39,26 @@ targets:
         NSCameraUsageDescription: Used to scan item dimensions and take inbound photos.
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
-        UIFileSharingEnabled: true          # SPEC §11 D5: Documents/ScanLogs visible in 文件 App
-        LSSupportsOpeningDocumentsInPlace: true
+        ITSAppUsesNonExemptEncryption: false   # no networking / custom crypto
     settings:
       base:
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1"  # iPhone only
         SWIFT_EMIT_LOC_STRINGS: YES
         LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+    postBuildScripts:
+      # SPEC §11 D5: Documents/ScanLogs visible in the Files app. Only Debug writes scan logs (DebugTools), so only
+      # Debug gets the keys (INFOPLIST_KEY_UIFileSharingEnabled isn't supported, and the plist is shared).
+      # Runs before code signing.
+      - name: Debug file sharing
+        basedOnDependencyAnalysis: false
+        inputFiles: [$(TARGET_BUILD_DIR)/$(INFOPLIST_PATH)]   # orders the script after Info.plist processing
+        script: |
+          [ "$CONFIGURATION" = Debug ] || exit 0
+          P="$TARGET_BUILD_DIR/$INFOPLIST_PATH"
+          for k in UIFileSharingEnabled LSSupportsOpeningDocumentsInPlace; do
+            /usr/libexec/PlistBuddy -c "Add :$k bool true" "$P" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :$k true" "$P"
+          done
 
   GoodsScannerTests:
     type: bundle.unit-test

@@ -317,5 +317,8 @@
     "one": "Mesure en cours — encore %lld direction pour terminer",
     "many": "Mesure en cours — encore %lld directions pour terminer",
     "other": "Mesure en cours — encore %lld directions pour terminer"
-  }
+  },
+  "Camera access needed": "Accès à la caméra requis",
+  "Allow camera access in Settings to measure items, or go back to enter the size by hand.": "Autorisez l’accès à la caméra dans Réglages pour mesurer les articles, ou revenez en arrière pour saisir la taille à la main.",
+  "Open Settings": "Ouvrir Réglages"
 }

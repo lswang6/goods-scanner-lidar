@@ -57,10 +57,10 @@ final class GoodsScannerTests: XCTestCase {
     }
 
     func testNumberFormatting() {
-        XCTAssertEqual(12345.67.kg, "12345.67")
-        XCTAssertEqual(1_000_000.0.kg, "1000000")
-        XCTAssertEqual(40.0.cm, "40")
-        XCTAssertEqual(40.26.cm, "40.3")
+        XCTAssertEqual(12345.67.csvKg, "12345.67")
+        XCTAssertEqual(1_000_000.0.csvKg, "1000000")
+        XCTAssertEqual(40.0.csvCm, "40")
+        XCTAssertEqual(40.26.csvCm, "40.3")
         XCTAssertEqual(0.00012.fixed(4), "0.0001")
     }
 
@@ -70,7 +70,7 @@ final class GoodsScannerTests: XCTestCase {
         XCTAssertEqual(item.totalVolumeM3, 2, accuracy: 1e-9)
         let small = CargoItem(lengthCm: 40, widthCm: 30, heightCm: 20, quantity: 3)
         XCTAssertEqual(small.unitVolumeM3, 0.024, accuracy: 1e-9)
-        XCTAssertEqual(small.totalVolumeM3.m3, "0.072")
+        XCTAssertEqual(small.totalVolumeM3.m3Text, "0.072")
 
         let o = try addOrder(date(2026, 10, 1))
         for i in [item, small] { context.insert(i); i.order = o }

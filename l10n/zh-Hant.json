@@ -249,5 +249,8 @@
   "· %lld/%lld photos": "· 已拍 %lld/%lld",
   "Ø %@ × H %@": "Ø %@ × 高 %@",
   "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×高 %@×%@ cm · %@ m³ · 圓柱 · 依最大外形",
-  "Measuring — walk %lld more directions to finish": "測量中，再繞 %lld 個方向即可完成"
+  "Measuring — walk %lld more directions to finish": "測量中，再繞 %lld 個方向即可完成",
+  "Camera access needed": "需要相機權限",
+  "Allow camera access in Settings to measure items, or go back to enter the size by hand.": "請在「設定」中允許取用相機以測量貨物，或返回手動輸入尺寸。",
+  "Open Settings": "打開設定"
 }

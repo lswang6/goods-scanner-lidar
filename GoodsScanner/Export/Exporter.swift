@@ -118,8 +118,8 @@ enum Exporter {
             for i in sortedItems(o) {
                 // Volumes at 4 decimals in CSV so small items aren't 0.000.
                 let row: [String] = [o.orderNo, timeFormatter.string(from: o.receivedAt), c?.code ?? "", c?.name ?? "", c?.contact ?? "", c?.phone ?? "",
-                           o.operatorName, i?.name ?? "", i?.lengthCm.cm ?? "", i?.widthCm.cm ?? "", i?.heightCm.cm ?? "", i.map { String($0.quantity) } ?? "",
-                           i?.unitVolumeM3.fixed(4) ?? "", i?.totalVolumeM3.fixed(4) ?? "", i?.weightKg?.kg ?? "", i?.methodLabel ?? "",
+                           o.operatorName, i?.name ?? "", i?.lengthCm.csvCm ?? "", i?.widthCm.csvCm ?? "", i?.heightCm.csvCm ?? "", i.map { String($0.quantity) } ?? "",
+                           i?.unitVolumeM3.fixed(4) ?? "", i?.totalVolumeM3.fixed(4) ?? "", i?.weightKg?.csvKg ?? "", i?.methodLabel ?? "",
                            i?.photoFiles.joined(separator: ";") ?? "", o.note, i?.shapeLabel ?? ""]
                 lines.append(row.enumerated().map { csvField($1, text: $0 == 2 || $0 == 5) }.joined(separator: ","))
             }

@@ -34,6 +34,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     @Published private(set) var lockProgress = 0.0
     /// Camera mode only (SPEC §14): guidance / bottom-card stage, computed on `queue`, published in `finish`.
     @Published private(set) var cameraStage = CameraStage.findingFloor
+    /// ARKit reported `.cameraUnauthorized` (access revoked/denied behind our pre-check).
+    @Published private(set) var cameraDenied = false
     /// D4/D7: set by ScanView from 设置 → 调试模式 before `start()`. Main only (copied into each Snapshot).
     var debug = false
     /// SPEC §14: camera-only pipeline (no depth: Vision foreground masks + visual hull). Set by ScanView before `start()`.
@@ -214,6 +216,10 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     }
 
     // MARK: ARSessionDelegate (main queue)
+
+    func session(_ session: ARSession, didFailWithError error: Error) {
+        if (error as? ARError)?.code == .cameraUnauthorized { cameraDenied = true }
+    }
 
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
         guard phase != .done, !busy, frame.timestamp - lastTime >= Self.interval else { return }

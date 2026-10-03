@@ -1,5 +1,6 @@
 import SwiftUI
 import ARKit
+import AVFoundation
 import BoxMeasureKit
 
 /// Scan screen: LiDAR, or the camera-only pipeline (SPEC §14) without LiDAR / with 设置 → 强制相机模式.
@@ -49,6 +50,7 @@ private struct ARScanScreen: View {
     @AppStorage("debugMode") private var storedDebugMode = false
     private var debugMode: Bool { storedDebugMode && DebugTools.available }
     @State private var review: Review?
+    @State private var cameraDenied = false
 
     /// D4: debug-mode finish holds the already-built result until 使用此结果 / 重新扫描.
     private struct Review: Identifiable {
@@ -63,6 +65,19 @@ private struct ARScanScreen: View {
     private var coveredCount: Int { scan.sectors.filter { $0 }.count }
 
     var body: some View {
+        if cameraDenied || scan.cameraDenied {
+            NavigationStack {
+                EmptyState(image: "ScanAim", title: "Camera access needed",
+                           message: "Allow camera access in Settings to measure items, or go back to enter the size by hand.",
+                           action: ("Open Settings", { UIApplication.shared.open(URL(string: UIApplication.openSettingsURLString)!) }))
+                    .toolbar { Button("Close") { dismiss() } }
+            }
+        } else {
+            scanScreen
+        }
+    }
+
+    private var scanScreen: some View {
         ZStack {
             ARContainer(view: scan.view).ignoresSafeArea()
             ScanGuidance(phase: scan.phase, surface: scan.aimSurface, progress: scan.lockProgress, ringCenter: ringCenter,
@@ -82,7 +97,15 @@ private struct ARScanScreen: View {
         .coordinateSpace(name: ScanGuidance.space)
         .onPreferenceChange(RingCenterKey.self) { ringCenter = $0 }
         .environment(\.colorScheme, .dark)  // HUD over camera feed
-        .onAppear { scan.debug = debugMode; scan.cameraMode = cameraMode; scan.start() }
+        .task {
+            // Don't start AR without camera access: the view would stay black. ARKit's own prompt is pre-empted here.
+            switch AVCaptureDevice.authorizationStatus(for: .video) {
+            case .authorized: break
+            case .notDetermined: guard await AVCaptureDevice.requestAccess(for: .video) else { cameraDenied = true; return }
+            default: cameraDenied = true; return
+            }
+            scan.debug = debugMode; scan.cameraMode = cameraMode; scan.start()
+        }
         .sheet(item: $review) { r in
             ScanReviewView(capture: r.capture, box: r.box, result: r.result, saved: r.saved,
                            onUse: { review = nil; onResult(r.result) },
@@ -270,7 +293,7 @@ struct ScanCard: View {
 
     private var dims: String {
         guard let m = median else { return "— × — × —" }
-        let f = { (v: Float) in String(format: "%.1f", v * 100) }
+        let f = { (v: Float) in Double(v * 100).localized(1...1) }
         if m.shape == .cylinder { return String(localized: "Ø \(f(m.length)) × H \(f(m.height))") }
         return "\(f(m.length)) × \(f(m.width)) × \(f(m.height))"
     }

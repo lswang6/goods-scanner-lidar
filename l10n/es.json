@@ -317,5 +317,8 @@
     "one": "Midiendo: recorra %lld dirección más para terminar",
     "many": "Midiendo: recorra %lld direcciones más para terminar",
     "other": "Midiendo: recorra %lld direcciones más para terminar"
-  }
+  },
+  "Camera access needed": "Se necesita acceso a la cámara",
+  "Allow camera access in Settings to measure items, or go back to enter the size by hand.": "Permite el acceso a la cámara en Ajustes para medir artículos, o vuelve para introducir el tamaño a mano.",
+  "Open Settings": "Abrir Ajustes"
 }

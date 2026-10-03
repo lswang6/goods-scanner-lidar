@@ -65,8 +65,8 @@ struct ReportsView: View {
                                 StatCard(icon: "shippingbox", count: total.pieces, phrase: String(localized: "\(total.pieces) pcs"), label: "Pieces")
                             }
                             GridRow {
-                                StatCard(icon: "cube", value: total.volumeM3.m3, unit: "m³", label: "Total Volume")
-                                StatCard(icon: "scalemass", value: total.weightKg.kg, unit: "kg", label: "Total Weight")
+                                StatCard(icon: "cube", value: total.volumeM3.m3Text, unit: "m³", label: "Total Volume")
+                                StatCard(icon: "scalemass", value: total.weightKg.kgText, unit: "kg", label: "Total Weight")
                             }
                         }
                         .fixedSize(horizontal: false, vertical: true)
@@ -79,11 +79,11 @@ struct ReportsView: View {
                                 IconTile(systemName: "person.fill", size: 36)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(os.first?.customer?.name ?? String(localized: "(No customer)")).font(.headline).lineLimit(1)
-                                    Text([String(localized: "\(s.orders) orders"), String(localized: "\(s.pieces) pcs"), "\(s.weightKg.kg) kg"].joined(separator: " · "))
+                                    Text([String(localized: "\(s.orders) orders"), String(localized: "\(s.pieces) pcs"), "\(s.weightKg.kgText) kg"].joined(separator: " · "))
                                         .font(.num(.caption)).foregroundStyle(.secondary)
                                 }
                                 Spacer(minLength: 4)
-                                NumText(value: s.volumeM3.m3, unit: "m³", style: .headline)
+                                NumText(value: s.volumeM3.m3Text, unit: "m³", style: .headline)
                             }
                         }
                     }
@@ -165,7 +165,7 @@ private struct OrderPicker: View {
                     }
                     Spacer(minLength: 8)
                     VStack(alignment: .trailing, spacing: 2) {
-                        NumText(value: o.totalVolumeM3.m3, unit: "m³", style: .headline)
+                        NumText(value: o.totalVolumeM3.m3Text, unit: "m³", style: .headline)
                         Text("\(o.totalPieces) pcs").font(.num(.caption)).foregroundStyle(.secondary)
                     }
                 }

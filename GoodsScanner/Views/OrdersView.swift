@@ -33,7 +33,7 @@ struct OrdersView: View {
                         HStack(spacing: 8) {
                             StatCard(icon: "doc.text", count: today.count, phrase: String(localized: "\(today.count) orders"), label: "Inbound Today")
                             StatCard(icon: "shippingbox", count: pieces, phrase: String(localized: "\(pieces) pcs"), label: "Pieces Today")
-                            StatCard(icon: "cube", value: today.reduce(0) { $0 + $1.totalVolumeM3 }.m3, unit: "m³", label: "Volume Today")
+                            StatCard(icon: "cube", value: today.reduce(0) { $0 + $1.totalVolumeM3 }.m3Text, unit: "m³", label: "Volume Today")
                         }
                         .fixedSize(horizontal: false, vertical: true)
                         .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
@@ -105,7 +105,7 @@ private struct OrderRow: View {
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
-                NumText(value: order.totalVolumeM3.m3, unit: "m³", style: .headline)
+                NumText(value: order.totalVolumeM3.m3Text, unit: "m³", style: .headline)
                 Text("\(order.totalPieces) pcs · \(time)")
                     .font(.num(.caption)).foregroundStyle(.secondary).lineLimit(1).fixedSize()
             }
@@ -145,8 +145,8 @@ struct OrderDetailView: View {
             Section {
                 HStack(spacing: 8) {
                     StatCard(icon: "shippingbox", count: order.totalPieces, phrase: String(localized: "\(order.totalPieces) pcs"), label: "Pieces")
-                    StatCard(icon: "cube", value: order.totalVolumeM3.m3, unit: "m³", label: "Total Volume")
-                    StatCard(icon: "scalemass", value: order.totalWeightKg.kg, unit: "kg", label: "Total Weight")
+                    StatCard(icon: "cube", value: order.totalVolumeM3.m3Text, unit: "m³", label: "Total Volume")
+                    StatCard(icon: "scalemass", value: order.totalWeightKg.kgText, unit: "kg", label: "Total Weight")
                 }
                 .fixedSize(horizontal: false, vertical: true)
                 .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
@@ -232,11 +232,11 @@ private struct ItemRow: View {
                             if item.method != "manual" { Image(systemName: CargoItem.methodIcon(item.method)).font(.caption).foregroundStyle(.scanText) }
                         }
                         DimsBadge(l: item.lengthCm, w: item.widthCm, h: item.heightCm, shape: item.shape)
-                        if let kg = item.weightKg { NumText(value: kg.kg, unit: "kg", style: .caption).foregroundStyle(.secondary) }
+                        if let kg = item.weightKg { NumText(value: kg.kgText, unit: "kg", style: .caption).foregroundStyle(.secondary) }
                     }
                     Spacer(minLength: 4)
                     VStack(alignment: .trailing, spacing: 2) {
-                        NumText(value: item.totalVolumeM3.m3, unit: "m³", style: .headline)
+                        NumText(value: item.totalVolumeM3.m3Text, unit: "m³", style: .headline)
                         Text("× \(item.quantity)").font(.num(.subheadline)).foregroundStyle(.secondary)
                     }
                 }

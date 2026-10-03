@@ -249,5 +249,8 @@
   "· %lld/%lld photos": "· 撮影済み %lld/%lld",
   "Ø %@ × H %@": "Ø %@ × 高さ %@",
   "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×高さ %@×%@ cm · %@ m³ · 円柱 · 最大外形寸法",
-  "Measuring — walk %lld more directions to finish": "測定中 — あと %lld 方向回ると完了"
+  "Measuring — walk %lld more directions to finish": "測定中 — あと %lld 方向回ると完了",
+  "Camera access needed": "カメラへのアクセスが必要です",
+  "Allow camera access in Settings to measure items, or go back to enter the size by hand.": "荷物を測定するには「設定」でカメラへのアクセスを許可するか、戻ってサイズを手動で入力してください。",
+  "Open Settings": "設定を開く"
 }

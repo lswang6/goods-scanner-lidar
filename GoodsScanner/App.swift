@@ -4,7 +4,7 @@ import SwiftData
 @main
 struct GoodsScannerApp: App {
     static let container: ModelContainer = {
-        do { return try ModelContainer(for: Customer.self, InboundOrder.self, CargoItem.self) }
+        do { return try ModelContainer(for: Schema(versionedSchema: SchemaV1.self), migrationPlan: MigrationPlan.self) }
         catch { fatalError("Cannot open the database: \(error)") }
     }()
     /// Set by the onboarding's "I understand"; until then the tutorial + disclaimer cover the app.

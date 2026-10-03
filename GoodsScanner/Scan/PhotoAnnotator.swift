@@ -85,7 +85,7 @@ enum PhotoAnnotator {
             // Volume is the bounding box L×W×H for every shape (E4, freight basis).
             let vol = CargoItem.volumeM3(labels.l, labels.w, labels.h)
             let caption: String
-            let f = { (cm: Double) in String(format: "%.1f", cm) }
+            let f = { (cm: Double) in cm.localized(1...1) }
             if box.shape == .cylinder {
                 let rings = cylinderRings(box).map { $0.map { project($0, transform: transform, intrinsics: intrinsics,
                                                                      imageResolution: imageResolution, imageSize: size) } }
@@ -109,7 +109,7 @@ enum PhotoAnnotator {
                     capsule(String(localized: "Diameter \(f(labels.l)) cm"), font: font, center: c, in: size)
                 }
                 if let hMid { capsule(String(localized: "H \(f(labels.h)) cm"), font: font, center: hMid, in: size) }
-                caption = String(localized: "Ø×H \(f(labels.l))×\(f(labels.h)) cm · \(vol.m3) m³ · cylinder · max outer dimensions")
+                caption = String(localized: "Ø×H \(f(labels.l))×\(f(labels.h)) cm · \(vol.m3Text) m³ · cylinder · max outer dimensions")
             } else {
                 // Top face fill (corners 2, 3, 7, 6 in order around the face).
                 let top = [2, 3, 7, 6].compactMap { pts[$0] }
@@ -124,8 +124,8 @@ enum PhotoAnnotator {
                     capsule(text, font: font, center: m, in: size)
                 }
                 caption = box.shape == .irregular
-                    ? String(localized: "L×W×H \(f(labels.l))×\(f(labels.w))×\(f(labels.h)) cm · \(vol.m3) m³ · irregular · max outer dimensions")
-                    : String(localized: "L×W×H \(f(labels.l))×\(f(labels.w))×\(f(labels.h)) cm · \(vol.m3) m³ · box · max outer dimensions")
+                    ? String(localized: "L×W×H \(f(labels.l))×\(f(labels.w))×\(f(labels.h)) cm · \(vol.m3Text) m³ · irregular · max outer dimensions")
+                    : String(localized: "L×W×H \(f(labels.l))×\(f(labels.w))×\(f(labels.h)) cm · \(vol.m3Text) m³ · box · max outer dimensions")
             }
             let small = UIFont.systemFont(ofSize: w * 0.025, weight: .semibold)
             let cs = (caption as NSString).size(withAttributes: [.font: small])

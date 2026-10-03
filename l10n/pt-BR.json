@@ -300,5 +300,8 @@
   "Measuring — walk %lld more directions to finish": {
     "one": "Medindo — percorra mais %lld direção para concluir",
     "other": "Medindo — percorra mais %lld direções para concluir"
-  }
+  },
+  "Camera access needed": "Acesso à câmera necessário",
+  "Allow camera access in Settings to measure items, or go back to enter the size by hand.": "Permita o acesso à câmera em Ajustes para medir itens, ou volte para inserir o tamanho manualmente.",
+  "Open Settings": "Abrir Ajustes"
 }

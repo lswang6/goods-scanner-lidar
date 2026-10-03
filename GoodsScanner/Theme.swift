@@ -112,21 +112,26 @@ struct StatCard: View {
     }
 }
 
-/// `60 × 45 × 20 cm` capsule (`Ø26 × 25.5 cm` for cylinders), followed by the shape chip.
+/// `60 × 45 × 20 cm` capsule (`Ø26 × 25.5 cm` for cylinders), followed by the shape chip, or with the chip
+/// on its own line when both don't fit (long shape names in fr/de/ru…): the dimensions never truncate.
 struct DimsBadge: View {
     let l: Double, w: Double, h: Double
     var shape = "box"
     var body: some View {
-        HStack(spacing: 6) {
-            HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(CargoItem.dimsText(l, w, h, shape: shape)).font(.num(.subheadline))
-                Text("cm").font(.caption2).foregroundStyle(.secondary)
-            }
-            .lineLimit(1)
-            .padding(.horizontal, 8).padding(.vertical, 4)
-            .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
-            ShapeChip(shape: shape)
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 6) { dims; ShapeChip(shape: shape) }
+            VStack(alignment: .leading, spacing: 4) { dims; ShapeChip(shape: shape) }
         }
+    }
+
+    private var dims: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 2) {
+            Text(CargoItem.dimsText(l, w, h, shape: shape)).font(.num(.subheadline))
+            Text("cm").font(.caption2).foregroundStyle(.secondary)
+        }
+        .lineLimit(1)
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(Color(uiColor: .tertiarySystemFill), in: Capsule())
     }
 }
 

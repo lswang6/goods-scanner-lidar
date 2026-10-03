@@ -95,9 +95,9 @@ import SwiftData
         s == "cylinder" ? String(localized: "Cylinder") : s == "irregular" ? String(localized: "Irregular") : String(localized: "Box")
     }
     static func shapeIcon(_ s: String) -> String { s == "cylinder" ? "cylinder" : s == "irregular" ? "scribble.variable" : "shippingbox" }
-    /// Display text: numbers in the user's locale (0-1 decimals, no grouping). CSV uses `.cm` instead.
+    /// Display text: numbers in the user's locale (0-1 decimals, no grouping). CSV uses `.csvCm` instead.
     static func dimsText(_ l: Double, _ w: Double, _ h: Double, shape: String) -> String {
-        let f = { (v: Double) in v.formatted(.number.precision(.fractionLength(0...1)).grouping(.never)) }
+        let f = { (v: Double) in v.cmText }
         return shape == "cylinder" ? String(localized: "Ø\(f(l)) × \(f(h))") : String(localized: "\(f(l)) × \(f(w)) × \(f(h))")
     }
 
@@ -121,13 +121,31 @@ func deleteItem(_ item: CargoItem, in context: ModelContext) throws {
 }
 
 extension Double {
-    var m3: String { String(format: "%.3f", self) }
-    var cm: String { fixed(1) }
-    var kg: String { fixed(2) }
+    /// On-screen numbers: the user's locale (e.g. "0,072" in de), no grouping.
+    func localized(_ digits: ClosedRange<Int>) -> String { formatted(.number.precision(.fractionLength(digits)).grouping(.never)) }
+    var m3Text: String { localized(3...3) }
+    var kgText: String { localized(0...2) }
+    var cmText: String { localized(0...1) }
+
+    /// CSV (machine-readable): "." decimals, no grouping.
+    var csvCm: String { fixed(1) }
+    var csvKg: String { fixed(2) }
     /// `digits` decimals, trailing zeros trimmed; String(format:) is locale-independent ("." decimal).
     func fixed(_ digits: Int) -> String {
         var s = String(format: "%.\(digits)f", self)
         if s.contains(".") { while s.hasSuffix("0") { s.removeLast() }; if s.hasSuffix(".") { s.removeLast() } }
         return s == "-0" ? "0" : s
     }
+}
+
+/// Versioned schema (V1 = the original, unversioned 1.0 models: identical entities, so existing stores open as V1).
+/// Next model change: add SchemaV2 with its own model types and a stage below.
+enum SchemaV1: VersionedSchema {
+    static let versionIdentifier = Schema.Version(1, 0, 0)
+    static var models: [any PersistentModel.Type] { [Customer.self, InboundOrder.self, CargoItem.self] }
+}
+
+enum MigrationPlan: SchemaMigrationPlan {
+    static var schemas: [any VersionedSchema.Type] { [SchemaV1.self] }
+    static var stages: [MigrationStage] { [] }
 }

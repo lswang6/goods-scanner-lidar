@@ -86,7 +86,7 @@ struct ItemEditView: View {
         _width = State(initialValue: item?.widthCm)
         _height = State(initialValue: item?.heightCm)
         _quantity = State(initialValue: item?.quantity ?? 1)
-        _weight = State(initialValue: item?.weightKg.map(\.kg) ?? "")
+        _weight = State(initialValue: item?.weightKg.map(\.kgText) ?? "")
         _photos = State(initialValue: item?.photoFiles ?? [])
         _method = State(initialValue: item?.method ?? "manual")
         _confidence = State(initialValue: item?.confidence)
@@ -146,12 +146,12 @@ struct ItemEditView: View {
                     HStack(alignment: .firstTextBaseline) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Total").font(.caption).foregroundStyle(.secondary)
-                            NumText(value: (unitVolume * Double(quantity)).m3, unit: "m³", style: .largeTitle)
+                            NumText(value: (unitVolume * Double(quantity)).m3Text, unit: "m³", style: .largeTitle)
                         }
                         Spacer()
                         VStack(alignment: .trailing, spacing: 2) {
                             Text("Per item").font(.caption).foregroundStyle(.secondary)
-                            NumText(value: unitVolume.m3, unit: "m³", style: .headline)
+                            NumText(value: unitVolume.m3Text, unit: "m³", style: .headline)
                         }
                     }
                     LabeledContent("Method") {

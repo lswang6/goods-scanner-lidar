@@ -212,6 +212,11 @@
     "plural": false
   },
   {
+    "key": "Allow camera access in Settings to measure items, or go back to enter the size by hand.",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
     "key": "AR scanning isn't supported on this device. Enter the size by hand.",
     "comment": "ItemEditView",
     "plural": false
@@ -249,6 +254,11 @@
   {
     "key": "Camera",
     "comment": "Models",
+    "plural": false
+  },
+  {
+    "key": "Camera access needed",
+    "comment": "ScanView",
     "plural": false
   },
   {
@@ -908,6 +918,11 @@
   {
     "key": "OK",
     "comment": "CustomersView, OrdersView, ReportsView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Open Settings",
+    "comment": "ScanView",
     "plural": false
   },
   {
