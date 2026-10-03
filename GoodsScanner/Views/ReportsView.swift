@@ -35,12 +35,12 @@ struct ReportsView: View {
         let byCustomer = Dictionary(grouping: list) { $0.customer?.code ?? "" }.sorted { $0.key < $1.key }
         NavigationStack {
             Form {
-                Section("筛选") {
-                    DatePicker("开始日期", selection: $from, in: ...to, displayedComponents: .date)
-                    DatePicker("结束日期", selection: Binding(get: { to }, set: { pickedTo = $0 }), in: from..., displayedComponents: .date)
-                    Picker("客户", selection: $customerID) {
-                        Text("全部").tag(PersistentIdentifier?.none)
-                        ForEach(customers) { Text("\($0.name)（\($0.code)）").tag(Optional($0.persistentModelID)) }
+                Section("Filter") {
+                    DatePicker("Start Date", selection: $from, in: ...to, displayedComponents: .date)
+                    DatePicker("End Date", selection: Binding(get: { to }, set: { pickedTo = $0 }), in: from..., displayedComponents: .date)
+                    Picker("Customer", selection: $customerID) {
+                        Text("All").tag(PersistentIdentifier?.none)
+                        ForEach(customers) { Text("\($0.name) (\($0.code))").tag(Optional($0.persistentModelID)) }
                     }
                     NavigationLink {
                         OrderPicker(orders: filtered, selectedIDs: $selectedIDs)
@@ -53,28 +53,28 @@ struct ReportsView: View {
                 }
                 if filtered.isEmpty {
                     Section {
-                        EmptyState(image: "EmptyReports", title: "所选范围无入库记录", message: "调整日期或客户筛选后再查看汇总与导出")
+                        EmptyState(image: "EmptyReports", title: "No inbound records in this range", message: "Adjust the date or customer filter to see the summary and export.")
                             .frame(minHeight: 320)
                             .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                     }
                 } else {
-                    Section("汇总") {
+                    Section("Summary") {
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                            StatCard(icon: "doc.text", value: "\(total.orders)", unit: "单", label: "入库单数")
-                            StatCard(icon: "shippingbox", value: "\(total.pieces)", unit: "件", label: "件数")
-                            StatCard(icon: "cube", value: total.volumeM3.m3, unit: "m³", label: "总体积")
-                            StatCard(icon: "scalemass", value: total.weightKg.kg, unit: "kg", label: "总重量")
+                            StatCard(icon: "doc.text", value: "\(total.orders)", unit: String(localized: "orders", comment: "Unit after an order count on a stat card; keep very short"), label: "Order Count")
+                            StatCard(icon: "shippingbox", value: "\(total.pieces)", unit: String(localized: "pcs", comment: "Unit after a piece count; keep very short"), label: "Pieces")
+                            StatCard(icon: "cube", value: total.volumeM3.m3, unit: "m³", label: "Total Volume")
+                            StatCard(icon: "scalemass", value: total.weightKg.kg, unit: "kg", label: "Total Weight")
                         }
                         .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                     }
-                    Section("按客户") {
+                    Section("By Customer") {
                         ForEach(byCustomer, id: \.key) { code, os in
                             let s = Summary(os)
                             HStack(spacing: 12) {
                                 IconTile(systemName: "person.fill", size: 36)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(os.first?.customer?.name ?? "（无客户）").font(.headline).lineLimit(1)
-                                    Text("\(s.orders) 单 · \(s.pieces) 件 · \(s.weightKg.kg) kg")
+                                    Text(os.first?.customer?.name ?? String(localized: "(No customer)")).font(.headline).lineLimit(1)
+                                    Text("\(s.orders) orders · \(s.pieces) pcs · \(s.weightKg.kg) kg")
                                         .font(.num(.caption)).foregroundStyle(.secondary)
                                 }
                                 Spacer(minLength: 4)
@@ -82,11 +82,11 @@ struct ReportsView: View {
                             }
                         }
                     }
-                    Section("导出") {
+                    Section("Export") {
                         HStack(spacing: 8) {
-                            exportButton("CSV 明细", "tablecells") { try Exporter.writeCSV(list, scope: scope) }
-                            exportButton("PDF 报表", "doc.richtext") { try Exporter.writePDF(list, scope: scope) }
-                            exportButton("照片 ZIP", "photo.stack") { try Exporter.writePhotosZip(list, scope: scope) }
+                            exportButton("CSV Details", "tablecells") { try Exporter.writeCSV(list, scope: scope) }
+                            exportButton("PDF Report", "doc.richtext") { try Exporter.writePDF(list, scope: scope) }
+                            exportButton("Photos ZIP", "photo.stack") { try Exporter.writePhotosZip(list, scope: scope) }
                         }
                         .disabled(exporting || list.isEmpty)
                         .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
@@ -94,14 +94,14 @@ struct ReportsView: View {
                 }
             }
             .listSectionSpacing(16)
-            .overlay { if exporting { ProgressView("正在导出…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12)) } }
-            .navigationTitle("报表")
+            .overlay { if exporting { ProgressView("Exporting…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12)) } }
+            .navigationTitle("Reports")
             .onChange(of: from) { selectedIDs = nil }
             .onChange(of: pickedTo) { selectedIDs = nil }  // not `to`: it's re-evaluated (.now) every render
             .onChange(of: customerID) { selectedIDs = nil }
             .sheet(item: $share) { ActivityView(items: [$0.url]) }
             .alert(errorTitle, isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
-                Button("好", role: .cancel) {}
+                Button("OK", role: .cancel) {}
             } message: { Text(error ?? "") }
         }
     }

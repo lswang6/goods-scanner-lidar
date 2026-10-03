@@ -5,10 +5,15 @@ import SwiftData
 struct GoodsScannerApp: App {
     static let container: ModelContainer = {
         do { return try ModelContainer(for: Customer.self, InboundOrder.self, CargoItem.self) }
-        catch { fatalError("无法打开数据库: \(error)") }
+        catch { fatalError("Cannot open the database: \(error)") }
     }()
     /// Set by the onboarding's "I understand"; until then the tutorial + disclaimer cover the app.
     @AppStorage("disclaimerAccepted") private var disclaimerAccepted = false
+    #if DEBUG
+    @State private var tab = UserDefaults.standard.integer(forKey: "tab")  // `-tab <0-3>` launch arg, for screenshots
+    #else
+    @State private var tab = 0
+    #endif
 
     init() {
         #if DEBUG
@@ -21,12 +26,12 @@ struct GoodsScannerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            TabView {
+            TabView(selection: $tab) {
                 // Selected tab in accent (brand was too close to the black unselected icons); content keeps brand.
-                OrdersView().tint(.brand).tabItem { Label("入库", systemImage: "shippingbox") }
-                CustomersView().tint(.brand).tabItem { Label("客户", systemImage: "person.2") }
-                ReportsView().tint(.brand).tabItem { Label("报表", systemImage: "chart.bar.doc.horizontal") }
-                SettingsView().tint(.brand).tabItem { Label("设置", systemImage: "gearshape") }
+                OrdersView().tint(.brand).tabItem { Label("Inbound", systemImage: "shippingbox") }.tag(0)
+                CustomersView().tint(.brand).tabItem { Label("Customers", systemImage: "person.2") }.tag(1)
+                ReportsView().tint(.brand).tabItem { Label("Reports", systemImage: "chart.bar.doc.horizontal") }.tag(2)
+                SettingsView().tint(.brand).tabItem { Label("Settings", systemImage: "gearshape") }.tag(3)
             }
             .tint(.accentText)
             .fullScreenCover(isPresented: .constant(!disclaimerAccepted)) { OnboardingView() }

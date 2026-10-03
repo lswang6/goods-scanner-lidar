@@ -29,13 +29,13 @@ struct PhotoViewer: View {
         .ignoresSafeArea()
         .overlay(alignment: .top) {
             HStack {
-                Button("关闭") { dismiss() }
+                Button("Close") { dismiss() }
                 Spacer()
                 Text("\(index + 1) / \(files.count)").font(.num(.headline))
                 Spacer()
                 if files.indices.contains(index) {
                     ShareLink(item: PhotoStore.url(files[index])) {
-                        Image(systemName: "square.and.arrow.up").accessibilityLabel("分享")
+                        Image(systemName: "square.and.arrow.up").accessibilityLabel("Share")
                     }
                 }
             }

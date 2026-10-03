@@ -4,7 +4,9 @@ options:
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
-  developmentLanguage: zh-Hans
+  developmentLanguage: en
+  # Translations: GoodsScanner/*.xcstrings, built from l10n/ by tools/l10n/build_catalog.py; xcodegen derives
+  # knownRegions from the catalogs, so re-run it after a language is added.
 
 # Fill in DEVELOPMENT_TEAM (your Apple team ID) and a unique PRODUCT_BUNDLE_IDENTIFIER
 # before installing on a real device.
@@ -30,11 +32,11 @@ targets:
     info:
       path: GoodsScanner/Info.plist
       properties:
-        CFBundleDisplayName: 入库量方
-        CFBundleDevelopmentRegion: zh-Hans
+        CFBundleDisplayName: Cargo Measure
+        CFBundleDevelopmentRegion: en
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "1"
-        NSCameraUsageDescription: 用于扫描货物尺寸和拍摄入库照片
+        NSCameraUsageDescription: Used to scan item dimensions and take inbound photos.
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UIFileSharingEnabled: true          # SPEC §11 D5: Documents/ScanLogs visible in 文件 App
@@ -43,8 +45,8 @@ targets:
       base:
         GENERATE_INFOPLIST_FILE: NO
         TARGETED_DEVICE_FAMILY: "1"  # iPhone only
-    scheme:
-      testTargets: [GoodsScannerTests]
+        SWIFT_EMIT_LOC_STRINGS: YES
+        LOCALIZATION_PREFERS_STRING_CATALOGS: YES
 
   GoodsScannerTests:
     type: bundle.unit-test
@@ -56,3 +58,10 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.louiswang.goodsscanner.tests
         GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  GoodsScanner:
+    build: { targets: { GoodsScanner: all } }
+    run: { config: Debug }
+    # Tests assert English export text; run them in en/US. Run keeps following the device language.
+    test: { config: Debug, targets: [GoodsScannerTests], language: en, region: US }

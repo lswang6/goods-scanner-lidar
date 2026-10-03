@@ -1,0 +1,1391 @@
+[
+  {
+    "key": "",
+    "comment": "ScanView · VoiceOver label (not shown)",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "  %@ × %@ × %@",
+    "comment": "DebugViews",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "%@ %@",
+    "comment": "ItemEditView, Theme",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "%@ (%@)",
+    "comment": "Customer name (customer code); use your language's parentheses",
+    "plural": false
+  },
+  {
+    "key": "%@ Available",
+    "comment": "Settings LiDAR row: %@ is a status icon (keep it first). LiDAR is available",
+    "plural": false
+  },
+  {
+    "key": "%@ Not available (camera measurement)",
+    "comment": "Settings LiDAR row: %@ is a status icon. No LiDAR; scanning uses the camera",
+    "plural": false
+  },
+  {
+    "key": "%@ Not available (manual entry)",
+    "comment": "Settings LiDAR row: %@ is a status icon. No LiDAR and no AR; sizes are entered by hand",
+    "plural": false
+  },
+  {
+    "key": "%@ photos",
+    "comment": "File name of the exported photo ZIP; %@ is the report/order name. Avoid / : characters",
+    "plural": false
+  },
+  {
+    "key": "%@ · %@",
+    "comment": "ReportsView",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "%@ × %@ × %@",
+    "comment": "Models",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "%lld",
+    "comment": "ItemEditView",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "%lld / %lld",
+    "comment": "PhotoViewer",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "%lld more directions to go",
+    "comment": "ScanSession",
+    "plural": true
+  },
+  {
+    "key": "%lld of %lld directions covered",
+    "comment": "VoiceOver: walk-around coverage, K of N directions. Plural on N (2nd argument)",
+    "plural": true,
+    "pluralArg": 2
+  },
+  {
+    "key": "%lld of %lld directions needed to measure",
+    "comment": "VoiceOver: K of the N directions needed before measuring. Plural on N (2nd argument)",
+    "plural": true,
+    "pluralArg": 2
+  },
+  {
+    "key": "%lld of %lld selected",
+    "comment": "Reports filter: K of N orders selected. Plural on N (2nd argument)",
+    "plural": true,
+    "pluralArg": 2
+  },
+  {
+    "key": "%lld orders",
+    "comment": "Customer row: number of inbound orders. Plural",
+    "plural": true
+  },
+  {
+    "key": "%lld orders · %lld pcs · %@ kg",
+    "comment": "Reports, per-customer row: orders · pieces · weight. Plural on the order count",
+    "plural": true
+  },
+  {
+    "key": "%lld pcs",
+    "comment": "Piece count in the order picker row. Plural",
+    "plural": true
+  },
+  {
+    "key": "%lld pcs · %@",
+    "comment": "Order row: piece count · receive time (HH:mm). Plural on the count",
+    "plural": true
+  },
+  {
+    "key": "%lld points · object %lld · support %lld · side seed",
+    "comment": "DebugViews",
+    "plural": false
+  },
+  {
+    "key": "%lld points · object %lld · support %lld · top seed",
+    "comment": "DebugViews",
+    "plural": false
+  },
+  {
+    "key": "%lld scans",
+    "comment": "SettingsView",
+    "plural": true
+  },
+  {
+    "key": "%lld/%lld",
+    "comment": "ScanGuidance",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "(No customer)",
+    "comment": "OrdersView, ReportsView",
+    "plural": false
+  },
+  {
+    "key": "(Unnamed)",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "0",
+    "comment": "ItemEditView, SettingsView · text field placeholder",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "About",
+    "comment": "SettingsView · section header · ≤ 30 chars",
+    "plural": false
+  },
+  {
+    "key": "Accuracy is not guaranteed. It varies with the device, the object's shape and material, lighting, surroundings and scanning technique.",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Accuracy notice",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Add customers first so you can assign them to inbound orders.",
+    "comment": "CustomersView",
+    "plural": false
+  },
+  {
+    "key": "Add Item",
+    "comment": "ItemEditView, OrdersView",
+    "plural": false
+  },
+  {
+    "key": "Add items to inbound orders, then share reports as CSV or PDF.",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Address",
+    "comment": "CustomersView · text field placeholder",
+    "plural": false
+  },
+  {
+    "key": "Adjust the date or customer filter to see the summary and export.",
+    "comment": "ReportsView",
+    "plural": false
+  },
+  {
+    "key": "Aim at the box top or a side, keep some floor around it",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Aim at the item",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Aim at the item, keep some floor around it",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "All",
+    "comment": "ReportsView",
+    "plural": false
+  },
+  {
+    "key": "All (%lld)",
+    "comment": "ReportsView",
+    "plural": false
+  },
+  {
+    "key": "All customers",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "AR scanning isn't supported on this device. Enter the size by hand.",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "AR scanning unavailable",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
+    "key": "Available after walking halfway around the item",
+    "comment": "ScanView · VoiceOver label (not shown)",
+    "plural": false
+  },
+  {
+    "key": "Available once the size is measured",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
+    "key": "Box",
+    "comment": "Models",
+    "plural": false
+  },
+  {
+    "key": "Box with measured dimension lines",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "By Customer",
+    "comment": "ReportsView · section header · ≤ 30 chars",
+    "plural": false
+  },
+  {
+    "key": "Camera",
+    "comment": "Models",
+    "plural": false
+  },
+  {
+    "key": "Camera estimate · about ±3 cm",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
+    "key": "Camera measurement, about ±3 cm",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Camera measuring, used on iPhones without LiDAR, is less precise: roughly ±3 cm in our tests.",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Camera walk-around scan",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Cancel",
+    "comment": "CustomersView, ItemEditView, OrdersView, ScanView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Cannot Delete",
+    "comment": "CustomersView · alert / dialog title",
+    "plural": false
+  },
+  {
+    "key": "Cargo Measure",
+    "comment": "App name shown in Settings › About (same as the home-screen name)",
+    "plural": false
+  },
+  {
+    "key": "Circle the item slowly, keeping it in view, until every segment of the ring lights up.",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Clear",
+    "comment": "SettingsView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Clear Debug Data",
+    "comment": "SettingsView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Close",
+    "comment": "PhotoViewer, ScanView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "cm",
+    "comment": "ScanView, Theme",
+    "plural": false
+  },
+  {
+    "key": "Confidence",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Contact",
+    "comment": "CustomersView, Exporter · text field placeholder",
+    "plural": false
+  },
+  {
+    "key": "Couldn't save the photo",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Couldn’t generate an order number: %@",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "Couldn’t load customers. Please try again.",
+    "comment": "CustomersView",
+    "plural": false
+  },
+  {
+    "key": "Coverage complete, refining the size…",
+    "comment": "ScanGuidance, ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Create a customer in the Customers tab first.",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "CSV",
+    "comment": "OrdersView",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "CSV Details",
+    "comment": "ReportsView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Customer",
+    "comment": "Exporter, OrdersView, ReportsView",
+    "plural": false
+  },
+  {
+    "key": "Customer code",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Customer Code (unique)",
+    "comment": "CustomersView · text field placeholder",
+    "plural": false
+  },
+  {
+    "key": "Customer code and name are required.",
+    "comment": "CustomersView",
+    "plural": false
+  },
+  {
+    "key": "Customer code “%@” already exists.",
+    "comment": "CustomersView",
+    "plural": false
+  },
+  {
+    "key": "Customer Name",
+    "comment": "CustomersView · text field placeholder",
+    "plural": false
+  },
+  {
+    "key": "Customer name",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Customer “%@” has %lld inbound orders. Delete them first.",
+    "comment": "CustomersView",
+    "plural": true
+  },
+  {
+    "key": "Customer: %@    Received: %@",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Customers",
+    "comment": "Tab bar title and Customers screen title. ≤ 12 chars",
+    "plural": false
+  },
+  {
+    "key": "Cylinder",
+    "comment": "Models",
+    "plural": false
+  },
+  {
+    "key": "Date: %@ – %@    %lld selected orders",
+    "comment": "Exporter",
+    "plural": true
+  },
+  {
+    "key": "Date: %@ – %@    Customer: %@",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Debug data saved",
+    "comment": "DebugViews",
+    "plural": false
+  },
+  {
+    "key": "Debug Mode",
+    "comment": "SettingsView",
+    "plural": false
+  },
+  {
+    "key": "Default Operator Name",
+    "comment": "SettingsView · text field placeholder",
+    "plural": false
+  },
+  {
+    "key": "Delete",
+    "comment": "CustomersView, OrdersView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Delete debug data for all %lld scans?",
+    "comment": "SettingsView · alert / dialog title",
+    "plural": true
+  },
+  {
+    "key": "Delete Failed",
+    "comment": "OrdersView · alert / dialog title",
+    "plural": false
+  },
+  {
+    "key": "Delete Inbound Order",
+    "comment": "OrdersView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Delete photo",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Delete this inbound order with all its items and photos?",
+    "comment": "OrdersView · alert / dialog title",
+    "plural": false
+  },
+  {
+    "key": "Developer",
+    "comment": "SettingsView",
+    "plural": false
+  },
+  {
+    "key": "Diameter",
+    "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Diameter %@ cm",
+    "comment": "PhotoAnnotator",
+    "plural": false
+  },
+  {
+    "key": "Diameter and height must be greater than 0",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Diameter × H",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
+    "key": "Disclaimer",
+    "comment": "OnboardingView, SettingsView · navigation title · keep short (≤ 24 chars)",
+    "plural": false
+  },
+  {
+    "key": "Done",
+    "comment": "OnboardingView, ScanGuidance, ScanSession, ScanView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Edit",
+    "comment": "OrdersView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Edit Customer",
+    "comment": "CustomersView",
+    "plural": false
+  },
+  {
+    "key": "Edit Inbound Order",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "Edit Item",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "End Date",
+    "comment": "ReportsView",
+    "plural": false
+  },
+  {
+    "key": "Enter size manually",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
+    "key": "Export",
+    "comment": "OrdersView, ReportsView",
+    "plural": false
+  },
+  {
+    "key": "Export failed",
+    "comment": "OrdersView, ReportsView · alert / dialog title",
+    "plural": false
+  },
+  {
+    "key": "Exporting…",
+    "comment": "ReportsView",
+    "plural": false
+  },
+  {
+    "key": "fail  %@",
+    "comment": "DebugViews",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "Filter",
+    "comment": "ReportsView · section header · ≤ 30 chars",
+    "plural": false
+  },
+  {
+    "key": "Final point-cloud estimate %@ cm · %@",
+    "comment": "DebugViews",
+    "plural": false
+  },
+  {
+    "key": "Final point-cloud estimate failed: %@",
+    "comment": "DebugViews",
+    "plural": false
+  },
+  {
+    "key": "Force Camera Mode",
+    "comment": "SettingsView",
+    "plural": false
+  },
+  {
+    "key": "frame %lld / %lld (hi/med)",
+    "comment": "DebugViews",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "Get the dimensions",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "H %@ cm",
+    "comment": "PhotoAnnotator",
+    "plural": false
+  },
+  {
+    "key": "Height",
+    "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Height (cm)",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Hold steady on the box for 1 second…",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Hold steady on the item for 1 second…",
+    "comment": "ScanGuidance, ScanSession",
+    "plural": false
+  },
+  {
+    "key": "I understand",
+    "comment": "OnboardingView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Inbound",
+    "comment": "Tab bar title for the inbound-orders screen (receiving goods into the warehouse). ≤ 12 chars",
+    "plural": false
+  },
+  {
+    "key": "Inbound order %@",
+    "comment": "PDF title / export file name for a single order; %@ = order number",
+    "plural": false
+  },
+  {
+    "key": "Inbound Orders",
+    "comment": "Navigation title of the inbound order list. ≤ 24 chars",
+    "plural": false
+  },
+  {
+    "key": "Inbound report",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Inbound report %@",
+    "comment": "PDF title / export file name; %@ = date range (yyyyMMdd-yyyyMMdd)",
+    "plural": false
+  },
+  {
+    "key": "Inbound report %@ %@",
+    "comment": "PDF title / export file name; %@ = date range, %@ = customer name",
+    "plural": false
+  },
+  {
+    "key": "Inbound report %@ %lld orders",
+    "comment": "PDF title / export file name; %@ = date range, %lld = number of picked orders. Plural",
+    "plural": true
+  },
+  {
+    "key": "Inbound Today",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "Invalid weight",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Irregular",
+    "comment": "Models",
+    "plural": false
+  },
+  {
+    "key": "Item",
+    "comment": "CSV/PDF column header: item (goods) name",
+    "plural": false
+  },
+  {
+    "key": "Items (%lld)",
+    "comment": "OrdersView · section header · ≤ 30 chars",
+    "plural": false
+  },
+  {
+    "key": "Keep walking: %lld more directions to measure",
+    "comment": "ScanGuidance, ScanSession",
+    "plural": true
+  },
+  {
+    "key": "L %@ cm",
+    "comment": "PhotoAnnotator",
+    "plural": false
+  },
+  {
+    "key": "L × W × H",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
+    "key": "Length",
+    "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Length (cm)",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Length, width and height are calculated for you. Check them and adjust if needed.",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Length, width and height must be greater than 0",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Library",
+    "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "LiDAR",
+    "comment": "Models, SettingsView",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "LiDAR walk-around scan",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Locked on a side, walk around the box",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Locked on the top, walk around the box",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Locked, walk slowly around the item",
+    "comment": "ScanGuidance, ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Lower the phone, face the sides and walk another half lap",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "L×W×H %@×%@×%@ cm · %@ m³ · box · max outer dimensions",
+    "comment": "PhotoAnnotator",
+    "plural": false
+  },
+  {
+    "key": "L×W×H %@×%@×%@ cm · %@ m³ · irregular · max outer dimensions",
+    "comment": "PhotoAnnotator",
+    "plural": false
+  },
+  {
+    "key": "Manual",
+    "comment": "Models",
+    "plural": false
+  },
+  {
+    "key": "Measured by maximum outer dimensions",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
+    "key": "Measurement Calibration",
+    "comment": "SettingsView",
+    "plural": false
+  },
+  {
+    "key": "Measurements are estimates produced from your iPhone's sensors (LiDAR) or camera.",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Measuring method",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Measuring…",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
+    "key": "Method",
+    "comment": "Measuring method (LiDAR / Camera / Manual); PDF column is narrow, ≤ 8 chars",
+    "plural": false
+  },
+  {
+    "key": "Move slowly, keep the item and its surroundings in view",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Move the phone slowly to detect the floor",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Move the phone slowly to start tracking",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Name / Code / Contact / Phone",
+    "comment": "CustomersView",
+    "plural": false
+  },
+  {
+    "key": "Name / note",
+    "comment": "ItemEditView · text field placeholder",
+    "plural": false
+  },
+  {
+    "key": "New Customer",
+    "comment": "Toolbar capsule button, empty-state button and form title. ≤ 16 chars",
+    "plural": false
+  },
+  {
+    "key": "New Inbound",
+    "comment": "Toolbar capsule button / empty-state button: create an inbound order. ≤ 14 chars",
+    "plural": false
+  },
+  {
+    "key": "New Inbound Order",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "Next",
+    "comment": "OnboardingView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "No box found: aim at the box top or a side",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "No customers yet",
+    "comment": "CustomersView",
+    "plural": false
+  },
+  {
+    "key": "No depth at the crosshair, move closer",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "No floor or pallet found, step back so the support surface is in view",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "No inbound orders yet",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "No inbound records in this range",
+    "comment": "ReportsView",
+    "plural": false
+  },
+  {
+    "key": "No items yet. Tap “Add Item” below.",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "Not enough points, move closer",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Note",
+    "comment": "CustomersView, OrdersView · text field placeholder",
+    "plural": false
+  },
+  {
+    "key": "Nothing to export",
+    "comment": "ReportsView",
+    "plural": false
+  },
+  {
+    "key": "Nothing under the crosshair",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Object detected, hold still",
+    "comment": "ScanGuidance",
+    "plural": false
+  },
+  {
+    "key": "Offset per Side (cm)",
+    "comment": "SettingsView",
+    "plural": false
+  },
+  {
+    "key": "OK",
+    "comment": "CustomersView, OrdersView, ReportsView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Operator",
+    "comment": "Exporter, OrdersView, SettingsView",
+    "plural": false
+  },
+  {
+    "key": "Optional, total for this line",
+    "comment": "ItemEditView · text field placeholder",
+    "plural": false
+  },
+  {
+    "key": "Order Count",
+    "comment": "Reports stat card label: number of inbound orders. ≤ 16 chars",
+    "plural": false
+  },
+  {
+    "key": "Order No.",
+    "comment": "Exporter, OrdersView",
+    "plural": false
+  },
+  {
+    "key": "Order No. / Customer",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "Order note",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "orders",
+    "comment": "Unit shown after an order count on a stat card (e.g. '3 orders'); not plural-aware, keep very short (≤ 8 chars)",
+    "plural": false
+  },
+  {
+    "key": "Orders",
+    "comment": "Reports filter row: which orders are included. ≤ 16 chars",
+    "plural": false
+  },
+  {
+    "key": "Orders: %lld · Pieces: %lld · Total volume: %@ m³ · Total weight: %@ kg",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Page %lld",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Page %lld of %lld",
+    "comment": "OnboardingView · VoiceOver label (not shown)",
+    "plural": false
+  },
+  {
+    "key": "pcs",
+    "comment": "Unit shown after a piece count on a stat card (pieces); keep very short (≤ 5 chars)",
+    "plural": false
+  },
+  {
+    "key": "PDF",
+    "comment": "OrdersView",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "PDF Report",
+    "comment": "ReportsView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Per item",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Phone",
+    "comment": "CustomersView, Exporter · text field placeholder",
+    "plural": false
+  },
+  {
+    "key": "Phone aiming at a box",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Phones circling a box with a lit ring",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Photo",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Photo files",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Photos (%lld)",
+    "comment": "ItemEditView · section header · ≤ 30 chars",
+    "plural": false
+  },
+  {
+    "key": "Photos ZIP",
+    "comment": "OrdersView, ReportsView",
+    "plural": false
+  },
+  {
+    "key": "Pieces",
+    "comment": "OrdersView, ReportsView",
+    "plural": false
+  },
+  {
+    "key": "Pieces Today",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "planeY %@",
+    "comment": "DebugViews",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "Please select a customer.",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "Point your iPhone at the box until the frame locks on. iPhones with LiDAR measure with LiDAR; other iPhones use the camera.",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Qty",
+    "comment": "PDF column header: quantity (pieces); very narrow, ≤ 5 chars",
+    "plural": false
+  },
+  {
+    "key": "Quantity",
+    "comment": "Exporter, ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Raise the phone and look down at the top",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Received",
+    "comment": "CSV column header: date/time the goods were received",
+    "plural": false
+  },
+  {
+    "key": "Received At",
+    "comment": "Order form: date and time goods were received",
+    "plural": false
+  },
+  {
+    "key": "Report sheet with CSV and PDF export",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Reports",
+    "comment": "Tab bar title and Reports screen title. ≤ 12 chars",
+    "plural": false
+  },
+  {
+    "key": "Rescan",
+    "comment": "DebugViews · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Reset",
+    "comment": "ScanView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Save",
+    "comment": "CustomersView, ItemEditView, OrdersView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Save & export",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Save failed: %@",
+    "comment": "CustomersView, ItemEditView, OrdersView",
+    "plural": false
+  },
+  {
+    "key": "Saved Debug Data",
+    "comment": "SettingsView",
+    "plural": false
+  },
+  {
+    "key": "Scan a box of known size. If each side reads 1 cm too large, enter 1. Positive values are subtracted.",
+    "comment": "SettingsView",
+    "plural": false
+  },
+  {
+    "key": "Scan complete",
+    "comment": "ScanGuidance · VoiceOver label (not shown)",
+    "plural": false
+  },
+  {
+    "key": "seed  %@",
+    "comment": "DebugViews",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "Select",
+    "comment": "Customer picker placeholder: nothing selected yet",
+    "plural": false
+  },
+  {
+    "key": "Select all",
+    "comment": "ReportsView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Select none",
+    "comment": "ReportsView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Select orders",
+    "comment": "ReportsView · navigation title · keep short (≤ 24 chars)",
+    "plural": false
+  },
+  {
+    "key": "Selection",
+    "comment": "ReportsView",
+    "plural": false
+  },
+  {
+    "key": "Settings",
+    "comment": "Tab bar title and Settings screen title. ≤ 12 chars",
+    "plural": false
+  },
+  {
+    "key": "Shape",
+    "comment": "Exporter, ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Share",
+    "comment": "PhotoViewer",
+    "plural": false
+  },
+  {
+    "key": "Shows diagnostics on the scan screen, lets you review the 3D point cloud when a scan finishes, and saves each scan’s point cloud and parameters to this app’s folder (ScanLogs) in the Files app for offline tuning. Force Camera Mode: measure from the camera image only, without LiDAR (to test the flow for devices without LiDAR).",
+    "comment": "SettingsView",
+    "plural": false
+  },
+  {
+    "key": "Side detected, hold still",
+    "comment": "ScanGuidance",
+    "plural": false
+  },
+  {
+    "key": "Size (cm)",
+    "comment": "Exporter, ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Size out of range (> 2.5 m)",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Skip",
+    "comment": "OnboardingView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Spread %@ (%lld samples)",
+    "comment": "ScanView",
+    "plural": true
+  },
+  {
+    "key": "Spread %@ (%lld samples), unstable, rescan recommended",
+    "comment": "ScanView",
+    "plural": true
+  },
+  {
+    "key": "Start Date",
+    "comment": "ReportsView",
+    "plural": false
+  },
+  {
+    "key": "Summary",
+    "comment": "ReportsView · section header · ≤ 30 chars",
+    "plural": false
+  },
+  {
+    "key": "Take Photo",
+    "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "The selected orders have no photos.",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "This device or simulator doesn't support AR scanning. Go back to enter the size by hand, and use Take Photo to add photos.",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
+    "key": "Too few points, move closer",
+    "comment": "ScanSession",
+    "plural": false
+  },
+  {
+    "key": "Top detected, hold still",
+    "comment": "ScanGuidance",
+    "plural": false
+  },
+  {
+    "key": "Total",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "Total Volume",
+    "comment": "OrdersView, ReportsView · short label · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Total volume (m³)",
+    "comment": "Exporter · code-built text",
+    "plural": false
+  },
+  {
+    "key": "Total Weight",
+    "comment": "OrdersView, ReportsView",
+    "plural": false
+  },
+  {
+    "key": "track %@",
+    "comment": "DebugViews",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "Unit volume (m³)",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Use This Result",
+    "comment": "DebugViews · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Verify critical dimensions with a tape measure before relying on them, for example for freight charges, packing or customs.",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Version %@",
+    "comment": "Settings › About: app version, e.g. 'Version 1.0 (1)'",
+    "plural": false
+  },
+  {
+    "key": "View photo",
+    "comment": "ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "View tutorial",
+    "comment": "SettingsView · button · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Volume",
+    "comment": "ItemEditView · section header · ≤ 30 chars",
+    "plural": false
+  },
+  {
+    "key": "Volume (m³)",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "Volume Today",
+    "comment": "OrdersView · short label · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "voxels %lld / %lld",
+    "comment": "DebugViews",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "W %@ cm",
+    "comment": "PhotoAnnotator",
+    "plural": false
+  },
+  {
+    "key": "Walk around it",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "Walk halfway around to measure",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
+    "key": "Walk slowly around the item",
+    "comment": "ScanGuidance",
+    "plural": false
+  },
+  {
+    "key": "Weight (kg)",
+    "comment": "Exporter, ItemEditView",
+    "plural": false
+  },
+  {
+    "key": "When goods arrive, create an inbound order, then scan or enter each item’s size.",
+    "comment": "OrdersView",
+    "plural": false
+  },
+  {
+    "key": "Width",
+    "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+    "plural": false
+  },
+  {
+    "key": "Width (cm)",
+    "comment": "Exporter",
+    "plural": false
+  },
+  {
+    "key": "You use the app and its results at your own responsibility and risk. The developer accepts no liability for any loss or damage arising from use of the measurements.",
+    "comment": "OnboardingView",
+    "plural": false
+  },
+  {
+    "key": "· %lld/%lld photos",
+    "comment": "Scan result: photos taken / max photos. Plural on the max (2nd argument)",
+    "plural": true,
+    "pluralArg": 2
+  },
+  {
+    "key": "× %lld",
+    "comment": "OrdersView",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "Ø %@ × H %@",
+    "comment": "ScanView",
+    "plural": false
+  },
+  {
+    "key": "Ø%@ × %@",
+    "comment": "Models",
+    "plural": false,
+    "translate": false
+  },
+  {
+    "key": "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions",
+    "comment": "PhotoAnnotator",
+    "plural": false
+  }
+]

@@ -1,0 +1,3618 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "": {
+      "comment": "ScanView · VoiceOver label (not shown)",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "  %@ × %@ × %@": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "%@ %@": {
+      "comment": "ItemEditView, Theme",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "%@ (%@)": {
+      "comment": "Customer name (customer code); use your language's parentheses",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@（%@）"
+          }
+        }
+      }
+    },
+    "%@ Available": {
+      "comment": "Settings LiDAR row: %@ is a status icon (keep it first). LiDAR is available",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 可用"
+          }
+        }
+      }
+    },
+    "%@ Not available (camera measurement)": {
+      "comment": "Settings LiDAR row: %@ is a status icon. No LiDAR; scanning uses the camera",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 不可用（相机测量）"
+          }
+        }
+      }
+    },
+    "%@ Not available (manual entry)": {
+      "comment": "Settings LiDAR row: %@ is a status icon. No LiDAR and no AR; sizes are entered by hand",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 不可用（手动录入）"
+          }
+        }
+      }
+    },
+    "%@ photos": {
+      "comment": "File name of the exported photo ZIP; %@ is the report/order name. Avoid / : characters",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 照片"
+          }
+        }
+      }
+    },
+    "%@ · %@": {
+      "comment": "ReportsView",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "%@ × %@ × %@": {
+      "comment": "Models",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "%lld": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "%lld / %lld": {
+      "comment": "PhotoViewer",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "%lld more directions to go": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld more direction to go"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld more directions to go"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还差 %lld 个方向"
+          }
+        }
+      }
+    },
+    "%lld of %lld directions covered": {
+      "comment": "VoiceOver: walk-around coverage, K of N directions. Plural on N (2nd argument)",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld of %2$lld direction covered"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld of %2$lld directions covered"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已覆盖 %lld/%lld 个方向"
+          }
+        }
+      }
+    },
+    "%lld of %lld directions needed to measure": {
+      "comment": "VoiceOver: K of the N directions needed before measuring. Plural on N (2nd argument)",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld of %2$lld direction needed to measure"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld of %2$lld directions needed to measure"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已覆盖 %lld/%lld 个测量所需方向"
+          }
+        }
+      }
+    },
+    "%lld of %lld selected": {
+      "comment": "Reports filter: K of N orders selected. Plural on N (2nd argument)",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld of %2$lld selected"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld of %2$lld selected"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已选 %lld/%lld"
+          }
+        }
+      }
+    },
+    "%lld orders": {
+      "comment": "Customer row: number of inbound orders. Plural",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld order"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld orders"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 单"
+          }
+        }
+      }
+    },
+    "%lld orders · %lld pcs · %@ kg": {
+      "comment": "Reports, per-customer row: orders · pieces · weight. Plural on the order count",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld order · %2$lld pcs · %3$@ kg"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld orders · %2$lld pcs · %3$@ kg"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 单 · %lld 件 · %@ kg"
+          }
+        }
+      }
+    },
+    "%lld pcs": {
+      "comment": "Piece count in the order picker row. Plural",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld pcs"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld pcs"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 件"
+          }
+        }
+      }
+    },
+    "%lld pcs · %@": {
+      "comment": "Order row: piece count · receive time (HH:mm). Plural on the count",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld pcs · %2$@"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld pcs · %2$@"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 件 · %@"
+          }
+        }
+      }
+    },
+    "%lld points · object %lld · support %lld · side seed": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 点 · 物体 %lld · 支撑面 %lld · 侧面种子"
+          }
+        }
+      }
+    },
+    "%lld points · object %lld · support %lld · top seed": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 点 · 物体 %lld · 支撑面 %lld · 箱顶种子"
+          }
+        }
+      }
+    },
+    "%lld scans": {
+      "comment": "SettingsView",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld scan"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "%1$lld scans"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 次"
+          }
+        }
+      }
+    },
+    "%lld/%lld": {
+      "comment": "ScanGuidance",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "(No customer)": {
+      "comment": "OrdersView, ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "（无客户）"
+          }
+        }
+      }
+    },
+    "(Unnamed)": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "（未命名）"
+          }
+        }
+      }
+    },
+    "0": {
+      "comment": "ItemEditView, SettingsView · text field placeholder",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "AR scanning isn't supported on this device. Enter the size by hand.": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本机不支持 AR 扫描，请手动录入尺寸"
+          }
+        }
+      }
+    },
+    "AR scanning unavailable": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法使用 AR 扫描"
+          }
+        }
+      }
+    },
+    "About": {
+      "comment": "SettingsView · section header · ≤ 30 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关于"
+          }
+        }
+      }
+    },
+    "Accuracy is not guaranteed. It varies with the device, the object's shape and material, lighting, surroundings and scanning technique.": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测量精度无法保证，会因设备、物体形状与材质、光线、周围环境和扫描手法而异。"
+          }
+        }
+      }
+    },
+    "Accuracy notice": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "精度说明"
+          }
+        }
+      }
+    },
+    "Add Item": {
+      "comment": "ItemEditView, OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加货物"
+          }
+        }
+      }
+    },
+    "Add customers first so you can assign them to inbound orders.": {
+      "comment": "CustomersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先建客户档案，入库单才能选择客户"
+          }
+        }
+      }
+    },
+    "Add items to inbound orders, then share reports as CSV or PDF.": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把货物加入入库单，再以 CSV 或 PDF 分享报表。"
+          }
+        }
+      }
+    },
+    "Address": {
+      "comment": "CustomersView · text field placeholder",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "地址"
+          }
+        }
+      }
+    },
+    "Adjust the date or customer filter to see the summary and export.": {
+      "comment": "ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调整日期或客户筛选后再查看汇总与导出"
+          }
+        }
+      }
+    },
+    "Aim at the box top or a side, keep some floor around it": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对准箱顶或侧面，周围留出地面"
+          }
+        }
+      }
+    },
+    "Aim at the item": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对准物体"
+          }
+        }
+      }
+    },
+    "Aim at the item, keep some floor around it": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对准物体，周围留出地面"
+          }
+        }
+      }
+    },
+    "All": {
+      "comment": "ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部"
+          }
+        }
+      }
+    },
+    "All (%lld)": {
+      "comment": "ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部（%lld）"
+          }
+        }
+      }
+    },
+    "All customers": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全部客户"
+          }
+        }
+      }
+    },
+    "Available after walking halfway around the item": {
+      "comment": "ScanView · VoiceOver label (not shown)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "绕物体走半圈后可用"
+          }
+        }
+      }
+    },
+    "Available once the size is measured": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测出尺寸后可用"
+          }
+        }
+      }
+    },
+    "Box": {
+      "comment": "Models",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "箱体"
+          }
+        }
+      }
+    },
+    "Box with measured dimension lines": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标有尺寸线的箱子"
+          }
+        }
+      }
+    },
+    "By Customer": {
+      "comment": "ReportsView · section header · ≤ 30 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按客户"
+          }
+        }
+      }
+    },
+    "CSV": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "CSV Details": {
+      "comment": "ReportsView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "CSV 明细"
+          }
+        }
+      }
+    },
+    "Camera": {
+      "comment": "Models",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "相机"
+          }
+        }
+      }
+    },
+    "Camera estimate · about ±3 cm": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "相机估算 · 约 ±3 cm"
+          }
+        }
+      }
+    },
+    "Camera measurement, about ±3 cm": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "相机测量，精度约 ±3 cm"
+          }
+        }
+      }
+    },
+    "Camera measuring, used on iPhones without LiDAR, is less precise: roughly ±3 cm in our tests.": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有 LiDAR 的 iPhone 使用相机测量，精度较低：我们测试中约为 ±3 cm。"
+          }
+        }
+      }
+    },
+    "Camera walk-around scan": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "相机环绕扫描"
+          }
+        }
+      }
+    },
+    "Cancel": {
+      "comment": "CustomersView, ItemEditView, OrdersView, ScanView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
+          }
+        }
+      }
+    },
+    "Cannot Delete": {
+      "comment": "CustomersView · alert / dialog title",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无法删除"
+          }
+        }
+      }
+    },
+    "Cargo Measure": {
+      "comment": "App name shown in Settings › About (same as the home-screen name)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库量方"
+          }
+        }
+      }
+    },
+    "Circle the item slowly, keeping it in view, until every segment of the ring lights up.": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保持物体在画面内，绕它慢慢走一圈，直到圆环的每一段都亮起。"
+          }
+        }
+      }
+    },
+    "Clear": {
+      "comment": "SettingsView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空"
+          }
+        }
+      }
+    },
+    "Clear Debug Data": {
+      "comment": "SettingsView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清空调试数据"
+          }
+        }
+      }
+    },
+    "Close": {
+      "comment": "PhotoViewer, ScanView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关闭"
+          }
+        }
+      }
+    },
+    "Confidence": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "置信度"
+          }
+        }
+      }
+    },
+    "Contact": {
+      "comment": "CustomersView, Exporter · text field placeholder",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "联系人"
+          }
+        }
+      }
+    },
+    "Couldn't save the photo": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片保存失败"
+          }
+        }
+      }
+    },
+    "Couldn’t generate an order number: %@": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成单号失败：%@"
+          }
+        }
+      }
+    },
+    "Couldn’t load customers. Please try again.": {
+      "comment": "CustomersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读取客户失败，请重试"
+          }
+        }
+      }
+    },
+    "Coverage complete, refining the size…": {
+      "comment": "ScanGuidance, ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "覆盖完成，尺寸收敛中…"
+          }
+        }
+      }
+    },
+    "Create a customer in the Customers tab first.": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请先在「客户」页新建客户"
+          }
+        }
+      }
+    },
+    "Customer": {
+      "comment": "Exporter, OrdersView, ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户"
+          }
+        }
+      }
+    },
+    "Customer Code (unique)": {
+      "comment": "CustomersView · text field placeholder",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户代码（唯一）"
+          }
+        }
+      }
+    },
+    "Customer Name": {
+      "comment": "CustomersView · text field placeholder",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户名称"
+          }
+        }
+      }
+    },
+    "Customer code": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户代码"
+          }
+        }
+      }
+    },
+    "Customer code and name are required.": {
+      "comment": "CustomersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户代码和名称必填"
+          }
+        }
+      }
+    },
+    "Customer code “%@” already exists.": {
+      "comment": "CustomersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户代码「%@」已存在"
+          }
+        }
+      }
+    },
+    "Customer name": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户名称"
+          }
+        }
+      }
+    },
+    "Customer “%@” has %lld inbound orders. Delete them first.": {
+      "comment": "CustomersView",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Customer “%1$@” has %2$lld inbound order. Delete it first."
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Customer “%1$@” has %2$lld inbound orders. Delete them first."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户「%@」有 %lld 张入库单，请先删除入库单。"
+          }
+        }
+      }
+    },
+    "Customer: %@    Received: %@": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户：%@    入库时间：%@"
+          }
+        }
+      }
+    },
+    "Customers": {
+      "comment": "Tab bar title and Customers screen title. ≤ 12 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "客户"
+          }
+        }
+      }
+    },
+    "Cylinder": {
+      "comment": "Models",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "圆柱"
+          }
+        }
+      }
+    },
+    "Date: %@ – %@    %lld selected orders": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 3,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Date: %1$@ – %2$@    %3$lld selected order"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Date: %1$@ – %2$@    %3$lld selected orders"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日期：%@ 至 %@    已选 %lld 张入库单"
+          }
+        }
+      }
+    },
+    "Date: %@ – %@    Customer: %@": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日期：%@ 至 %@    客户：%@"
+          }
+        }
+      }
+    },
+    "Debug Mode": {
+      "comment": "SettingsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "调试模式"
+          }
+        }
+      }
+    },
+    "Debug data saved": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存调试数据"
+          }
+        }
+      }
+    },
+    "Default Operator Name": {
+      "comment": "SettingsView · text field placeholder",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "默认操作员姓名"
+          }
+        }
+      }
+    },
+    "Delete": {
+      "comment": "CustomersView, OrdersView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除"
+          }
+        }
+      }
+    },
+    "Delete Failed": {
+      "comment": "OrdersView · alert / dialog title",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除失败"
+          }
+        }
+      }
+    },
+    "Delete Inbound Order": {
+      "comment": "OrdersView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除入库单"
+          }
+        }
+      }
+    },
+    "Delete debug data for all %lld scans?": {
+      "comment": "SettingsView · alert / dialog title",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Delete debug data for %1$lld scan?"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Delete debug data for all %1$lld scans?"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除全部 %lld 次扫描调试数据？"
+          }
+        }
+      }
+    },
+    "Delete photo": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除照片"
+          }
+        }
+      }
+    },
+    "Delete this inbound order with all its items and photos?": {
+      "comment": "OrdersView · alert / dialog title",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "删除入库单及其全部货物和照片？"
+          }
+        }
+      }
+    },
+    "Developer": {
+      "comment": "SettingsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开发者"
+          }
+        }
+      }
+    },
+    "Diameter": {
+      "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直径"
+          }
+        }
+      }
+    },
+    "Diameter %@ cm": {
+      "comment": "PhotoAnnotator",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直径 %@ cm"
+          }
+        }
+      }
+    },
+    "Diameter and height must be greater than 0": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直径和高必须大于 0"
+          }
+        }
+      }
+    },
+    "Diameter × H": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "直径 × 高"
+          }
+        }
+      }
+    },
+    "Disclaimer": {
+      "comment": "OnboardingView, SettingsView · navigation title · keep short (≤ 24 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "免责声明"
+          }
+        }
+      }
+    },
+    "Done": {
+      "comment": "OnboardingView, ScanGuidance, ScanSession, ScanView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
+          }
+        }
+      }
+    },
+    "Edit": {
+      "comment": "OrdersView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑"
+          }
+        }
+      }
+    },
+    "Edit Customer": {
+      "comment": "CustomersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑客户"
+          }
+        }
+      }
+    },
+    "Edit Inbound Order": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑入库单"
+          }
+        }
+      }
+    },
+    "Edit Item": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "编辑货物"
+          }
+        }
+      }
+    },
+    "End Date": {
+      "comment": "ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "结束日期"
+          }
+        }
+      }
+    },
+    "Enter size manually": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回手动录入"
+          }
+        }
+      }
+    },
+    "Export": {
+      "comment": "OrdersView, ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出"
+          }
+        }
+      }
+    },
+    "Export failed": {
+      "comment": "OrdersView, ReportsView · alert / dialog title",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "导出失败"
+          }
+        }
+      }
+    },
+    "Exporting…": {
+      "comment": "ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在导出…"
+          }
+        }
+      }
+    },
+    "Filter": {
+      "comment": "ReportsView · section header · ≤ 30 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "筛选"
+          }
+        }
+      }
+    },
+    "Final point-cloud estimate %@ cm · %@": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最终点云估计 %@ cm · %@"
+          }
+        }
+      }
+    },
+    "Final point-cloud estimate failed: %@": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最终点云估计失败：%@"
+          }
+        }
+      }
+    },
+    "Force Camera Mode": {
+      "comment": "SettingsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "强制相机模式"
+          }
+        }
+      }
+    },
+    "Get the dimensions": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "获取尺寸"
+          }
+        }
+      }
+    },
+    "H %@ cm": {
+      "comment": "PhotoAnnotator",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高 %@ cm"
+          }
+        }
+      }
+    },
+    "Height": {
+      "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高"
+          }
+        }
+      }
+    },
+    "Height (cm)": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高 (cm)"
+          }
+        }
+      }
+    },
+    "Hold steady on the box for 1 second…": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对准箱子，保持 1 秒…"
+          }
+        }
+      }
+    },
+    "Hold steady on the item for 1 second…": {
+      "comment": "ScanGuidance, ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对准物体，保持 1 秒…"
+          }
+        }
+      }
+    },
+    "I understand": {
+      "comment": "OnboardingView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我已了解"
+          }
+        }
+      }
+    },
+    "Inbound": {
+      "comment": "Tab bar title for the inbound-orders screen (receiving goods into the warehouse). ≤ 12 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库"
+          }
+        }
+      }
+    },
+    "Inbound Orders": {
+      "comment": "Navigation title of the inbound order list. ≤ 24 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库单"
+          }
+        }
+      }
+    },
+    "Inbound Today": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日入库"
+          }
+        }
+      }
+    },
+    "Inbound order %@": {
+      "comment": "PDF title / export file name for a single order; %@ = order number",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库单 %@"
+          }
+        }
+      }
+    },
+    "Inbound report": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库报表"
+          }
+        }
+      }
+    },
+    "Inbound report %@": {
+      "comment": "PDF title / export file name; %@ = date range (yyyyMMdd-yyyyMMdd)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库报表 %@"
+          }
+        }
+      }
+    },
+    "Inbound report %@ %@": {
+      "comment": "PDF title / export file name; %@ = date range, %@ = customer name",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库报表 %@ %@"
+          }
+        }
+      }
+    },
+    "Inbound report %@ %lld orders": {
+      "comment": "PDF title / export file name; %@ = date range, %lld = number of picked orders. Plural",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Inbound report %1$@ %2$lld order"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Inbound report %1$@ %2$lld orders"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库报表 %@ %lld 单"
+          }
+        }
+      }
+    },
+    "Invalid weight": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重量格式不正确"
+          }
+        }
+      }
+    },
+    "Irregular": {
+      "comment": "Models",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "异形"
+          }
+        }
+      }
+    },
+    "Item": {
+      "comment": "CSV/PDF column header: item (goods) name",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "品名"
+          }
+        }
+      }
+    },
+    "Items (%lld)": {
+      "comment": "OrdersView · section header · ≤ 30 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "货物（%lld）"
+          }
+        }
+      }
+    },
+    "Keep walking: %lld more directions to measure": {
+      "comment": "ScanGuidance, ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Keep walking: %1$lld more direction to measure"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Keep walking: %1$lld more directions to measure"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "继续走：还差 %lld 个方向即可测量"
+          }
+        }
+      }
+    },
+    "L %@ cm": {
+      "comment": "PhotoAnnotator",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长 %@ cm"
+          }
+        }
+      }
+    },
+    "L × W × H": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长 × 宽 × 高"
+          }
+        }
+      }
+    },
+    "Length": {
+      "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长"
+          }
+        }
+      }
+    },
+    "Length (cm)": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长 (cm)"
+          }
+        }
+      }
+    },
+    "Length, width and height are calculated for you. Check them and adjust if needed.": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长宽高会自动算出，请核对，必要时调整。"
+          }
+        }
+      }
+    },
+    "Length, width and height must be greater than 0": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长宽高必须大于 0"
+          }
+        }
+      }
+    },
+    "LiDAR": {
+      "comment": "Models, SettingsView",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "LiDAR walk-around scan": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "LiDAR 环绕扫描"
+          }
+        }
+      }
+    },
+    "Library": {
+      "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "相册"
+          }
+        }
+      }
+    },
+    "Locked on a side, walk around the box": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已锁定（侧面），绕箱子走一圈"
+          }
+        }
+      }
+    },
+    "Locked on the top, walk around the box": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已锁定（箱顶），绕箱子走一圈"
+          }
+        }
+      }
+    },
+    "Locked, walk slowly around the item": {
+      "comment": "ScanGuidance, ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已锁定，绕物体慢慢走一圈"
+          }
+        }
+      }
+    },
+    "Lower the phone, face the sides and walk another half lap": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "放低手机，正对侧面再绕半圈"
+          }
+        }
+      }
+    },
+    "L×W×H %@×%@×%@ cm · %@ m³ · box · max outer dimensions": {
+      "comment": "PhotoAnnotator",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长×宽×高 %@×%@×%@ cm · %@ m³ · 箱体 · 按最大外形"
+          }
+        }
+      }
+    },
+    "L×W×H %@×%@×%@ cm · %@ m³ · irregular · max outer dimensions": {
+      "comment": "PhotoAnnotator",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "长×宽×高 %@×%@×%@ cm · %@ m³ · 异形 · 按最大外形"
+          }
+        }
+      }
+    },
+    "Manual": {
+      "comment": "Models",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手动"
+          }
+        }
+      }
+    },
+    "Measured by maximum outer dimensions": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "按最大外形尺寸计量"
+          }
+        }
+      }
+    },
+    "Measurement Calibration": {
+      "comment": "SettingsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测量校准"
+          }
+        }
+      }
+    },
+    "Measurements are estimates produced from your iPhone's sensors (LiDAR) or camera.": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测量结果是根据 iPhone 的传感器（LiDAR）或相机得出的估算值。"
+          }
+        }
+      }
+    },
+    "Measuring method": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测量方式"
+          }
+        }
+      }
+    },
+    "Measuring…": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测量中…"
+          }
+        }
+      }
+    },
+    "Method": {
+      "comment": "Measuring method (LiDAR / Camera / Manual); PDF column is narrow, ≤ 8 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "方式"
+          }
+        }
+      }
+    },
+    "Move slowly, keep the item and its surroundings in view": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓慢移动，保持物体和周围在画面内"
+          }
+        }
+      }
+    },
+    "Move the phone slowly to detect the floor": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓慢移动手机，扫一下地面"
+          }
+        }
+      }
+    },
+    "Move the phone slowly to start tracking": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "缓慢移动手机以完成追踪"
+          }
+        }
+      }
+    },
+    "Name / Code / Contact / Phone": {
+      "comment": "CustomersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "名称 / 代码 / 联系人 / 电话"
+          }
+        }
+      }
+    },
+    "Name / note": {
+      "comment": "ItemEditView · text field placeholder",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "品名 / 备注"
+          }
+        }
+      }
+    },
+    "New Customer": {
+      "comment": "Toolbar capsule button, empty-state button and form title. ≤ 16 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建客户"
+          }
+        }
+      }
+    },
+    "New Inbound": {
+      "comment": "Toolbar capsule button / empty-state button: create an inbound order. ≤ 14 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建入库"
+          }
+        }
+      }
+    },
+    "New Inbound Order": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "新建入库单"
+          }
+        }
+      }
+    },
+    "Next": {
+      "comment": "OnboardingView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "下一步"
+          }
+        }
+      }
+    },
+    "No box found: aim at the box top or a side": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未识别到箱体：对准箱顶或侧面"
+          }
+        }
+      }
+    },
+    "No customers yet": {
+      "comment": "CustomersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无客户"
+          }
+        }
+      }
+    },
+    "No depth at the crosshair, move closer": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准星处无有效深度，靠近一点"
+          }
+        }
+      }
+    },
+    "No floor or pallet found, step back so the support surface is in view": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到地面/托盘，后退一点让支撑面入镜"
+          }
+        }
+      }
+    },
+    "No inbound orders yet": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无入库单"
+          }
+        }
+      }
+    },
+    "No inbound records in this range": {
+      "comment": "ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选范围无入库记录"
+          }
+        }
+      }
+    },
+    "No items yet. Tap “Add Item” below.": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有货物，点下方「添加货物」"
+          }
+        }
+      }
+    },
+    "Not enough points, move closer": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点云不足，靠近一点"
+          }
+        }
+      }
+    },
+    "Note": {
+      "comment": "CustomersView, OrdersView · text field placeholder",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "备注"
+          }
+        }
+      }
+    },
+    "Nothing to export": {
+      "comment": "ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "无可导出内容"
+          }
+        }
+      }
+    },
+    "Nothing under the crosshair": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "准星处没有物体"
+          }
+        }
+      }
+    },
+    "OK": {
+      "comment": "CustomersView, OrdersView, ReportsView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好"
+          }
+        }
+      }
+    },
+    "Object detected, hold still": {
+      "comment": "ScanGuidance",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检测到物体，保持不动"
+          }
+        }
+      }
+    },
+    "Offset per Side (cm)": {
+      "comment": "SettingsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "每边偏置 (cm)"
+          }
+        }
+      }
+    },
+    "Operator": {
+      "comment": "Exporter, OrdersView, SettingsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "操作员"
+          }
+        }
+      }
+    },
+    "Optional, total for this line": {
+      "comment": "ItemEditView · text field placeholder",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选填，本行合计"
+          }
+        }
+      }
+    },
+    "Order Count": {
+      "comment": "Reports stat card label: number of inbound orders. ≤ 16 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库单数"
+          }
+        }
+      }
+    },
+    "Order No.": {
+      "comment": "Exporter, OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "单号"
+          }
+        }
+      }
+    },
+    "Order No. / Customer": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "单号 / 客户"
+          }
+        }
+      }
+    },
+    "Order note": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库备注"
+          }
+        }
+      }
+    },
+    "Orders": {
+      "comment": "Reports filter row: which orders are included. ≤ 16 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库单"
+          }
+        }
+      }
+    },
+    "Orders: %lld · Pieces: %lld · Total volume: %@ m³ · Total weight: %@ kg": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库单 %lld 张 · 件数 %lld · 总体积 %@ m³ · 总重量 %@ kg"
+          }
+        }
+      }
+    },
+    "PDF": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "PDF Report": {
+      "comment": "ReportsView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "PDF 报表"
+          }
+        }
+      }
+    },
+    "Page %lld": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %lld 页"
+          }
+        }
+      }
+    },
+    "Page %lld of %lld": {
+      "comment": "OnboardingView · VoiceOver label (not shown)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 %lld 页，共 %lld 页"
+          }
+        }
+      }
+    },
+    "Per item": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "单件"
+          }
+        }
+      }
+    },
+    "Phone": {
+      "comment": "CustomersView, Exporter · text field placeholder",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "电话"
+          }
+        }
+      }
+    },
+    "Phone aiming at a box": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "对准箱子的手机"
+          }
+        }
+      }
+    },
+    "Phones circling a box with a lit ring": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "手机绕箱子一圈，圆环亮起"
+          }
+        }
+      }
+    },
+    "Photo": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片"
+          }
+        }
+      }
+    },
+    "Photo files": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片文件"
+          }
+        }
+      }
+    },
+    "Photos (%lld)": {
+      "comment": "ItemEditView · section header · ≤ 30 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片（%lld）"
+          }
+        }
+      }
+    },
+    "Photos ZIP": {
+      "comment": "OrdersView, ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "照片 ZIP"
+          }
+        }
+      }
+    },
+    "Pieces": {
+      "comment": "OrdersView, ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "件数"
+          }
+        }
+      }
+    },
+    "Pieces Today": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日件数"
+          }
+        }
+      }
+    },
+    "Please select a customer.": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择客户"
+          }
+        }
+      }
+    },
+    "Point your iPhone at the box until the frame locks on. iPhones with LiDAR measure with LiDAR; other iPhones use the camera.": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "将 iPhone 对准箱子，直到框线锁定。带 LiDAR 的 iPhone 用 LiDAR 测量，其他 iPhone 用相机测量。"
+          }
+        }
+      }
+    },
+    "Qty": {
+      "comment": "PDF column header: quantity (pieces); very narrow, ≤ 5 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "件数"
+          }
+        }
+      }
+    },
+    "Quantity": {
+      "comment": "Exporter, ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "件数"
+          }
+        }
+      }
+    },
+    "Raise the phone and look down at the top": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "抬高手机，俯拍箱顶"
+          }
+        }
+      }
+    },
+    "Received": {
+      "comment": "CSV column header: date/time the goods were received",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库时间"
+          }
+        }
+      }
+    },
+    "Received At": {
+      "comment": "Order form: date and time goods were received",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入库时间"
+          }
+        }
+      }
+    },
+    "Report sheet with CSV and PDF export": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可导出 CSV 和 PDF 的报表"
+          }
+        }
+      }
+    },
+    "Reports": {
+      "comment": "Tab bar title and Reports screen title. ≤ 12 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "报表"
+          }
+        }
+      }
+    },
+    "Rescan": {
+      "comment": "DebugViews · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新扫描"
+          }
+        }
+      }
+    },
+    "Reset": {
+      "comment": "ScanView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重置"
+          }
+        }
+      }
+    },
+    "Save": {
+      "comment": "CustomersView, ItemEditView, OrdersView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存"
+          }
+        }
+      }
+    },
+    "Save & export": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存并导出"
+          }
+        }
+      }
+    },
+    "Save failed: %@": {
+      "comment": "CustomersView, ItemEditView, OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保存失败：%@"
+          }
+        }
+      }
+    },
+    "Saved Debug Data": {
+      "comment": "SettingsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已保存调试数据"
+          }
+        }
+      }
+    },
+    "Scan a box of known size. If each side reads 1 cm too large, enter 1. Positive values are subtracted.": {
+      "comment": "SettingsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用已知尺寸的纸箱扫描，若每边偏大 1cm 则填 1。正数表示扣减。"
+          }
+        }
+      }
+    },
+    "Scan complete": {
+      "comment": "ScanGuidance · VoiceOver label (not shown)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "扫描完成"
+          }
+        }
+      }
+    },
+    "Select": {
+      "comment": "Customer picker placeholder: nothing selected yet",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择"
+          }
+        }
+      }
+    },
+    "Select all": {
+      "comment": "ReportsView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全选"
+          }
+        }
+      }
+    },
+    "Select none": {
+      "comment": "ReportsView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "全不选"
+          }
+        }
+      }
+    },
+    "Select orders": {
+      "comment": "ReportsView · navigation title · keep short (≤ 24 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择入库单"
+          }
+        }
+      }
+    },
+    "Selection": {
+      "comment": "ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "comment": "Tab bar title and Settings screen title. ≤ 12 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置"
+          }
+        }
+      }
+    },
+    "Shape": {
+      "comment": "Exporter, ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "形状"
+          }
+        }
+      }
+    },
+    "Share": {
+      "comment": "PhotoViewer",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "分享"
+          }
+        }
+      }
+    },
+    "Shows diagnostics on the scan screen, lets you review the 3D point cloud when a scan finishes, and saves each scan’s point cloud and parameters to this app’s folder (ScanLogs) in the Files app for offline tuning. Force Camera Mode: measure from the camera image only, without LiDAR (to test the flow for devices without LiDAR).": {
+      "comment": "SettingsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开启后扫描页显示诊断信息，完成时可查看 3D 点云，并把每次扫描的点云和参数保存到「文件」App 的本 App 目录（ScanLogs），用于离线调参。强制相机模式：不用 LiDAR，只用相机画面测量（测试无 LiDAR 机型的流程）。"
+          }
+        }
+      }
+    },
+    "Side detected, hold still": {
+      "comment": "ScanGuidance",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检测到侧面，保持不动"
+          }
+        }
+      }
+    },
+    "Size (cm)": {
+      "comment": "Exporter, ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尺寸 (cm)"
+          }
+        }
+      }
+    },
+    "Size out of range (> 2.5 m)": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "尺寸超出范围（>2.5 m）"
+          }
+        }
+      }
+    },
+    "Skip": {
+      "comment": "OnboardingView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "跳过"
+          }
+        }
+      }
+    },
+    "Spread %@ (%lld samples)": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Spread %1$@ (%2$lld sample)"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Spread %1$@ (%2$lld samples)"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "离散度 %@（%lld 次）"
+          }
+        }
+      }
+    },
+    "Spread %@ (%lld samples), unstable, rescan recommended": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Spread %1$@ (%2$lld sample), unstable, rescan recommended"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Spread %1$@ (%2$lld samples), unstable, rescan recommended"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "离散度 %@（%lld 次），不稳定，建议重扫"
+          }
+        }
+      }
+    },
+    "Start Date": {
+      "comment": "ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始日期"
+          }
+        }
+      }
+    },
+    "Summary": {
+      "comment": "ReportsView · section header · ≤ 30 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "汇总"
+          }
+        }
+      }
+    },
+    "Take Photo": {
+      "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "拍照"
+          }
+        }
+      }
+    },
+    "The selected orders have no photos.": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "所选入库单没有照片。"
+          }
+        }
+      }
+    },
+    "This device or simulator doesn't support AR scanning. Go back to enter the size by hand, and use Take Photo to add photos.": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本机或模拟器不支持 AR 扫描，请返回手动录入尺寸，并用「拍照」添加照片。"
+          }
+        }
+      }
+    },
+    "Too few points, move closer": {
+      "comment": "ScanSession",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点太少，靠近一点"
+          }
+        }
+      }
+    },
+    "Top detected, hold still": {
+      "comment": "ScanGuidance",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "检测到箱顶，保持不动"
+          }
+        }
+      }
+    },
+    "Total": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "合计"
+          }
+        }
+      }
+    },
+    "Total Volume": {
+      "comment": "OrdersView, ReportsView · short label · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总体积"
+          }
+        }
+      }
+    },
+    "Total Weight": {
+      "comment": "OrdersView, ReportsView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总重量"
+          }
+        }
+      }
+    },
+    "Total volume (m³)": {
+      "comment": "Exporter · code-built text",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "总体积 (m³)"
+          }
+        }
+      }
+    },
+    "Unit volume (m³)": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "单件体积 (m³)"
+          }
+        }
+      }
+    },
+    "Use This Result": {
+      "comment": "DebugViews · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用此结果"
+          }
+        }
+      }
+    },
+    "Verify critical dimensions with a tape measure before relying on them, for example for freight charges, packing or customs.": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "关键尺寸（例如用于运费、装箱或报关）请先用卷尺核实。"
+          }
+        }
+      }
+    },
+    "Version %@": {
+      "comment": "Settings › About: app version, e.g. 'Version 1.0 (1)'",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "版本 %@"
+          }
+        }
+      }
+    },
+    "View photo": {
+      "comment": "ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看照片"
+          }
+        }
+      }
+    },
+    "View tutorial": {
+      "comment": "SettingsView · button · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看教程"
+          }
+        }
+      }
+    },
+    "Volume": {
+      "comment": "ItemEditView · section header · ≤ 30 chars",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体积"
+          }
+        }
+      }
+    },
+    "Volume (m³)": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体积 (m³)"
+          }
+        }
+      }
+    },
+    "Volume Today": {
+      "comment": "OrdersView · short label · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日体积"
+          }
+        }
+      }
+    },
+    "W %@ cm": {
+      "comment": "PhotoAnnotator",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "宽 %@ cm"
+          }
+        }
+      }
+    },
+    "Walk around it": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "绕一圈"
+          }
+        }
+      }
+    },
+    "Walk halfway around to measure": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "绕行半圈即可测量"
+          }
+        }
+      }
+    },
+    "Walk slowly around the item": {
+      "comment": "ScanGuidance",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "绕着物体慢慢走一圈"
+          }
+        }
+      }
+    },
+    "Weight (kg)": {
+      "comment": "Exporter, ItemEditView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重量 (kg)"
+          }
+        }
+      }
+    },
+    "When goods arrive, create an inbound order, then scan or enter each item’s size.": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "货物到仓后新建入库单，逐件扫描或录入尺寸"
+          }
+        }
+      }
+    },
+    "Width": {
+      "comment": "ItemEditView · short label · keep short (≤ 16 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "宽"
+          }
+        }
+      }
+    },
+    "Width (cm)": {
+      "comment": "Exporter",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "宽 (cm)"
+          }
+        }
+      }
+    },
+    "You use the app and its results at your own responsibility and risk. The developer accepts no liability for any loss or damage arising from use of the measurements.": {
+      "comment": "OnboardingView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用本 App 及其结果的责任和风险由您自行承担。因使用测量结果造成的任何损失或损害，开发者概不负责。"
+          }
+        }
+      }
+    },
+    "cm": {
+      "comment": "ScanView, Theme",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "cm"
+          }
+        }
+      }
+    },
+    "fail  %@": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "frame %lld / %lld (hi/med)": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "orders": {
+      "comment": "Unit shown after an order count on a stat card (e.g. '3 orders'); not plural-aware, keep very short (≤ 8 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "单"
+          }
+        }
+      }
+    },
+    "pcs": {
+      "comment": "Unit shown after a piece count on a stat card (pieces); keep very short (≤ 5 chars)",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "件"
+          }
+        }
+      }
+    },
+    "planeY %@": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "seed  %@": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "track %@": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "voxels %lld / %lld": {
+      "comment": "DebugViews",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "· %lld/%lld photos": {
+      "comment": "Scan result: photos taken / max photos. Plural on the max (2nd argument)",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 2,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "· %1$lld/%2$lld photo"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "· %1$lld/%2$lld photos"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "· 已拍 %lld/%lld"
+          }
+        }
+      }
+    },
+    "× %lld": {
+      "comment": "OrdersView",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "Ø %@ × H %@": {
+      "comment": "ScanView",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ø %@ × 高 %@"
+          }
+        }
+      }
+    },
+    "Ø%@ × %@": {
+      "comment": "Models",
+      "extractionState": "manual",
+      "shouldTranslate": false
+    },
+    "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": {
+      "comment": "PhotoAnnotator",
+      "extractionState": "manual",
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ø×高 %@×%@ cm · %@ m³ · 圆柱 · 按最大外形"
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

@@ -30,9 +30,9 @@ struct OrdersView: View {
                 if search.isEmpty {
                     Section {
                         HStack(spacing: 8) {
-                            StatCard(icon: "doc.text", value: "\(today.count)", unit: "单", label: "今日入库")
-                            StatCard(icon: "shippingbox", value: "\(today.reduce(0) { $0 + $1.totalPieces })", unit: "件", label: "今日件数")
-                            StatCard(icon: "cube", value: today.reduce(0) { $0 + $1.totalVolumeM3 }.m3, unit: "m³", label: "今日体积")
+                            StatCard(icon: "doc.text", value: "\(today.count)", unit: String(localized: "orders", comment: "Unit after an order count on a stat card; keep very short"), label: "Inbound Today")
+                            StatCard(icon: "shippingbox", value: "\(today.reduce(0) { $0 + $1.totalPieces })", unit: String(localized: "pcs", comment: "Unit after a piece count; keep very short"), label: "Pieces Today")
+                            StatCard(icon: "cube", value: today.reduce(0) { $0 + $1.totalVolumeM3 }.m3, unit: "m³", label: "Volume Today")
                         }
                         .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                     }
@@ -41,7 +41,7 @@ struct OrdersView: View {
                     Section(g.day.formatted(.dateTime.year().month().day().weekday())) {
                         ForEach(g.orders) { o in
                             NavigationLink(value: o) { OrderRow(order: o) }
-                                .swipeActions { Button("删除", role: .destructive) { confirmDelete = o } }
+                                .swipeActions { Button("Delete", role: .destructive) { confirmDelete = o } }
                         }
                     }
                 }
@@ -49,24 +49,24 @@ struct OrdersView: View {
             .listSectionSpacing(16)
             .overlay {
                 if orders.isEmpty {
-                    EmptyState(image: "EmptyOrders", title: "暂无入库单", message: "货物到仓后新建入库单，逐件扫描或录入尺寸",
-                               action: ("新建入库", { creating = true }))
+                    EmptyState(image: "EmptyOrders", title: "No inbound orders yet", message: "When goods arrive, create an inbound order, then scan or enter each item’s size.",
+                               action: ("New Inbound", { creating = true }))
                 }
             }
-            .searchable(text: $search, prompt: "单号 / 客户")
-            .navigationTitle("入库单")
+            .searchable(text: $search, prompt: "Order No. / Customer")
+            .navigationTitle("Inbound Orders")
             .navigationDestination(for: InboundOrder.self) { o in OrderDetailView(order: o) { delete(o) } }
             .toolbar {
-                Button { creating = true } label: { Label("新建入库", systemImage: "plus").labelStyle(.titleAndIcon) }
+                Button { creating = true } label: { Label("New Inbound", systemImage: "plus").labelStyle(.titleAndIcon) }
                     .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(.accent)
             }
             .sheet(isPresented: $creating, onDismiss: { if let o = created { created = nil; path = [o] } }) { OrderForm(order: nil) { created = $0 } }
-            .confirmationDialog("删除入库单及其全部货物和照片？", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
+            .confirmationDialog("Delete this inbound order with all its items and photos?", isPresented: Binding(get: { confirmDelete != nil }, set: { if !$0 { confirmDelete = nil } }),
                                 titleVisibility: .visible, presenting: confirmDelete) { o in
-                Button("删除", role: .destructive) { delete(o) }
+                Button("Delete", role: .destructive) { delete(o) }
             }
-            .alert("删除失败", isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
-                Button("好", role: .cancel) {}
+            .alert("Delete Failed", isPresented: Binding(get: { deleteError != nil }, set: { if !$0 { deleteError = nil } })) {
+                Button("OK", role: .cancel) {}
             } message: { Text(deleteError ?? "") }
         }
     }
@@ -78,21 +78,23 @@ struct OrdersView: View {
 
 private struct OrderRow: View {
     let order: InboundOrder
+    private var time: String {
+        order.receivedAt.formatted(.verbatim("\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
+                                             timeZone: .current, calendar: .current))
+    }
     var body: some View {
         HStack(spacing: 12) {
             IconTile(systemName: "shippingbox.fill")
             VStack(alignment: .leading, spacing: 2) {
-                Text(order.orderNo).font(.headline.monospacedDigit())
+                Text(order.orderNo).font(.headline.monospacedDigit()).lineLimit(1).minimumScaleFactor(0.8)
                 // Time lives in the trailing column so the customer name gets the full width.
-                Text(order.customer?.name ?? "（无客户）")
+                Text(order.customer?.name ?? String(localized: "(No customer)"))
                     .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             }
             Spacer(minLength: 8)
             VStack(alignment: .trailing, spacing: 2) {
                 NumText(value: order.totalVolumeM3.m3, unit: "m³", style: .headline)
-                Text("\(order.totalPieces) 件 · " + order.receivedAt.formatted(.verbatim(
-                    "\(hour: .twoDigits(clock: .twentyFourHour, hourCycle: .zeroBased)):\(minute: .twoDigits)",
-                    timeZone: .current, calendar: .current)))
+                Text("\(order.totalPieces) pcs · \(time)")
                     .font(.num(.caption)).foregroundStyle(.secondary).lineLimit(1).fixedSize()
             }
         }
@@ -120,7 +122,7 @@ struct OrderDetailView: View {
             Section {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(order.orderNo).font(.num(.title2)).foregroundStyle(.brand)
-                    Label(order.customer.map { "\($0.name)（\($0.code)）" } ?? "（无客户）", systemImage: "person.fill")
+                    Label(order.customer.map { String(localized: "\($0.name) (\($0.code))") } ?? String(localized: "(No customer)"), systemImage: "person.fill")
                     Label(order.receivedAt.formatted(date: .numeric, time: .shortened), systemImage: "clock")
                     if !order.operatorName.isEmpty { Label(order.operatorName, systemImage: "person.badge.key") }
                     if !order.note.isEmpty { Label(order.note, systemImage: "note.text") }
@@ -130,31 +132,31 @@ struct OrderDetailView: View {
             }
             Section {
                 HStack(spacing: 8) {
-                    StatCard(icon: "shippingbox", value: "\(order.totalPieces)", unit: "件", label: "件数")
-                    StatCard(icon: "cube", value: order.totalVolumeM3.m3, unit: "m³", label: "总体积")
-                    StatCard(icon: "scalemass", value: order.totalWeightKg.kg, unit: "kg", label: "总重量")
+                    StatCard(icon: "shippingbox", value: "\(order.totalPieces)", unit: String(localized: "pcs", comment: "Unit after a piece count; keep very short"), label: "Pieces")
+                    StatCard(icon: "cube", value: order.totalVolumeM3.m3, unit: "m³", label: "Total Volume")
+                    StatCard(icon: "scalemass", value: order.totalWeightKg.kg, unit: "kg", label: "Total Weight")
                 }
                 .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
             }
-            Section("货物（\(order.items.count)）") {
+            Section("Items (\(order.items.count))") {
                 ForEach(order.items.sorted { $0.createdAt < $1.createdAt }) { item in
                     ItemRow(item: item, onEdit: { editingItem = item },
                             onPhoto: { viewing = PhotoSelection(files: item.photoFiles, start: 0) })
                         .swipeActions {
-                            Button("删除", role: .destructive) {
+                            Button("Delete", role: .destructive) {
                                 do { try deleteItem(item, in: context) } catch { self.error = error.localizedDescription }
                             }
                         }
                 }
-                if order.items.isEmpty { Text("还没有货物，点下方「添加货物」").foregroundStyle(.secondary) }
+                if order.items.isEmpty { Text("No items yet. Tap “Add Item” below.").foregroundStyle(.secondary) }
             }
             Section {
-                Button("删除入库单", role: .destructive) { confirmDelete = true }
+                Button("Delete Inbound Order", role: .destructive) { confirmDelete = true }
             }
         }
         .listSectionSpacing(16)
         .safeAreaInset(edge: .bottom) {
-            Button { addingItem = true } label: { Label("添加货物", systemImage: "plus") }
+            Button { addingItem = true } label: { Label("Add Item", systemImage: "plus") }
                 .buttonStyle(PrimaryButtonStyle())
                 .padding(.horizontal, 16).padding(.vertical, 8)
                 .background(.bar)
@@ -168,7 +170,7 @@ struct OrderDetailView: View {
                 Button { export { try Exporter.writePhotosZip([order], scope: .order(order)) } } label: { Label("Photos ZIP", systemImage: "photo.stack") }
                     .disabled(order.items.allSatisfy(\.photoFiles.isEmpty))
             } label: { Label("Export", systemImage: "square.and.arrow.up") }
-            Button("编辑") { editingOrder = true }
+            Button("Edit") { editingOrder = true }
         }
         .sheet(item: $share) { ActivityView(items: [$0.url]) }
         .alert("Export failed", isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } })) {
@@ -178,15 +180,15 @@ struct OrderDetailView: View {
         .sheet(isPresented: $addingItem) { ItemEditView(order: order, item: nil) }
         .sheet(item: $editingItem) { ItemEditView(order: order, item: $0) }
         .fullScreenCover(item: $viewing) { PhotoViewer($0) }
-        .confirmationDialog("删除入库单及其全部货物和照片？", isPresented: $confirmDelete, titleVisibility: .visible) {
-            Button("删除", role: .destructive) {
+        .confirmationDialog("Delete this inbound order with all its items and photos?", isPresented: $confirmDelete, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
                 // Pop first so this view never re-renders against a deleted model.
                 dismiss()
                 DispatchQueue.main.async { onDelete() }
             }
         }
-        .alert("删除失败", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
-            Button("好", role: .cancel) {}
+        .alert("Delete Failed", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("OK", role: .cancel) {}
         } message: { Text(error ?? "") }
     }
 
@@ -206,14 +208,14 @@ private struct ItemRow: View {
         HStack(spacing: 12) {
             if let f = item.photoFiles.first {
                 Button(action: onPhoto) { thumb(PhotoStore.thumbnail(f, side: 200)) }
-                    .buttonStyle(.plain).accessibilityLabel("查看照片")
+                    .buttonStyle(.plain).accessibilityLabel("View photo")
             }
             Button(action: onEdit) {
                 HStack(spacing: 12) {
                     if item.photoFiles.isEmpty { thumb(nil) }
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 6) {
-                            Text(item.name.isEmpty ? "（未命名）" : item.name).font(.headline).lineLimit(1)
+                            Text(item.name.isEmpty ? String(localized: "(Unnamed)") : item.name).font(.headline).lineLimit(1)
                             if item.method != "manual" { Image(systemName: CargoItem.methodIcon(item.method)).font(.caption).foregroundStyle(.scanText) }
                         }
                         DimsBadge(l: item.lengthCm, w: item.widthCm, h: item.heightCm, shape: item.shape)
@@ -271,28 +273,28 @@ struct OrderForm: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let order { LabeledContent("单号", value: order.orderNo) }
-                Picker("客户", selection: $customer) {
-                    Text("请选择").tag(Customer?.none)
-                    ForEach(customers) { Text("\($0.name)（\($0.code)）").tag(Optional($0)) }
+                if let order { LabeledContent("Order No.", value: order.orderNo) }
+                Picker("Customer", selection: $customer) {
+                    Text("Select").tag(Customer?.none)
+                    ForEach(customers) { Text("\($0.name) (\($0.code))").tag(Optional($0)) }
                 }
-                DatePicker("入库时间", selection: $receivedAt)
-                TextField("操作员", text: Binding(get: { operatorName ?? defaultOperator }, set: { operatorName = $0 }))
-                TextField("备注", text: $note, axis: .vertical)
-                if customers.isEmpty { Text("请先在「客户」页新建客户").foregroundStyle(.secondary) }
+                DatePicker("Received At", selection: $receivedAt)
+                TextField("Operator", text: Binding(get: { operatorName ?? defaultOperator }, set: { operatorName = $0 }))
+                TextField("Note", text: $note, axis: .vertical)
+                if customers.isEmpty { Text("Create a customer in the Customers tab first.").foregroundStyle(.secondary) }
                 if let error { Text(error).foregroundStyle(.red) }
             }
-            .navigationTitle(order == nil ? "新建入库单" : "编辑入库单")
+            .navigationTitle(order == nil ? "New Inbound Order" : "Edit Inbound Order")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("保存", action: save) }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
             }
         }
     }
 
     private func save() {
-        guard let customer else { error = "请选择客户"; return }
+        guard let customer else { error = String(localized: "Please select a customer."); return }
         let op = (operatorName ?? defaultOperator).trimmingCharacters(in: .whitespaces)
         let note = note.trimmingCharacters(in: .whitespacesAndNewlines)
         var new: InboundOrder?
@@ -304,9 +306,9 @@ struct OrderForm: View {
                 let no = try InboundOrder.nextOrderNo(for: receivedAt, in: context)
                 new = InboundOrder(orderNo: no, customer: customer, receivedAt: receivedAt, operatorName: op, note: note)
                 context.insert(new!)
-            } catch { self.error = "生成单号失败：\(error.localizedDescription)"; return }
+            } catch { self.error = String(localized: "Couldn’t generate an order number: \(error.localizedDescription)"); return }
         }
-        do { try context.save() } catch { context.rollback(); self.error = "保存失败：\(error.localizedDescription)"; return }
+        do { try context.save() } catch { context.rollback(); self.error = String(localized: "Save failed: \(error.localizedDescription)"); return }
         if let new { onCreated(new) }
         dismiss()
     }

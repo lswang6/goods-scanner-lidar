@@ -1,0 +1,70 @@
+{
+  "%lld orders": {
+    "one": "%lld order",
+    "other": "%lld orders"
+  },
+  "%lld orders · %lld pcs · %@ kg": {
+    "one": "%lld order · %lld pcs · %@ kg",
+    "other": "%lld orders · %lld pcs · %@ kg"
+  },
+  "%lld pcs": {
+    "one": "%lld pcs",
+    "other": "%lld pcs"
+  },
+  "%lld pcs · %@": {
+    "one": "%lld pcs · %@",
+    "other": "%lld pcs · %@"
+  },
+  "%lld scans": {
+    "one": "%lld scan",
+    "other": "%lld scans"
+  },
+  "Delete debug data for all %lld scans?": {
+    "one": "Delete debug data for %lld scan?",
+    "other": "Delete debug data for all %lld scans?"
+  },
+  "Customer “%@” has %lld inbound orders. Delete them first.": {
+    "one": "Customer “%@” has %lld inbound order. Delete it first.",
+    "other": "Customer “%@” has %lld inbound orders. Delete them first."
+  },
+  "%lld more directions to go": {
+    "one": "%lld more direction to go",
+    "other": "%lld more directions to go"
+  },
+  "%lld of %lld directions covered": {
+    "one": "%lld of %lld direction covered",
+    "other": "%lld of %lld directions covered"
+  },
+  "%lld of %lld directions needed to measure": {
+    "one": "%lld of %lld direction needed to measure",
+    "other": "%lld of %lld directions needed to measure"
+  },
+  "%lld of %lld selected": {
+    "one": "%lld of %lld selected",
+    "other": "%lld of %lld selected"
+  },
+  "Date: %@ – %@    %lld selected orders": {
+    "one": "Date: %@ – %@    %lld selected order",
+    "other": "Date: %@ – %@    %lld selected orders"
+  },
+  "Inbound report %@ %lld orders": {
+    "one": "Inbound report %@ %lld order",
+    "other": "Inbound report %@ %lld orders"
+  },
+  "Keep walking: %lld more directions to measure": {
+    "one": "Keep walking: %lld more direction to measure",
+    "other": "Keep walking: %lld more directions to measure"
+  },
+  "Spread %@ (%lld samples)": {
+    "one": "Spread %@ (%lld sample)",
+    "other": "Spread %@ (%lld samples)"
+  },
+  "Spread %@ (%lld samples), unstable, rescan recommended": {
+    "one": "Spread %@ (%lld sample), unstable, rescan recommended",
+    "other": "Spread %@ (%lld samples), unstable, rescan recommended"
+  },
+  "· %lld/%lld photos": {
+    "one": "· %lld/%lld photo",
+    "other": "· %lld/%lld photos"
+  }
+}

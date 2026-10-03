@@ -37,13 +37,13 @@ struct CustomersView: View {
                                 if !sub.isEmpty { Text(sub).font(.subheadline).foregroundStyle(.secondary).lineLimit(1) }
                             }
                             Spacer(minLength: 0)
-                            Text("\(c.orders.count) 单").font(.num(.caption)).foregroundStyle(.secondary)
+                            Text("\(c.orders.count) orders").font(.num(.caption)).foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 2)
                     }
                     .tint(.primary)
                     .swipeActions {
-                        Button("删除", role: .destructive) {
+                        Button("Delete", role: .destructive) {
                             if c.orders.isEmpty { context.delete(c); try? context.save() } else { blockedDelete = c }
                         }
                     }
@@ -51,22 +51,22 @@ struct CustomersView: View {
             }
             .overlay {
                 if customers.isEmpty {
-                    EmptyState(image: "EmptyCustomers", title: "暂无客户", message: "先建客户档案，入库单才能选择客户",
-                               action: ("新建客户", { creating = true }))
+                    EmptyState(image: "EmptyCustomers", title: "No customers yet", message: "Add customers first so you can assign them to inbound orders.",
+                               action: ("New Customer", { creating = true }))
                 }
             }
-            .searchable(text: $search, prompt: "名称 / 代码 / 联系人 / 电话")
-            .navigationTitle("客户")
+            .searchable(text: $search, prompt: "Name / Code / Contact / Phone")
+            .navigationTitle("Customers")
             .toolbar {
-                Button { creating = true } label: { Label("新建客户", systemImage: "plus").labelStyle(.titleAndIcon) }
+                Button { creating = true } label: { Label("New Customer", systemImage: "plus").labelStyle(.titleAndIcon) }
                     .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(.accent)
             }
             .sheet(isPresented: $creating) { CustomerForm(customer: nil) }
             .sheet(item: $editing) { CustomerForm(customer: $0) }
-            .alert("无法删除", isPresented: Binding(get: { blockedDelete != nil }, set: { if !$0 { blockedDelete = nil } })) {
-                Button("好", role: .cancel) {}
+            .alert("Cannot Delete", isPresented: Binding(get: { blockedDelete != nil }, set: { if !$0 { blockedDelete = nil } })) {
+                Button("OK", role: .cancel) {}
             } message: {
-                Text("客户「\(blockedDelete?.name ?? "")」有 \(blockedDelete?.orders.count ?? 0) 张入库单，请先删除入库单。")
+                Text("Customer “\(blockedDelete?.name ?? "")” has \(blockedDelete?.orders.count ?? 0) inbound orders. Delete them first.")
             }
         }
     }
@@ -98,22 +98,22 @@ struct CustomerForm: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("客户代码（唯一）", text: $code).textInputAutocapitalization(.characters).autocorrectionDisabled()
-                    TextField("客户名称", text: $name)
+                    TextField("Customer Code (unique)", text: $code).textInputAutocapitalization(.characters).autocorrectionDisabled()
+                    TextField("Customer Name", text: $name)
                 }
                 if let error { Text(error).foregroundStyle(.red) }
                 Section {
-                    TextField("联系人", text: $contact)
-                    TextField("电话", text: $phone).keyboardType(.phonePad)
-                    TextField("地址", text: $address)
-                    TextField("备注", text: $note, axis: .vertical)
+                    TextField("Contact", text: $contact)
+                    TextField("Phone", text: $phone).keyboardType(.phonePad)
+                    TextField("Address", text: $address)
+                    TextField("Note", text: $note, axis: .vertical)
                 }
             }
-            .navigationTitle(customer == nil ? "新建客户" : "编辑客户")
+            .navigationTitle(customer == nil ? "New Customer" : "Edit Customer")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("保存", action: save) }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
             }
         }
     }
@@ -121,17 +121,17 @@ struct CustomerForm: View {
     private func save() {
         func t(_ s: String) -> String { s.trimmingCharacters(in: .whitespacesAndNewlines) }
         let c = t(code), n = t(name)
-        guard !c.isEmpty, !n.isEmpty else { error = "客户代码和名称必填"; return }
+        guard !c.isEmpty, !n.isEmpty else { error = String(localized: "Customer code and name are required."); return }
         // Case-insensitive + trimmed: `.unique` would otherwise upsert (silently overwrite) on an exact clash,
         // and "c001"/"C001" would both be allowed. Customer counts are small, so compare in memory.
-        guard let all = try? context.fetch(FetchDescriptor<Customer>()) else { error = "读取客户失败，请重试"; return }
+        guard let all = try? context.fetch(FetchDescriptor<Customer>()) else { error = String(localized: "Couldn’t load customers. Please try again."); return }
         if all.contains(where: { t($0.code).caseInsensitiveCompare(c) == .orderedSame && $0.persistentModelID != customer?.persistentModelID }) {
-            error = "客户代码「\(c)」已存在"; return
+            error = String(localized: "Customer code “\(c)” already exists."); return
         }
         let target = customer ?? Customer(code: c, name: n)
         if customer == nil { context.insert(target) }
         target.code = c; target.name = n; target.contact = t(contact); target.phone = t(phone); target.address = t(address); target.note = t(note)
-        do { try context.save() } catch { context.rollback(); self.error = "保存失败：\(error.localizedDescription)"; return }
+        do { try context.save() } catch { context.rollback(); self.error = String(localized: "Save failed: \(error.localizedDescription)"); return }
         dismiss()
     }
 }

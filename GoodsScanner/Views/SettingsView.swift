@@ -25,41 +25,46 @@ struct SettingsView: View {
                         Image("AppIconImage").resizable().scaledToFit().frame(width: 64, height: 64)
                             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("入库量方").font(.title2.weight(.bold)).foregroundStyle(.brand)
-                            Text("版本 \(version)").font(.num(.footnote)).foregroundStyle(.secondary)
+                            Text("Cargo Measure").font(.title2.weight(.bold)).foregroundStyle(.brand)
+                            Text("Version \(version)").font(.num(.footnote)).foregroundStyle(.secondary)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 4)
                 }
-                Section("操作员") {
-                    TextField("默认操作员姓名", text: $defaultOperator)
+                Section("Operator") {
+                    TextField("Default Operator Name", text: $defaultOperator)
                 }
                 Section {
                     HStack {
-                        Text("每边偏置 (cm)")
+                        Text("Offset per Side (cm)")
                         TextField("0", value: $calibrationOffsetCm, format: .number)
                             .keyboardType(.numbersAndPunctuation).multilineTextAlignment(.trailing).font(.num(.body))
                     }
-                } header: { Text("测量校准") } footer: {
-                    Text("用已知尺寸的纸箱扫描，若每边偏大 1cm 则填 1。正数表示扣减。")
+                } header: { Text("Measurement Calibration") } footer: {
+                    Text("Scan a box of known size. If each side reads 1 cm too large, enter 1. Positive values are subtracted.")
                 }
                 if DebugTools.available { Section {
-                    Toggle("调试模式", isOn: $debugMode)
-                    if lidarAvailable { Toggle("强制相机模式", isOn: $forceCameraMode) }
-                    LabeledContent("已保存调试数据") { Text("\(logCount) 次").font(.num(.body)) }
-                    Button("清空调试数据", role: .destructive) { confirmClear = true }
+                    Toggle("Debug Mode", isOn: $debugMode)
+                    if lidarAvailable { Toggle("Force Camera Mode", isOn: $forceCameraMode) }
+                    LabeledContent("Saved Debug Data") { Text("\(logCount) scans").font(.num(.body)) }
+                    Button("Clear Debug Data", role: .destructive) { confirmClear = true }
                         .disabled(logCount == 0)
-                        .confirmationDialog("删除全部 \(logCount) 次扫描调试数据？", isPresented: $confirmClear, titleVisibility: .visible) {
-                            Button("清空", role: .destructive) { ScanLogStore.clear(); logCount = ScanLogStore.count }
+                        .confirmationDialog("Delete debug data for all \(logCount) scans?", isPresented: $confirmClear, titleVisibility: .visible) {
+                            Button("Clear", role: .destructive) { ScanLogStore.clear(); logCount = ScanLogStore.count }
                         }
-                } header: { Text("开发者") } footer: {
-                    Text("开启后扫描页显示诊断信息，完成时可查看 3D 点云，并把每次扫描的点云和参数保存到「文件」App 的本 App 目录（ScanLogs），用于离线调参。强制相机模式：不用 LiDAR，只用相机画面测量（测试无 LiDAR 机型的流程）。")
+                } header: { Text("Developer") } footer: {
+                    Text("Shows diagnostics on the scan screen, lets you review the 3D point cloud when a scan finishes, and saves each scan’s point cloud and parameters to this app’s folder (ScanLogs) in the Files app for offline tuning. Force Camera Mode: measure from the camera image only, without LiDAR (to test the flow for devices without LiDAR).")
                 } }
                 Section {
                     // Text(Image) not Label: Label as LabeledContent content stretched the row (~225pt) on iOS 26.
                     LabeledContent("LiDAR") {
-                        Text("\(Image(systemName: lidarAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")) \(lidarAvailable ? "可用" : (cameraScanAvailable ? "不可用（相机测量）" : "不可用（手动录入）"))")
+                        let icon = Image(systemName: lidarAvailable ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                        Group {
+                            if lidarAvailable { Text("\(icon) Available") }
+                            else if cameraScanAvailable { Text("\(icon) Not available (camera measurement)") }
+                            else { Text("\(icon) Not available (manual entry)") }
+                        }
                             .foregroundStyle(lidarAvailable ? Color.scanText : Color.warnText)
                     }
                 }
@@ -68,7 +73,7 @@ struct SettingsView: View {
                     Button("View tutorial") { showTutorial = true }
                 }
             }
-            .navigationTitle("设置")
+            .navigationTitle("Settings")
             .onAppear { logCount = ScanLogStore.count }
             .fullScreenCover(isPresented: $showTutorial) { OnboardingView(replay: true) }
         }

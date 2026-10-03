@@ -71,7 +71,7 @@ struct StatCard: View {
     let icon: String
     let value: String
     let unit: String
-    let label: String
+    let label: LocalizedStringKey
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -151,9 +151,9 @@ struct SecondaryButtonStyle: ButtonStyle {
 
 struct EmptyState: View {
     let image: String
-    let title: String
-    let message: String
-    var action: (label: String, run: () -> Void)?
+    let title: LocalizedStringKey
+    let message: LocalizedStringKey
+    var action: (label: LocalizedStringKey, run: () -> Void)?
 
     var body: some View {
         VStack(spacing: 12) {
