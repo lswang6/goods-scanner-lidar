@@ -214,7 +214,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             let oc = od == nil ? nil : other?.confidenceMap.flatMap { copyPixels($0, UInt8.self) }.flatMap { $0.w == d.w && $0.h == d.h ? $0 : nil }
             let tracking: UInt8 = switch frame.camera.trackingState { case .notAvailable: 0; case .limited: 1; case .normal: 2 }
             snap.extra = .init(live: live, other: od?.data, otherConf: oc?.data, tracking: tracking,
-                               thermal: UInt8(ProcessInfo.processInfo.thermalState.rawValue))
+                               thermal: UInt8(ProcessInfo.processInfo.thermalState.rawValue), image: frame.capturedImage)
         }
         busy = true
         queue.async { self.process(snap) }
@@ -228,7 +228,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         var debug: Bool
         var extra: Extra?
         /// Debug raw-frame log only.
-        struct Extra { var live: DepthSource; var other: [Float]?; var otherConf: [UInt8]?; var tracking: UInt8; var thermal: UInt8 }
+        /// `image`: camera frame (camera-only research, Phase 0); JPEG-encoded in `record`, then released.
+        struct Extra { var live: DepthSource; var other: [Float]?; var otherConf: [UInt8]?; var tracking: UInt8; var thermal: UInt8; var image: CVPixelBuffer }
     }
 
     /// Queue only. Appends the processed frame to the debug recording with this frame's ring/estimate/lock marks.
@@ -240,6 +241,11 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
                             w: s.w, h: s.h, raw: smoothed ? x.other : s.depth, rawConf: smoothed ? x.otherConf : s.conf,
                             smoothed: smoothed ? s.depth : nil, smoothedConf: smoothed ? s.conf : nil, live: x.live)
         f.ring = qRing; f.estimated = qEstimated; f.lock = qLock
+        // Landscape as captured (matches intrinsics / imageResolution), half size: intrinsics scale by 960 / res.width.
+        let ci = CIImage(cvPixelBuffer: x.image)
+        f.jpeg = ciContext.jpegRepresentation(of: ci.transformed(by: .init(scaleX: 960 / ci.extent.width, y: 960 / ci.extent.width)),
+                                              colorSpace: CGColorSpaceCreateDeviceRGB(),
+                                              options: [CIImageRepresentationOption(rawValue: kCGImageDestinationLossyCompressionQuality as String): 0.8])
         recorder.append(f)
     }
 

@@ -87,6 +87,8 @@ struct FrameSample {
     var raw: [Float]?, rawConf: [UInt8]?, smoothed: [Float]?, smoothedConf: [UInt8]?
     var live: DepthSource
     var ring = false, estimated = false, lock = false
+    /// Camera frame, 960 px wide JPEG -> `<scanDir>/images/<timestamp>.jpg`.
+    var jpeg: Data?
 }
 
 /// Debug mode: every processed frame -> `<scanDir>/frames.bin` (+ `frames.json` at finish) via
@@ -114,6 +116,11 @@ final class FrameRecorder {
                              smoothed: h(s.smoothed), smoothedConf: s.smoothedConf)
             f.ring = s.ring; f.estimated = s.estimated; f.lock = s.lock
             try? writer?.append(f)   // a frame with other dims is skipped
+            if let j = s.jpeg {   // named by timestamp (same %.6f as frames.bin's f64) so skipped frames can't misalign
+                let d = dir.appendingPathComponent("images")
+                try? FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
+                try? j.write(to: d.appendingPathComponent(String(format: "%.6f.jpg", s.time)))
+            }
         }
     }
 
