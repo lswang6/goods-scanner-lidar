@@ -58,6 +58,7 @@ struct OrdersView: View {
             .searchable(text: $search, prompt: "Order No. / Customer")
             .navigationTitle("Inbound Orders")
             .navigationDestination(for: InboundOrder.self) { o in OrderDetailView(order: o) { delete(o) } }
+            .task { openFirstOrderIfAsked() }
             .toolbar {
                 Button { creating = true } label: { Label("New Inbound", systemImage: "plus").labelStyle(.titleAndIcon) }
                     .buttonStyle(.borderedProminent).buttonBorderShape(.capsule).tint(.accent)
@@ -75,6 +76,15 @@ struct OrdersView: View {
 
     private func delete(_ o: InboundOrder) {
         do { try deleteOrder(o, in: context) } catch { deleteError = error.localizedDescription }
+    }
+}
+
+extension OrdersView {
+    /// Debug `-openFirstOrder` launch arg (screenshots): push the newest order's detail.
+    fileprivate func openFirstOrderIfAsked() {
+        #if DEBUG
+        if CommandLine.arguments.contains("-openFirstOrder"), path.isEmpty, let o = orders.first { path = [o] }
+        #endif
     }
 }
 
