@@ -97,7 +97,10 @@ final class SilhouetteHullTests: XCTestCase {
             // second round (floor from the hull on device): boxes, then the bin
             ("raw-20261003-144052", .box, SIMD3(40, 30, 30)), ("raw-20261003-144116", .box, SIMD3(40, 30, 30)),
             ("raw-20261003-144142", .box, SIMD3(40, 30, 30)),
-            ("raw-20261003-144203", .cylinder, SIMD3(24, 24, 27)), ("raw-20261003-144224", .cylinder, SIMD3(24, 24, 27))]
+            ("raw-20261003-144203", .cylinder, SIMD3(24, 24, 27)), ("raw-20261003-144224", .cylinder, SIMD3(24, 24, 27)),
+            // third round, logged with LiDAR reference depth (LiDAR: bin Ø26.0 / 26.8 incl. handle, H 27.1 / 27.4)
+            ("raw-20261003-144824", .cylinder, SIMD3(24, 24, 27)), ("raw-20261003-144848", .cylinder, SIMD3(24, 24, 27)),
+            ("raw-20261003-144913", .box, SIMD3(40, 30, 30))]
         var ran = false
         for (name, shape, truth) in cases {
             guard let dir = deviceFixture(name) else { continue }
