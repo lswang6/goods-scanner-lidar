@@ -93,7 +93,11 @@ final class SilhouetteHullTests: XCTestCase {
         let cases: [(String, ShapeKind, SIMD3<Float>)] = [
             ("raw-20261003-143157", .box, SIMD3(40, 30, 30)), ("raw-20261003-143226", .box, SIMD3(40, 30, 30)),
             ("raw-20261003-143249", .box, SIMD3(40, 30, 30)),
-            ("raw-20261003-143318", .cylinder, SIMD3(24, 24, 27)), ("raw-20261003-143344", .cylinder, SIMD3(24, 24, 27))]
+            ("raw-20261003-143318", .cylinder, SIMD3(24, 24, 27)), ("raw-20261003-143344", .cylinder, SIMD3(24, 24, 27)),
+            // second round (floor from the hull on device): boxes, then the bin
+            ("raw-20261003-144052", .box, SIMD3(40, 30, 30)), ("raw-20261003-144116", .box, SIMD3(40, 30, 30)),
+            ("raw-20261003-144142", .box, SIMD3(40, 30, 30)),
+            ("raw-20261003-144203", .cylinder, SIMD3(24, 24, 27)), ("raw-20261003-144224", .cylinder, SIMD3(24, 24, 27))]
         var ran = false
         for (name, shape, truth) in cases {
             guard let dir = deviceFixture(name) else { continue }
