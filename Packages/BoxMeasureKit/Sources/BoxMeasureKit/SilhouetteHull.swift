@@ -29,24 +29,30 @@ public enum SilhouetteHull {
     public static let maxFineVoxels = 3_000_000
     public static let coarseVoxel: Float = 0.025
     public static let fineVoxel: Float = 0.005
+    /// The hull is carved from this far below the given plane: device log 2026-10-03 143157 had ARKit's floor 7.5 cm low.
+    public static let floorSearch: Float = 0.15
+    /// Footprint area / bounding rectangle area below this = round (device logs: boxes 0.95-0.99, a round bin 0.84).
+    public static let roundFill: Float = 0.9
 
-    /// Box around the object whose footprint contains `center` (support plane at `floorY`): coarse carve over
-    /// center +- `radius` x [floorY, floorY + maxHeight], then a fine carve over the coarse hull's bounds.
-    /// Footprint = hull columns occupied in the lowest 3 cm, min-area rectangle (0.5 % trimmed per side). Height = hull
-    /// top extrapolated to the footprint edge (the hull "roof" rises inward when the top is only seen obliquely).
-    /// Returns the estimate and the hull's surface voxels (debug review). nil when nothing survives.
+    /// Object whose footprint contains `center`, standing on a plane near `floorY` (within floorSearch): coarse carve
+    /// over center +- `radius` x [floorY - floorSearch, floorY + maxHeight], then a fine carve over the coarse hull's
+    /// bounds. Support plane = where the hull's cross-section stops growing (below it the hull is the cone the
+    /// silhouettes cast under the object). Box: footprint = columns occupied in the lowest 3 cm, min-area rectangle
+    /// (0.5 % trimmed per side). Round (fill < roundFill): widest extent over all heights, length = width = diameter.
+    /// Height = hull top extrapolated to the footprint edge (the hull "roof" rises inward when the top is only seen
+    /// obliquely). Returns the estimate and the hull's surface voxels (debug review). nil when nothing survives.
     /// Needs views from all sides (>= 180° of walk-around); fewer leave the hull open toward the cameras.
     public static func measure(_ views: [Silhouette], floorY: Float, center: SIMD2<Float>,
                                radius: Float = 1.25, maxHeight: Float = 2.0) -> (estimate: BoxEstimate, surface: [SIMD3<Float>])? {
         guard !views.isEmpty else { return nil }
-        let coarse = Grid(lo: SIMD3(center.x - radius, floorY, center.y - radius),
+        let coarse = Grid(lo: SIMD3(center.x - radius, floorY - floorSearch, center.y - radius),
                           hi: SIMD3(center.x + radius, floorY + maxHeight, center.y + radius), voxel: coarseVoxel)
         let ck = coarse.carve(views)
         guard !ck.isEmpty else { return nil }
         var lo = SIMD3<Float>(repeating: .infinity), hi = SIMD3<Float>(repeating: -.infinity)
         for i in ck { let p = coarse.center(Int(i)); lo = simd_min(lo, p); hi = simd_max(hi, p) }
         let m = coarseVoxel / 2 + 0.03
-        lo = SIMD3(lo.x - m, floorY, lo.z - m); hi = hi + m
+        lo = SIMD3(lo.x - m, max(floorY - floorSearch, lo.y - m), lo.z - m); hi = hi + m
         let vol = (hi.x - lo.x) * (hi.y - lo.y) * (hi.z - lo.z)
         let fine = Grid(lo: lo, hi: hi, voxel: max(fineVoxel, cbrt(vol / Float(maxFineVoxels))))
         let fk = fine.carve(views)
@@ -98,39 +104,59 @@ public enum SilhouetteHull {
             return alive.indices.filter { Int(seen[$0]) >= minSeen }.map { alive[$0] }
         }
 
-        func box(_ alive: [Int32], floorY: Float) -> (estimate: BoxEstimate, surface: [SIMD3<Float>])? {
+        func box(_ alive: [Int32], floorY arkitFloor: Float) -> (estimate: BoxEstimate, surface: [SIMD3<Float>])? {
             var occ = [Bool](repeating: false, count: nx * ny * nz)
-            for i in alive { occ[Int(i)] = true }
-            // Columns: footprint (lowest 3 cm) and hull top height above floorY.
+            var area = [Int](repeating: 0, count: ny)
+            for i in alive { occ[Int(i)] = true; area[Int(i) / nz % ny] += 1 }
+            // Support plane: lowest layer where sqrt(cross-section area) grows < 0.5 cm over the next 2 cm (the cone
+            // under the object grows ~1 cm per cm; a tapered bin ~0.1). Fallback: the given plane.
+            let k2 = max(1, Int((0.02 / voxel).rounded()))
+            let size = area.map { Float($0).squareRoot() * voxel }
+            let first = area.firstIndex { $0 > 0 } ?? 0
+            let fl = (first..<max(first, ny - k2)).first { size[$0 + k2] - size[$0] < 0.005 }
+                ?? max(0, Int(((arkitFloor - lo.y) / voxel).rounded()))
+            let floorY = lo.y + Float(fl) * voxel
+            // Columns at or above the plane: base (lowest 3 cm), any height, and hull top height above the plane.
             let footLayers = max(1, Int((0.03 / voxel).rounded(.up)))
-            var foot = [Bool](repeating: false, count: nx * nz), top = [Float](repeating: 0, count: nx * nz)
+            var base = [Bool](repeating: false, count: nx * nz), any = base, top = [Float](repeating: 0, count: nx * nz)
             for ix in 0..<nx { for iz in 0..<nz {
                 var hTop = -1
-                for iy in 0..<ny where occ[(ix * ny + iy) * nz + iz] {
-                    hTop = iy
-                    if iy < footLayers { foot[ix * nz + iz] = true }
+                for iy in fl..<ny where occ[(ix * ny + iy) * nz + iz] {
+                    hTop = iy; any[ix * nz + iz] = true
+                    if iy < fl + footLayers { base[ix * nz + iz] = true }
                 }
-                top[ix * nz + iz] = Float(hTop + 1) * voxel + (lo.y - floorY)
+                top[ix * nz + iz] = Float(hTop + 1 - fl) * voxel
             } }
-            let cells = (0..<(nx * nz)).filter { foot[$0] }
-            guard !cells.isEmpty else { return nil }
-            let xz = cells.map { SIMD2(lo.x + (Float($0 / nz) + 0.5) * voxel, lo.z + (Float($0 % nz) + 0.5) * voxel) }
-
-            // Min-area rectangle, 0.5 % trimmed per side (stray columns).
-            var best: (area: Float, a: Float, lo: SIMD2<Float>, hi: SIMD2<Float>)?
-            for step in 0..<180 {
-                let a = Float(step) * 0.5 * .pi / 180, ca = cos(a), sa = sin(a)
-                let q0 = xz.map { $0.x * ca + $0.y * sa }.sorted(), q1 = xz.map { -$0.x * sa + $0.y * ca }.sorted()
-                let k = Int(Float(xz.count) * 0.005)
-                let l = SIMD2(q0[k], q1[k]), h = SIMD2(q0[xz.count - 1 - k], q1[xz.count - 1 - k])
-                let e = h - l + voxel
-                if best == nil || e.x * e.y < best!.area { best = (e.x * e.y, a, l, h) }
+            func cellsXZ(_ m: [Bool]) -> [SIMD2<Float>] {
+                (0..<(nx * nz)).filter { m[$0] }.map { SIMD2(lo.x + (Float($0 / nz) + 0.5) * voxel, lo.z + (Float($0 % nz) + 0.5) * voxel) }
             }
-            let b = best!, ca = cos(b.a), sa = sin(b.a), e = b.hi - b.lo + voxel, mid = (b.lo + b.hi) / 2
+            // Min-area rectangle, 0.5 % trimmed per side (stray columns): (area, angle, lo, hi) in the rotated frame.
+            func rect(_ xz: [SIMD2<Float>]) -> (area: Float, a: Float, lo: SIMD2<Float>, hi: SIMD2<Float>) {
+                var best: (area: Float, a: Float, lo: SIMD2<Float>, hi: SIMD2<Float>)?
+                for step in 0..<180 {
+                    let a = Float(step) * 0.5 * .pi / 180, ca = cos(a), sa = sin(a)
+                    let q0 = xz.map { $0.x * ca + $0.y * sa }.sorted(), q1 = xz.map { -$0.x * sa + $0.y * ca }.sorted()
+                    let k = Int(Float(xz.count) * 0.005)
+                    let l = SIMD2(q0[k], q1[k]), h = SIMD2(q0[xz.count - 1 - k], q1[xz.count - 1 - k])
+                    let e = h - l + voxel
+                    if best == nil || e.x * e.y < best!.area { best = (e.x * e.y, a, l, h) }
+                }
+                return best!
+            }
+            let anyXZ = cellsXZ(any)
+            guard !anyXZ.isEmpty else { return nil }
+            let whole = rect(anyXZ)
+            let round = Float(anyXZ.count) * voxel * voxel / whole.area < SilhouetteHull.roundFill
+            let foot = round ? any : base
+            let xz = round ? anyXZ : cellsXZ(base)
+            guard !xz.isEmpty else { return nil }
+            let b = round ? whole : rect(xz)
+            let ca = cos(b.a), sa = sin(b.a), e = b.hi - b.lo + voxel, mid = (b.lo + b.hi) / 2
             let cx = mid.x * ca - mid.y * sa, cz = mid.x * sa + mid.y * ca
             // Length axis in (x, z): rotated axis 0 = (cos a, sin a), axis 1 = (-sin a, cos a). BoxEstimate yaw: length
             // axis = (cos yaw, -sin yaw).
-            let (len, wid, dir) = e.x >= e.y ? (e.x, e.y, SIMD2(ca, sa)) : (e.y, e.x, SIMD2(-sa, ca))
+            var (len, wid, dir) = e.x >= e.y ? (e.x, e.y, SIMD2(ca, sa)) : (e.y, e.x, SIMD2(-sa, ca))
+            if round { wid = len }
             let yaw = atan2(-dir.y, dir.x)
 
             // Height: median hull top per erosion ring of the footprint, line fit over rings 1...10, value at the edge.
@@ -162,7 +188,7 @@ public enum SilhouetteHull {
             }
             var est = BoxEstimate(length: len, width: wid, height: height, center: SIMD3(cx, floorY, cz), yaw: yaw,
                                   planeY: floorY, pointCount: alive.count)
-            est.shape = .box
+            est.shape = round ? .cylinder : .box
             return (est, surface)
         }
     }

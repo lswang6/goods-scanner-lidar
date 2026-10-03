@@ -195,6 +195,6 @@ project.yml
 | F1 | 无 LiDAR 的 ARKit 机型自动用相机模式；有 LiDAR 时「设置 → 开发者 → 强制相机模式」可切换测试 | 非 Pro iPhone 也能扫描；Pro 机上可直接对比 |
 | F2 | 每帧 Vision `VNGenerateForegroundInstanceMaskRequest`（960 px 宽）取物体轮廓；瞄准时取准星处实例，锁定后取锚点投影处实例 | 系统自带、无授权问题；YOLO 无「纸箱」类别且为 AGPL |
 | F3 | 地面 = ARKit 水平面检测（优先 .floor 分类，否则最低的 ≥0.3 m² 水平面）；锚点 = 轮廓底边射线与地面的最近交点内推 5 cm，稳定 1 s 锁定 | 锚点总在物体占地范围内，任意视角都投影在物体轮廓上 |
-| F4 | `BoxMeasureKit.SilhouetteHull`：轮廓视锥求交（visual hull），2.5 cm 粗网格 → 5 mm 细网格（≤300 万体素）；需在至少一半视图中可见；占地 = 最低 3 cm 最小外接矩形；高 = 顶面高度外推到边缘 | 研究：docs/research/hull_rgb.py，3 次 40×30×30 实扫误差 ≤1.6 cm |
+| F4 | `BoxMeasureKit.SilhouetteHull`：轮廓视锥求交（visual hull），2.5 cm 粗网格 → 5 mm 细网格（≤300 万体素）；需在至少一半视图中可见；地面 = ARKit 平面 ±15 cm 内截面停止增大的高度（ARKit 曾低 7.5 cm）；箱体占地 = 地面上 3 cm 最小外接矩形；圆形（占地/外接矩形 < 0.9）= 各高度最大外形，标为圆柱；高 = 顶面高度外推到边缘 | 研究：docs/research/hull_rgb.py，3 次 40×30×30 实扫误差 ≤1.6 cm |
 | F5 | 覆盖 ≥6 个扇区（180°）后才估计；自动完成 = 9 扇区 + 5 次估计离散度 ≤2 %；结果标记 method = "camera"（相机） | 少于半圈时轮廓在纵深方向不闭合 |
 | F6 | 调试记录：位姿 + JPEG（frames.bin 无深度，width = height = 0），lockSeed = 锚点，lockPlaneY = 地面 | 可用 docs/research 脚本离线复算 |

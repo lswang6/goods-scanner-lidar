@@ -85,4 +85,44 @@ final class SilhouetteHullTests: XCTestCase {
         }
         if !ran { throw XCTSkip("device fixtures missing (private, gitignored)") }
     }
+
+    /// Camera-mode device scans 2026-10-03 (no depth; ARKit plane as floor, lockSeed = floor anchor). 143157: ARKit's
+    /// floor 7.5 cm low (the support plane comes from the hull). 143318/143344: tapered round pedal bin, Ø24 body,
+    /// 26 with handle, H 27 -> cylinder at its widest extent.
+    func testCameraModeScans() throws {
+        let cases: [(String, ShapeKind, SIMD3<Float>)] = [
+            ("raw-20261003-143157", .box, SIMD3(40, 30, 30)), ("raw-20261003-143226", .box, SIMD3(40, 30, 30)),
+            ("raw-20261003-143249", .box, SIMD3(40, 30, 30)),
+            ("raw-20261003-143318", .cylinder, SIMD3(24, 24, 27)), ("raw-20261003-143344", .cylinder, SIMD3(24, 24, 27))]
+        var ran = false
+        for (name, shape, truth) in cases {
+            guard let dir = deviceFixture(name) else { continue }
+            ran = true
+            let (views, seed, floorY) = try Self.load(dir)
+            let (e, _) = try XCTUnwrap(SilhouetteHull.measure(views, floorY: floorY, center: SIMD2(seed.x, seed.z)), name)
+            let cm = SIMD3(e.length, e.width, e.height) * 100
+            print(String(format: "  %@ %@ (%d views): %.1f x %.1f x %.1f  floor %+.1f cm", name, e.shape.rawValue, views.count,
+                         cm.x, cm.y, cm.z, (e.planeY - floorY) * 100))
+            XCTAssertEqual(e.shape, shape, name)
+            XCTAssertLessThan(simd_reduce_max(simd_abs(cm - truth)), 3.0, name)
+        }
+        if !ran { throw XCTSkip("device fixtures missing (private, gitignored)") }
+    }
+
+    /// Scan-phase views (Vision masks from docs/research/mask.swift), lock seed, lock plane.
+    static func load(_ dir: URL) throws -> ([Silhouette], SIMD3<Float>, Float) {
+        let frames = try RawFrames(dir: dir)
+        var views: [Silhouette] = []
+        for i in 0..<frames.count where frames.meta(i).phase == 1 {
+            let f = frames[i]
+            let url = dir.appendingPathComponent(String(format: "images/%.6f.jpg.mask.pgm", f.timestamp))
+            guard let pgm = try? Data(contentsOf: url) else { continue }
+            // "P5\n<w> <h>\n255\n" + bytes
+            let header = pgm.prefix(32).split(separator: 0x0A, maxSplits: 3, omittingEmptySubsequences: false)
+            let wh = String(decoding: header[1], as: UTF8.self).split(separator: " ").compactMap { Int($0) }
+            views.append(Silhouette(mask: Array(pgm.suffix(wh[0] * wh[1])), width: wh[0], height: wh[1], intrinsics: f.intrinsics,
+                                    imageResolution: f.imageResolution, transform: f.transform))
+        }
+        return (views, try XCTUnwrap(frames.index.lockSeed), try XCTUnwrap(frames.index.lockPlaneY))
+    }
 }
