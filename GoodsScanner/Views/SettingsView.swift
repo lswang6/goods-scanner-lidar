@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage("forceCameraMode") private var forceCameraMode = false
     @State private var logCount = 0
     @State private var confirmClear = false
+    @State private var showTutorial = false
 
     private var version: String {
         let info = Bundle.main.infoDictionary
@@ -43,7 +44,7 @@ struct SettingsView: View {
                 } header: { Text("测量校准") } footer: {
                     Text("用已知尺寸的纸箱扫描，若每边偏大 1cm 则填 1。正数表示扣减。")
                 }
-                Section {
+                if DebugTools.available { Section {
                     Toggle("调试模式", isOn: $debugMode)
                     if lidarAvailable { Toggle("强制相机模式", isOn: $forceCameraMode) }
                     LabeledContent("已保存调试数据") { Text("\(logCount) 次").font(.num(.body)) }
@@ -54,7 +55,7 @@ struct SettingsView: View {
                         }
                 } header: { Text("开发者") } footer: {
                     Text("开启后扫描页显示诊断信息，完成时可查看 3D 点云，并把每次扫描的点云和参数保存到「文件」App 的本 App 目录（ScanLogs），用于离线调参。强制相机模式：不用 LiDAR，只用相机画面测量（测试无 LiDAR 机型的流程）。")
-                }
+                } }
                 Section {
                     // Text(Image) not Label: Label as LabeledContent content stretched the row (~225pt) on iOS 26.
                     LabeledContent("LiDAR") {
@@ -62,9 +63,14 @@ struct SettingsView: View {
                             .foregroundStyle(lidarAvailable ? Color.scanText : Color.warnText)
                     }
                 }
+                Section("About") {
+                    NavigationLink("Disclaimer") { DisclaimerView() }
+                    Button("View tutorial") { showTutorial = true }
+                }
             }
             .navigationTitle("设置")
             .onAppear { logCount = ScanLogStore.count }
+            .fullScreenCover(isPresented: $showTutorial) { OnboardingView(replay: true) }
         }
     }
 }

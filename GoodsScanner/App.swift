@@ -7,10 +7,15 @@ struct GoodsScannerApp: App {
         do { return try ModelContainer(for: Customer.self, InboundOrder.self, CargoItem.self) }
         catch { fatalError("无法打开数据库: \(error)") }
     }()
+    /// Set by the onboarding's "I understand"; until then the tutorial + disclaimer cover the app.
+    @AppStorage("disclaimerAccepted") private var disclaimerAccepted = false
 
     init() {
         #if DEBUG
-        if CommandLine.arguments.contains("-seedDemo") { Self.seedDemo(Self.container.mainContext) }
+        if CommandLine.arguments.contains("-seedDemo") {
+            Self.seedDemo(Self.container.mainContext)
+            UserDefaults.standard.set(true, forKey: "disclaimerAccepted")  // demo/screenshot runs skip onboarding
+        }
         #endif
     }
 
@@ -24,6 +29,7 @@ struct GoodsScannerApp: App {
                 SettingsView().tint(.brand).tabItem { Label("设置", systemImage: "gearshape") }
             }
             .tint(.accentText)
+            .fullScreenCover(isPresented: .constant(!disclaimerAccepted)) { OnboardingView() }
         }
         .modelContainer(Self.container)
     }
