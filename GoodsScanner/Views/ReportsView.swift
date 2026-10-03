@@ -9,9 +9,11 @@ struct ReportsView: View {
     @State private var pickedTo: Date?
     /// An ID, not the model: the customer may be deleted elsewhere while selected.
     @State private var customerID: PersistentIdentifier?
+    /// nil = every order in the filter (also picks up new ones); reset whenever the filter changes.
+    @State private var selectedIDs: Set<PersistentIdentifier>?
     @State private var share: ShareFile?
     @State private var error: String?
-    @State private var errorTitle = "导出失败"
+    @State private var errorTitle = ""
     @State private var exporting = false
 
     private var to: Date { pickedTo ?? .now }
@@ -24,8 +26,11 @@ struct ReportsView: View {
     }
 
     var body: some View {
-        let list = orders
+        let filtered = orders
+        let list = selectedIDs.map { ids in filtered.filter { ids.contains($0.persistentModelID) } } ?? filtered
         let customerName = customers.first { $0.persistentModelID == customerID }?.name
+        let scope: ExportScope = list.count < filtered.count
+            ? .picked(count: list.count, from: from, to: to) : .range(from: from, to: to, customer: customerName)
         let total = Summary(list)
         let byCustomer = Dictionary(grouping: list) { $0.customer?.code ?? "" }.sorted { $0.key < $1.key }
         NavigationStack {
@@ -37,8 +42,16 @@ struct ReportsView: View {
                         Text("全部").tag(PersistentIdentifier?.none)
                         ForEach(customers) { Text("\($0.name)（\($0.code)）").tag(Optional($0.persistentModelID)) }
                     }
+                    NavigationLink {
+                        OrderPicker(orders: filtered, selectedIDs: $selectedIDs)
+                    } label: {
+                        LabeledContent("Orders") {
+                            Text(list.count < filtered.count ? "\(list.count) of \(filtered.count) selected" : "All (\(filtered.count))")
+                        }
+                    }
+                    .disabled(filtered.isEmpty)
                 }
-                if list.isEmpty {
+                if filtered.isEmpty {
                     Section {
                         EmptyState(image: "EmptyReports", title: "所选范围无入库记录", message: "调整日期或客户筛选后再查看汇总与导出")
                             .frame(minHeight: 320)
@@ -71,11 +84,11 @@ struct ReportsView: View {
                     }
                     Section("导出") {
                         HStack(spacing: 8) {
-                            exportButton("CSV 明细", "tablecells") { try Exporter.writeCSV(list, from: from, to: to) }
-                            exportButton("PDF 报表", "doc.richtext") { try Exporter.writePDF(list, from: from, to: to, customerName: customerName) }
-                            exportButton("照片 ZIP", "photo.stack") { try Exporter.writePhotosZip(list, from: from, to: to) }
+                            exportButton("CSV 明细", "tablecells") { try Exporter.writeCSV(list, scope: scope) }
+                            exportButton("PDF 报表", "doc.richtext") { try Exporter.writePDF(list, scope: scope) }
+                            exportButton("照片 ZIP", "photo.stack") { try Exporter.writePhotosZip(list, scope: scope) }
                         }
-                        .disabled(exporting)
+                        .disabled(exporting || list.isEmpty)
                         .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                     }
                 }
@@ -83,6 +96,9 @@ struct ReportsView: View {
             .listSectionSpacing(16)
             .overlay { if exporting { ProgressView("正在导出…").padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12)) } }
             .navigationTitle("报表")
+            .onChange(of: from) { selectedIDs = nil }
+            .onChange(of: pickedTo) { selectedIDs = nil }  // not `to`: it's re-evaluated (.now) every render
+            .onChange(of: customerID) { selectedIDs = nil }
             .sheet(item: $share) { ActivityView(items: [$0.url]) }
             .alert(errorTitle, isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("好", role: .cancel) {}
@@ -90,7 +106,7 @@ struct ReportsView: View {
         }
     }
 
-    private func exportButton(_ title: String, _ icon: String, make: @escaping () throws -> URL) -> some View {
+    private func exportButton(_ title: LocalizedStringKey, _ icon: String, make: @escaping () throws -> URL) -> some View {
         Button { export(make) } label: {
             VStack(spacing: 6) {
                 Image(systemName: icon).font(.title2)
@@ -111,10 +127,55 @@ struct ReportsView: View {
             try? await Task.sleep(for: .milliseconds(100))
             do { share = ShareFile(url: try make()) } catch {
                 let e = error as NSError
-                errorTitle = e.domain == "Exporter" && e.code == 1 ? "无可导出内容" : "导出失败"  // code 1 = no photos
+                // code 1 = no photos
+                errorTitle = e.domain == "Exporter" && e.code == 1 ? String(localized: "Nothing to export") : String(localized: "Export failed")
                 self.error = e.localizedDescription
             }
             exporting = false
+        }
+    }
+}
+
+/// Multi-select of the orders in the current report filter.
+private struct OrderPicker: View {
+    let orders: [InboundOrder]
+    @Binding var selectedIDs: Set<PersistentIdentifier>?
+
+    var body: some View {
+        List(orders) { o in
+            let id = o.persistentModelID
+            let on = selectedIDs?.contains(id) ?? true
+            Button {
+                var ids = selectedIDs ?? Set(orders.map(\.persistentModelID))
+                if on { ids.remove(id) } else { ids.insert(id) }
+                selectedIDs = ids.count == orders.count ? nil : ids
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                        .font(.title3).foregroundStyle(on ? Color.accent : .secondary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(o.orderNo).font(.headline.monospacedDigit())
+                        Text("\(o.customer?.name ?? "—") · \(o.receivedAt.formatted(date: .abbreviated, time: .omitted))")
+                            .font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        NumText(value: o.totalVolumeM3.m3, unit: "m³", style: .headline)
+                        Text("\(o.totalPieces) pcs").font(.num(.caption)).foregroundStyle(.secondary)
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(on ? .isSelected : [])
+        }
+        .navigationTitle("Select orders")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            Menu {
+                Button("Select all") { selectedIDs = nil }
+                Button("Select none") { selectedIDs = [] }
+            } label: { Label("Selection", systemImage: "checklist") }
         }
     }
 }

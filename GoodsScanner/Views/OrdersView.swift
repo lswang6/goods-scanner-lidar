@@ -112,6 +112,8 @@ struct OrderDetailView: View {
     @State private var viewing: PhotoSelection?
     @State private var confirmDelete = false
     @State private var error: String?
+    @State private var share: ShareFile?
+    @State private var exportError: String?
 
     var body: some View {
         List {
@@ -159,7 +161,19 @@ struct OrderDetailView: View {
         }
         .navigationTitle(order.orderNo)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar { Button("编辑") { editingOrder = true } }
+        .toolbar {
+            Menu {
+                Button { export { try Exporter.writeCSV([order], scope: .order(order)) } } label: { Label("CSV", systemImage: "tablecells") }
+                Button { export { try Exporter.writePDF([order], scope: .order(order)) } } label: { Label("PDF", systemImage: "doc.richtext") }
+                Button { export { try Exporter.writePhotosZip([order], scope: .order(order)) } } label: { Label("Photos ZIP", systemImage: "photo.stack") }
+                    .disabled(order.items.allSatisfy(\.photoFiles.isEmpty))
+            } label: { Label("Export", systemImage: "square.and.arrow.up") }
+            Button("编辑") { editingOrder = true }
+        }
+        .sheet(item: $share) { ActivityView(items: [$0.url]) }
+        .alert("Export failed", isPresented: Binding(get: { exportError != nil }, set: { if !$0 { exportError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: { Text(exportError ?? "") }
         .sheet(isPresented: $editingOrder) { OrderForm(order: order) }
         .sheet(isPresented: $addingItem) { ItemEditView(order: order, item: nil) }
         .sheet(item: $editingItem) { ItemEditView(order: order, item: $0) }
@@ -174,6 +188,11 @@ struct OrderDetailView: View {
         .alert("删除失败", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
             Button("好", role: .cancel) {}
         } message: { Text(error ?? "") }
+    }
+
+    /// One order is small, so this runs inline (no spinner, unlike ReportsView).
+    private func export(_ make: () throws -> URL) {
+        do { share = ShareFile(url: try make()) } catch { exportError = error.localizedDescription }
     }
 }
 

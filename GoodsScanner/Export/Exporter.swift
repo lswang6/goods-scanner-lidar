@@ -9,9 +9,56 @@ struct Summary {
     }
 }
 
+/// What an export covers; drives the file name and the PDF title/subtitle.
+enum ExportScope {
+    /// Every order in the date range (optionally one customer's).
+    case range(from: Date, to: Date, customer: String?)
+    /// A hand-picked subset of the orders in the range.
+    case picked(count: Int, from: Date, to: Date)
+    case order(InboundOrder)
+
+    /// Localized file name without extension (not yet sanitized).
+    var stem: String {
+        func days(_ f: Date, _ t: Date) -> String {
+            "\(InboundOrder.dayFormatter.string(from: f))-\(InboundOrder.dayFormatter.string(from: t))"
+        }
+        return switch self {
+        case let .range(f, t, customer?): String(localized: "Inbound report \(days(f, t)) \(customer)")
+        case let .range(f, t, nil): String(localized: "Inbound report \(days(f, t))")
+        case let .picked(n, f, t): String(localized: "Inbound report \(days(f, t)) \(n) orders")
+        case let .order(o): String(localized: "Inbound order \(o.orderNo)")
+        }
+    }
+
+    var pdfTitle: String {
+        if case let .order(o) = self { return String(localized: "Inbound order \(o.orderNo)") }
+        return String(localized: "Inbound report")
+    }
+
+    /// Dates in the user's locale.
+    var pdfSubtitle: String {
+        let d = { (x: Date) in x.formatted(date: .abbreviated, time: .omitted) }
+        return switch self {
+        case let .range(f, t, customer):
+            String(localized: "Date: \(d(f)) – \(d(t))    Customer: \(customer ?? String(localized: "All customers"))")
+        case let .picked(n, f, t):
+            String(localized: "Date: \(d(f)) – \(d(t))    \(n) selected orders")
+        case let .order(o):
+            String(localized: "Customer: \(o.customer?.name ?? "—")    Received: \(o.receivedAt.formatted(date: .abbreviated, time: .shortened))")
+        }
+    }
+}
+
 enum Exporter {
-    static let csvColumns = ["入库单号", "入库时间", "客户代码", "客户名称", "联系人", "电话", "操作员", "品名", "长cm", "宽cm", "高cm",
-                             "件数", "单件体积m³", "总体积m³", "重量kg", "测量方式", "照片文件", "入库备注", "形状"]  // 形状 appended last (SPEC §13 E4)
+    /// Computed so the header follows the current language.
+    static var csvColumns: [String] {
+        [String(localized: "Order No."), String(localized: "Received"), String(localized: "Customer code"), String(localized: "Customer name"),
+         String(localized: "Contact"), String(localized: "Phone"), String(localized: "Operator"), String(localized: "Item"),
+         String(localized: "Length (cm)"), String(localized: "Width (cm)"), String(localized: "Height (cm)"), String(localized: "Quantity"),
+         String(localized: "Unit volume (m³)"), String(localized: "Total volume (m³)"), String(localized: "Weight (kg)"),
+         String(localized: "Measuring method"), String(localized: "Photo files"), String(localized: "Order note"),
+         String(localized: "Shape")]  // Shape appended last (SPEC §13 E4)
+    }
 
     static let timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -20,9 +67,16 @@ enum Exporter {
         return f
     }()
 
-    /// e.g. 入库报表_20261001-20261031.csv
-    static func fileName(_ from: Date, _ to: Date, ext: String) -> String {
-        "入库报表_\(InboundOrder.dayFormatter.string(from: from))-\(InboundOrder.dayFormatter.string(from: to)).\(ext)"
+    /// e.g. "Inbound report 20261001-20261031.csv"; unsafe characters (customer names are user input) become "_".
+    static func fileName(_ scope: ExportScope, ext: String) -> String {
+        safeFileName(scope.stem) + "." + ext
+    }
+
+    static func safeFileName(_ s: String) -> String {
+        let bad = CharacterSet(charactersIn: "/\\:*?\"<>|").union(.controlCharacters).union(.newlines)
+        let cleaned = String(s.unicodeScalars.map { bad.contains($0) ? "_" : Character($0) })
+            .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: ".")))
+        return String(cleaned.prefix(100))  // stay well under the 255-byte name limit
     }
 
     static func outputURL(_ name: String) throws -> URL {
@@ -55,7 +109,8 @@ enum Exporter {
             ? "\"" + v.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : v
     }
 
-    /// UTF-8 with BOM so Excel opens Chinese correctly (A9). One row per cargo item.
+    /// UTF-8 with BOM so Excel opens non-ASCII text correctly (A9). One row per cargo item.
+    /// Header/labels are localized; numbers and times stay machine-readable ("." decimals, no grouping).
     static func csv(_ orders: [InboundOrder]) -> Data {
         var lines = [csvColumns.map { csvField($0) }.joined(separator: ",")]
         for o in orders {
@@ -72,56 +127,76 @@ enum Exporter {
         return Data("\u{FEFF}".utf8) + Data((lines.joined(separator: "\r\n") + "\r\n").utf8)
     }
 
-    static func writeCSV(_ orders: [InboundOrder], from: Date, to: Date) throws -> URL {
-        let url = try outputURL(fileName(from, to, ext: "csv"))
+    static func writeCSV(_ orders: [InboundOrder], scope: ExportScope) throws -> URL {
+        let url = try outputURL(fileName(scope, ext: "csv"))
         try csv(orders).write(to: url)
         return url
     }
 
     // MARK: PDF
 
-    static func writePDF(_ orders: [InboundOrder], from: Date, to: Date, customerName: String?) throws -> URL {
-        let url = try outputURL(fileName(from, to, ext: "pdf"))
+    static func writePDF(_ orders: [InboundOrder], scope: ExportScope) throws -> URL {
+        let url = try outputURL(fileName(scope, ext: "pdf"))
         let page = CGRect(x: 0, y: 0, width: 595.2, height: 841.8)  // A4 @72dpi
-        let margin: CGFloat = 32, rowH: CGFloat = 44, thumb: CGFloat = 40
-        let cols: [(String, CGFloat)] = [("单号", 84), ("客户", 72), ("品名", 76), ("尺寸cm", 80), ("件数", 36), ("体积m³", 50), ("重量kg", 44), ("方式", 36)]
-        let small = [NSAttributedString.Key.font: UIFont.systemFont(ofSize: 8)]
-        let bold = [NSAttributedString.Key.font: UIFont.boldSystemFont(ofSize: 8)]
+        let margin: CGFloat = 32, minRowH: CGFloat = 44, thumb: CGFloat = 40, footerH: CGFloat = 16
+        let cols: [(String, CGFloat)] = [
+            (String(localized: "Order No."), 84), (String(localized: "Customer"), 72), (String(localized: "Item"), 76),
+            (String(localized: "Size (cm)"), 80), (String(localized: "Qty"), 36), (String(localized: "Volume (m³)"), 50),
+            (String(localized: "Weight (kg)"), 44), (String(localized: "Method"), 36)]
+        let photoX = margin + cols.reduce(0) { $0 + $1.1 }, photoW = page.width - margin - photoX
+        let contentW = page.width - 2 * margin
+        let small: [NSAttributedString.Key: Any] = [.font: UIFont.systemFont(ofSize: 8)]
+        let bold: [NSAttributedString.Key: Any] = [.font: UIFont.boldSystemFont(ofSize: 8)]
         let s = Summary(orders)
-        let df = DateFormatter()
-        df.calendar = Calendar(identifier: .gregorian); df.locale = Locale(identifier: "en_US_POSIX"); df.dateFormat = "yyyy-MM-dd"
+        let num = { (v: Double, d: ClosedRange<Int>) in v.formatted(.number.precision(.fractionLength(d))) }
+
+        /// Height `s` needs when word-wrapped to `w` (long German/Russian labels wrap instead of clipping).
+        func height(_ s: String, _ a: [NSAttributedString.Key: Any], _ w: CGFloat) -> CGFloat {
+            ceil((s as NSString).boundingRect(with: CGSize(width: w, height: .greatestFiniteMagnitude),
+                                              options: [.usesLineFragmentOrigin], attributes: a, context: nil).height)
+        }
+        @discardableResult
+        func draw(_ s: String, _ a: [NSAttributedString.Key: Any], x: CGFloat, y: CGFloat, w: CGFloat) -> CGFloat {
+            let h = height(s, a, w)
+            (s as NSString).draw(with: CGRect(x: x, y: y, width: w, height: h), options: [.usesLineFragmentOrigin], attributes: a, context: nil)
+            return h
+        }
 
         try UIGraphicsPDFRenderer(bounds: page).writePDF(to: url) { ctx in
-            var y: CGFloat = 0
-            func header() {
-                var x = margin
-                for (t, w) in cols { (t as NSString).draw(in: CGRect(x: x, y: y, width: w, height: 12), withAttributes: bold); x += w }
-                ("照片" as NSString).draw(at: CGPoint(x: x, y: y), withAttributes: bold)
-                y += 14
-                UIColor.gray.setFill(); UIRectFill(CGRect(x: margin, y: y - 2, width: page.width - 2 * margin, height: 0.5))
+            var y: CGFloat = 0, pageNo = 0
+            let bottom = page.height - margin - footerH
+            func newPage() {
+                ctx.beginPage(); pageNo += 1; y = margin
+                // ponytail: no "of N" total; that needs a layout pre-pass.
+                let p = NSMutableParagraphStyle(); p.alignment = .right
+                var a = small; a[.paragraphStyle] = p; a[.foregroundColor] = UIColor.gray
+                draw(String(localized: "Page \(pageNo)"), a, x: margin, y: page.height - margin - 10, w: contentW)
             }
-            ctx.beginPage(); y = margin
-            ("入库报表" as NSString).draw(at: CGPoint(x: margin, y: y), withAttributes: [.font: UIFont.boldSystemFont(ofSize: 20)])
-            y += 30
-            let info = "日期：\(df.string(from: from)) 至 \(df.string(from: to))    客户：\(customerName ?? "全部")\n"
-                + "入库单 \(s.orders) 张 · 件数 \(s.pieces) · 总体积 \(s.volumeM3.m3) m³ · 总重量 \(s.weightKg.kg) kg"
-            (info as NSString).draw(in: CGRect(x: margin, y: y, width: page.width - 2 * margin, height: 32),
-                                    withAttributes: [.font: UIFont.systemFont(ofSize: 11)])
-            y += 40
+            func header() {
+                var x = margin, h: CGFloat = 0
+                for (t, w) in cols { h = max(h, draw(t, bold, x: x, y: y, w: w - 4)); x += w }
+                h = max(h, draw(String(localized: "Photo"), bold, x: photoX, y: y, w: photoW))
+                y += h + 2
+                UIColor.gray.setFill(); UIRectFill(CGRect(x: margin, y: y, width: contentW, height: 0.5))
+                y += 2
+            }
+            newPage()
+            y += draw(scope.pdfTitle, [.font: UIFont.boldSystemFont(ofSize: 20)], x: margin, y: y, w: contentW) + 8
+            let info = scope.pdfSubtitle + "\n"
+                + String(localized: "Orders: \(s.orders) · Pieces: \(s.pieces) · Total volume: \(num(s.volumeM3, 3...3)) m³ · Total weight: \(num(s.weightKg, 0...2)) kg")
+            y += draw(info, [.font: UIFont.systemFont(ofSize: 11)], x: margin, y: y, w: contentW) + 10
             header()
             for o in orders {
                 for i in sortedItems(o) {
-                    if y + rowH > page.height - margin { ctx.beginPage(); y = margin; header() }
                     let dims: String = i?.dimsText.replacingOccurrences(of: " ", with: "") ?? ""
-                    let vals: [String] = [o.orderNo, o.customer?.name ?? "", i?.name ?? "", dims, i.map { String($0.quantity) } ?? "",
-                                i?.totalVolumeM3.m3 ?? "", i?.weightKg?.kg ?? "", i?.methodLabel ?? ""]
+                    let vals: [String] = [o.orderNo, o.customer?.name ?? "", i?.name ?? "", dims, i.map { $0.quantity.formatted() } ?? "",
+                                          i.map { num($0.totalVolumeM3, 3...3) } ?? "", i?.weightKg.map { num($0, 0...2) } ?? "", i?.methodLabel ?? ""]
+                    let rowH = max(minRowH, zip(vals, cols).map { height($0, small, $1.1 - 4) + 4 }.max() ?? 0)
+                    if y + rowH > bottom { newPage(); header() }
                     var x = margin
-                    for (v, (_, w)) in zip(vals, cols) {
-                        (v as NSString).draw(in: CGRect(x: x, y: y + 2, width: w - 4, height: rowH - 4), withAttributes: small); x += w
-                    }
+                    for (v, (_, w)) in zip(vals, cols) { draw(v, small, x: x, y: y + 2, w: w - 4); x += w }
                     if let f = i?.photoFiles.first, let img = PhotoStore.thumbnail(f, side: 300) {
-                        let r = AVMakeRect(aspectRatio: img.size, insideRect: CGRect(x: x, y: y + 2, width: thumb, height: thumb))
-                        img.draw(in: r)
+                        img.draw(in: AVMakeRect(aspectRatio: img.size, insideRect: CGRect(x: photoX, y: y + 2, width: thumb, height: thumb)))
                     }
                     y += rowH
                 }
@@ -133,9 +208,10 @@ enum Exporter {
     // MARK: ZIP
 
     /// Zips all item photos (one folder per order) using NSFileCoordinator(.forUploading) (A9).
-    static func writePhotosZip(_ orders: [InboundOrder], from: Date, to: Date) throws -> URL {
+    /// Throws domain "Exporter" code 1 when there are no photos (ReportsView shows it as "nothing to export").
+    static func writePhotosZip(_ orders: [InboundOrder], scope: ExportScope) throws -> URL {
         let fm = FileManager.default
-        let base = (fileName(from, to, ext: "zip") as NSString).deletingPathExtension + "_照片"
+        let base = safeFileName(String(localized: "\(scope.stem) photos"))
         let staging = fm.temporaryDirectory.appending(path: "ZipStaging", directoryHint: .isDirectory).appending(path: base, directoryHint: .isDirectory)
         try? fm.removeItem(at: staging)
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
@@ -149,7 +225,9 @@ enum Exporter {
             for f in files { try fm.copyItem(at: PhotoStore.url(f), to: dir.appending(path: f)) }
             any = true
         }
-        guard any else { throw NSError(domain: "Exporter", code: 1, userInfo: [NSLocalizedDescriptionKey: "所选范围内没有照片"]) }
+        guard any else {
+            throw NSError(domain: "Exporter", code: 1, userInfo: [NSLocalizedDescriptionKey: String(localized: "The selected orders have no photos.")])
+        }
         let dest = try outputURL(base + ".zip")
         var coordError: NSError?, copyError: Error?
         NSFileCoordinator().coordinate(readingItemAt: staging, options: .forUploading, error: &coordError) { zipURL in

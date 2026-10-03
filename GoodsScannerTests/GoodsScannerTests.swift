@@ -107,19 +107,21 @@ final class GoodsScannerTests: XCTestCase {
         let data = Exporter.csv([o])
         XCTAssertEqual(Array(data.prefix(3)), [0xEF, 0xBB, 0xBF])
         let text = String(decoding: data.dropFirst(3), as: UTF8.self)
-        let header = "入库单号,入库时间,客户代码,客户名称,联系人,电话,操作员,品名,长cm,宽cm,高cm,件数,单件体积m³,总体积m³,重量kg,测量方式,照片文件,入库备注,形状"
-        XCTAssertTrue(text.hasPrefix(header + "\r\n"))
+        let header = "Order No.,Received,Customer code,Customer name,Contact,Phone,Operator,Item,Length (cm),Width (cm),Height (cm),Quantity,"
+            + "Unit volume (m³),Total volume (m³),Weight (kg),Measuring method,Photo files,Order note,Shape"
+        XCTAssertTrue(text.hasPrefix(header + "\r\n"), text)
         XCTAssertEqual(Exporter.csvColumns.count, 19)
-        XCTAssertTrue(text.contains("RK20261001-001,2026-10-01 10:00,C1,\"客户,甲\",\"张\"\"三\"\"\",,,箱子,40,30,20,2,0.024,0.048,,手动,a.jpg;b.jpg,\"两行\n备注\",箱体\r\n"), text)
+        XCTAssertTrue(text.contains("RK20261001-001,2026-10-01 10:00,C1,\"客户,甲\",\"张\"\"三\"\"\",,,箱子,40,30,20,2,0.024,0.048,,Manual,a.jpg;b.jpg,\"两行\n备注\",Box\r\n"), text)
 
         let cyl = CargoItem(name: "桶", lengthCm: 26, widthCm: 26, heightCm: 25.5, method: "lidar", shape: "cylinder")
         context.insert(cyl); cyl.order = o
         try context.save()
         let text2 = String(decoding: Exporter.csv([o]).dropFirst(3), as: UTF8.self)
-        XCTAssertTrue(text2.contains(",桶,26,26,25.5,1,0.0172,0.0172,,LiDAR,,\"两行\n备注\",圆柱\r\n"), text2)
+        XCTAssertTrue(text2.contains(",桶,26,26,25.5,1,0.0172,0.0172,,LiDAR,,\"两行\n备注\",Cylinder\r\n"), text2)
         XCTAssertEqual(cyl.dimsText, "Ø26 × 25.5")
+        XCTAssertEqual(CargoItem.dimsText(1000, 30, 20.04, shape: "box"), "1000 × 30 × 20")  // no grouping
         XCTAssertEqual(CargoItem().shape, "box")
-        XCTAssertEqual(CargoItem.shapes.map(CargoItem.shapeLabel), ["箱体", "圆柱", "异形"])
+        XCTAssertEqual(CargoItem.shapes.map(CargoItem.shapeLabel), ["Box", "Cylinder", "Irregular"])
     }
 
     func testCSVOrderWithoutItems() throws {
@@ -145,15 +147,54 @@ final class GoodsScannerTests: XCTestCase {
         }
         try context.save()
 
-        let url = try Exporter.writePDF(orders, from: date(2026, 10, 1), to: date(2026, 10, 31), customerName: nil)
+        let url = try Exporter.writePDF(orders, scope: .range(from: date(2026, 10, 1), to: date(2026, 10, 31), customer: nil))
         let data = try Data(contentsOf: url)
         XCTAssertEqual(data.prefix(4), Data("%PDF".utf8))
-        let pages = try XCTUnwrap(CGPDFDocument(url as CFURL)).numberOfPages
-        XCTAssertGreaterThanOrEqual(pages, 2)
+        let pdf = try XCTUnwrap(CGPDFDocument(url as CFURL))
+        XCTAssertGreaterThanOrEqual(pdf.numberOfPages, 2)
+
+        // Single order: one page, named after the order.
+        let one = try Exporter.writePDF([orders[0]], scope: .order(orders[0]))
+        XCTAssertEqual(one.lastPathComponent, "Inbound order RK20261001-001.pdf")
+        XCTAssertEqual(try XCTUnwrap(CGPDFDocument(one as CFURL)).numberOfPages, 1)
     }
 
-    func testFileName() {
-        XCTAssertEqual(Exporter.fileName(date(2026, 10, 1), date(2026, 10, 31), ext: "csv"), "入库报表_20261001-20261031.csv")
+    func testFileName() throws {
+        let (f, t) = (date(2026, 10, 1), date(2026, 10, 31))
+        XCTAssertEqual(Exporter.fileName(.range(from: f, to: t, customer: nil), ext: "csv"), "Inbound report 20261001-20261031.csv")
+        XCTAssertEqual(Exporter.fileName(.range(from: f, to: t, customer: "A/B: \"Co\"\n"), ext: "pdf"),
+                       "Inbound report 20261001-20261031 A_B_ _Co__.pdf")
+        XCTAssertEqual(Exporter.fileName(.picked(count: 3, from: f, to: t), ext: "zip"), "Inbound report 20261001-20261031 3 orders.zip")
+        let o = try addOrder(f)
+        XCTAssertEqual(Exporter.fileName(.order(o), ext: "csv"), "Inbound order RK20261001-001.csv")
+    }
+
+    /// A hand-picked subset exports only those orders' rows, under a name that says how many.
+    func testSelectedSubsetCSV() throws {
+        let orders = try (1...3).map { try addOrder(date(2026, 10, $0)) }
+        for o in orders {
+            let i = CargoItem(name: "box", lengthCm: 10, widthCm: 10, heightCm: 10)
+            context.insert(i); i.order = o
+        }
+        try context.save()
+        let picked = [orders[0], orders[2]]
+        let url = try Exporter.writeCSV(picked, scope: .picked(count: picked.count, from: date(2026, 10, 1), to: date(2026, 10, 3)))
+        XCTAssertEqual(url.lastPathComponent, "Inbound report 20261001-20261003 2 orders.csv")
+        let text = String(decoding: try Data(contentsOf: url).dropFirst(3), as: UTF8.self)
+        let rows = text.split(separator: "\r\n").dropFirst()
+        XCTAssertEqual(rows.map { String($0.prefix(14)) }, ["RK20261001-001", "RK20261003-001"])
+    }
+
+    func testSingleOrderCSV() throws {
+        let o = try addOrder(date(2026, 10, 5))
+        for n in ["a", "b"] { let i = CargoItem(name: n, lengthCm: 10, widthCm: 10, heightCm: 10); context.insert(i); i.order = o }
+        try addOrder(date(2026, 10, 5))  // not exported
+        try context.save()
+        let url = try Exporter.writeCSV([o], scope: .order(o))
+        XCTAssertEqual(url.lastPathComponent, "Inbound order RK20261005-001.csv")
+        let rows = String(decoding: try Data(contentsOf: url).dropFirst(3), as: UTF8.self).split(separator: "\r\n").dropFirst()
+        XCTAssertEqual(rows.count, 2)
+        XCTAssertTrue(rows.allSatisfy { $0.hasPrefix("RK20261005-001,") })
     }
 
     /// PhotoAnnotator mapping with a synthetic camera at the origin in ARKit's landscape-right camera frame

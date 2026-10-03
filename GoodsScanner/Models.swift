@@ -81,16 +81,20 @@ import SwiftData
 
     var unitVolumeM3: Double { CargoItem.volumeM3(lengthCm, widthCm, heightCm) }
     var totalVolumeM3: Double { unitVolumeM3 * Double(quantity) }
-    var methodLabel: String { method == "lidar" ? "LiDAR" : "手动" }
+    var methodLabel: String { method == "lidar" ? String(localized: "LiDAR") : String(localized: "Manual") }
     var shapeLabel: String { CargoItem.shapeLabel(shape) }
     /// "26 × 26 × 25.5" (box/irregular) or "Ø26 × 25.5" (cylinder), no unit.
     var dimsText: String { CargoItem.dimsText(lengthCm, widthCm, heightCm, shape: shape) }
 
     static let shapes = ["box", "cylinder", "irregular"]
-    static func shapeLabel(_ s: String) -> String { s == "cylinder" ? "圆柱" : s == "irregular" ? "异形" : "箱体" }
+    static func shapeLabel(_ s: String) -> String {
+        s == "cylinder" ? String(localized: "Cylinder") : s == "irregular" ? String(localized: "Irregular") : String(localized: "Box")
+    }
     static func shapeIcon(_ s: String) -> String { s == "cylinder" ? "cylinder" : s == "irregular" ? "scribble.variable" : "shippingbox" }
+    /// Display text: numbers in the user's locale (0-1 decimals, no grouping). CSV uses `.cm` instead.
     static func dimsText(_ l: Double, _ w: Double, _ h: Double, shape: String) -> String {
-        shape == "cylinder" ? "Ø\(l.cm) × \(h.cm)" : "\(l.cm) × \(w.cm) × \(h.cm)"
+        let f = { (v: Double) in v.formatted(.number.precision(.fractionLength(0...1)).grouping(.never)) }
+        return shape == "cylinder" ? String(localized: "Ø\(f(l)) × \(f(h))") : String(localized: "\(f(l)) × \(f(w)) × \(f(h))")
     }
 
     static func volumeM3(_ l: Double, _ w: Double, _ h: Double) -> Double { l * w * h / 1_000_000 }
