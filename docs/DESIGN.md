@@ -38,6 +38,7 @@
 - **报表**：筛选卡片 + 汇总 StatCard 2×2 网格 + 客户明细 + 导出按钮组（CSV/PDF/照片，图标 + 文字）；无数据空态 `EmptyReports`。
 - **设置**：分组表单，顶部 App 图标 + 名称 + 版本小头图。
 - **扫描页**：顶部状态胶囊（`.ultraThinMaterial`）；**相机内引导**（`Scan/ScanGuidance.swift`）——瞄准阶段激光扫描线 + 四角准星，检测到面后准星收紧 + 「检测到箱顶/侧面」+ 锁定进度环；锁定震动后准星闪绿 ✓；环绕阶段旋转环形箭头 2.5 s 后飞入底部 12 段覆盖环，每段点亮弹跳 + 轻震；完成时环扫光 + ✓。减弱动态效果时只用淡入淡出。
+- **扫描页 · 相机模式（无 LiDAR，SPEC §14）**：`ScanSession.cameraStage` 驱动 6 个阶段——① 找地面：`scan` 色透视地面网格 + 远去的扫光带（2.4 s）+ 手机图标倾斜 40° 提示；② 搜索：激光扫描线 + 准星；③ 锁定：准星收紧 + 「Object detected, hold still」胶囊（shippingbox 图标）+ 锁定进度环；④ 采集：环绕箭头飞入覆盖环，6/12 阈值 = 内圈虚线半圆按 k/6 填充、半圆处刻度、环心显示 k/6，底部卡片「Walk halfway around to measure」+ 进度条，完成按钮禁用并说明原因；⑤ 测量：「Measuring…」后数字滚动出现（numericText）；⑥ 完成：同 LiDAR 扫光 + ✓。卡片备注「Camera estimate · about ±3 cm」（LiDAR：「Measured by maximum outer dimensions」）。减弱动态效果：网格静态淡入、手机不倾斜、数字淡入。无 AR 预览：`ScanGuidanceDemo(camera:)`、`ScanStageScreen` + `#Preview`，Debug 启动参数 `-seedDemo -scanGuidanceDemo`（加 `-lidar` 看 LiDAR 循环）。
 
 ## 3a. Onboarding & Disclaimer（`Views/OnboardingView.swift`）
 
