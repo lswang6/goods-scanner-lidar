@@ -44,7 +44,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
     // queue only
     private let queue = DispatchQueue(label: "GoodsScanner.scan", qos: .userInitiated)
     private var qPhase = Phase.aim
-    private var ring: [(points: [SIMD3<Float>], incidence: [SIMD4<Float>])] = []
+    private var ring: [(points: [SIMD3<Float>], incidence: [SIMD4<Float>], camera: SIMD3<Float>)] = []
     private var aggregator = BoxAggregator(capacity: 10)
     private var lastSeed: SIMD3<Float>?
     private var lastVertical = false
@@ -257,6 +257,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
 
         // Per-pixel surface normal + incidence for head-on-aware fusion (VoxelCloud.headOnFiltered).
         let inc = surfaceNormals(depth: s.depth, camera: cam)
+        // Camera position: without it fusion keeps no incidence stats and the box bias correction never fits.
+        let camPos = SIMD3(s.transform.columns.3.x, s.transform.columns.3.y, s.transform.columns.3.z)
         // HUD: phone pitch (view direction elevation, negative = looking down) and incidence at the crosshair.
         dbg.pitch = asin(max(-1, min(1, -s.transform.columns.2.y))) * 180 / .pi
         let ci = inc[(s.h / 2) * s.w + s.w / 2].w
@@ -266,7 +268,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         dbg.high = high.points.count; dbg.medium = medium.points.count
 
         if qPhase == .scan, let seed = lockedSeed {   // ScanFusion applies the y crop
-            return scanStep(s, points: high.points + medium.points, incidence: high.incidence + medium.incidence, seed: seed)
+            return scanStep(s, points: high.points + medium.points, incidence: high.incidence + medium.incidence, camera: camPos, seed: seed)
         }
         let useHigh = high.points.count >= Self.minHighPoints
         let points = useHigh ? high.points : high.points + medium.points
@@ -288,7 +290,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         let vertical = isVerticalSurface(normalWin)
         dbg.vertical = vertical
 
-        ring.append((points, useHigh ? high.incidence : high.incidence + medium.incidence))
+        ring.append((points, useHigh ? high.incidence : high.incidence + medium.incidence, camPos))
         qRing = true
         if ring.count > Self.fuseFrames { ring.removeFirst(ring.count - Self.fuseFrames) }
         if let last = lastSeed, simd_length(SIMD2(seed.x - last.x, seed.z - last.z)) > Self.seedJump || vertical != lastVertical {
@@ -322,7 +324,7 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
             scanParams = Self.voxelParams
             scanParams.seedOnSide = vertical
             var f = ScanFusion(seed: seed, planeY: e.planeY, params: scanParams)
-            for r in ring { f.insertAim(r.points, incidence: r.incidence) }
+            for r in ring { f.insertAim(r.points, incidence: r.incidence, camera: r.camera) }
             fusion = f
             qLock = true
             recorder?.lock(time: s.time, seed: seed, planeY: e.planeY, side: vertical)
@@ -370,8 +372,8 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         }
     }
 
-    private func scanStep(_ s: Snapshot, points: [SIMD3<Float>], incidence: [SIMD4<Float>], seed: SIMD3<Float>) {
-        fusion?.insert(points, incidence: incidence)
+    private func scanStep(_ s: Snapshot, points: [SIMD3<Float>], incidence: [SIMD4<Float>], camera: SIMD3<Float>, seed: SIMD3<Float>) {
+        fusion?.insert(points, incidence: incidence, camera: camera)
         dbg.vertical = lockedVertical
         dbg.voxels = fusion?.cloud.count ?? 0; dbg.voxelCap = fusion?.cloud.maxVoxels ?? 0
         let center = lastScanEstimate.map { $0.center + SIMD3(0, $0.height / 2, 0) } ?? seed

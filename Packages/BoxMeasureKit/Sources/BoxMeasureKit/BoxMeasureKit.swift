@@ -110,9 +110,10 @@ public struct Params: Sendable, Codable {
     /// top-edge bleed shelves and glossy-floor noise inflated L/W by 7-11 cm). Single-view clouds keep the
     /// defaults: there the top is mostly unsupported by visible walls.
     public static let fused: Params = { var p = Params(); p.columnBins = 6; p.trimFraction = 0.0075; p.trimMargin = 0; p.wallBand = 0.02; p.detectShape = true
-        // Incidence bias fit (2026-10-02, 5 raw logs of one 40x30x30 brown cardboard box, per-face edge excess vs
-        // median face incidence; leave-one-out rms 0.9 cm, 14/15 dims within 1.5 cm; a range term did not help).
-        p.incidenceBias = 0.00088; p.biasStartDeg = 40
+        // Incidence bias fit (2026-10-02/03, 8 raw logs of one 40x30x30 brown cardboard box over 2 days, per-axis
+        // excess vs median face incidence; leave-one-scan-out rms 1.2 cm, 13/16 dims within 1.5 cm, max 2.0 cm; a range
+        // term did not help). ponytail: angle-only model, same-angle bias varies ~±1 cm between sessions.
+        p.incidenceBias = 0.00124; p.biasStartDeg = 50
         return p }()
 }
 
