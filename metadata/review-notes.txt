@@ -1,0 +1,14 @@
+Cargo Measure - App Review notes
+
+No login or account is required. The app has no server component and works fully offline; all data stays on the device.
+
+How to test:
+1. On first launch a short tutorial is shown. Its last page is an accuracy notice that must be acknowledged with "I understand".
+2. Create a customer (Customers) and then an inbound order for that customer (Inbound tab), and add an item to the order.
+3. Tap the scan button for the item and walk slowly around any box. iPhones with a LiDAR scanner measure with LiDAR; other iPhones use the camera only. If you cannot scan, you can enter the dimensions (length, width, height) manually instead.
+4. Open Reports, choose a date range, customer or selected orders, and export CSV, a PDF report or a photo ZIP. A single order can also be exported from the order itself.
+5. Settings contains the calibration offset (Measurement Calibration) and the full accuracy disclaimer (About).
+
+Camera permission is used only for on-device measuring and taking item photos. No data is collected or transmitted.
+
+Contact: lswang6@gmail.com
