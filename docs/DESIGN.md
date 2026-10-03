@@ -39,6 +39,15 @@
 - **设置**：分组表单，顶部 App 图标 + 名称 + 版本小头图。
 - **扫描页**：顶部状态胶囊（`.ultraThinMaterial`）；**相机内引导**（`Scan/ScanGuidance.swift`）——瞄准阶段激光扫描线 + 四角准星，检测到面后准星收紧 + 「检测到箱顶/侧面」+ 锁定进度环；锁定震动后准星闪绿 ✓；环绕阶段旋转环形箭头 2.5 s 后飞入底部 12 段覆盖环，每段点亮弹跳 + 轻震；完成时环扫光 + ✓。减弱动态效果时只用淡入淡出。
 
+## 3a. Onboarding & Disclaimer（`Views/OnboardingView.swift`）
+
+- **Pages**: 4 illustrated pages (`Tutorial1`–`4`: Aim at the item · Walk around it · Get the dimensions · Save & export; page 1 mentions LiDAR vs camera iPhones) + a final **Accuracy notice** page. Swipeable page TabView, custom brand page dots, "Skip" (top-right, jumps to the disclaimer, never past it), primary "Next".
+- **Animation**: on becoming the active page the illustration springs in (scale 0.85→1, offset 24→0, fade); idle float ±6 pt (3.5 s sine). Top-right 64 pt material badge echoes the scan UI: page 1 `Brackets` + bouncing laser line, page 2 `SectorRing` filling segment by segment then ✓, page 3 check pop, page 4 share pop. Badges are decorative (`accessibilityHidden`); illustrations carry an English VoiceOver label.
+- **Reduce Motion**: no spring, float or badge motion — fades only; the ring shows filled.
+- **Persistence**: `@AppStorage("disclaimerAccepted")` gates a full-screen cover over the TabView (App.swift); "I understand" sets it and `onboardingCompleted`. Replay from Settings → About → "View tutorial": last button is "Done", no acceptance required. Debug `-seedDemo` sets `disclaimerAccepted`.
+- **Disclaimer text**: single source `DisclaimerText`, shown on the onboarding last page and Settings → About → Disclaimer (`DisclaimerView`).
+- **Settings**: developer section (debug mode, force camera, scan logs) only when `DebugTools.available` (Debug builds); LiDAR availability row always shown.
+
 ## 4. 资产（名字固定，代码按此引用）
 
 | Asset | 内容 | 规格 |
@@ -48,5 +57,6 @@
 | `EmptyCustomers` | 名片/联系人卡片 + 纸箱 | 透明 PNG，约 4:3 |
 | `EmptyReports` | 图表报表纸 + 纸箱 | 透明 PNG，约 4:3 |
 | `ScanAim` | 手机俯视对准纸箱顶部，十字准星 | 透明 PNG，约 4:3 |
+| `Tutorial1`…`Tutorial4` | Onboarding: aim at box / phones orbiting with lit ring / box with dimension wireframe + check / report sheet, CSV/PDF, share | 透明 PNG，约 4:3 |
 
 插画统一风格：扁平 + 轻微等轴、品牌三色（海军蓝/安全橙/激光绿）+ 浅灰，无文字、无人物面孔，线条干净，留白多，深浅色背景都能看。
