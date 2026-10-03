@@ -438,7 +438,7 @@ struct ScanStageScreen: View {
             ("c4-collecting", .init(phase: .scan, cameraStage: .collecting(covered: 4, needed: 6), sectors: some,
                                     status: String(localized: "Keep walking: \(2) more directions to measure"))),
             ("c5-measuring-wait", .init(phase: .scan, cameraStage: .measuring, sectors: half,
-                                        status: ScanSession.remainingHint(3))),
+                                        status: ScanSession.remainingHint(3, camera: true))),
             ("c6-measuring", .init(phase: .scan, cameraStage: .measuring, sectors: nine, median: demoBox,
                                    status: String(localized: "Coverage complete, refining the size…"))),
             ("c7-done", .init(phase: .done, cameraStage: .done, sectors: Array(repeating: true, count: 12), median: demoBox,
@@ -498,7 +498,7 @@ struct ScanGuidanceDemo: View {
             let n = i + 1, left = needed - n
             s.cameraStage = left > 0 ? .collecting(covered: n, needed: needed) : .measuring
             s.status = left > 0 ? String(localized: "Keep walking: \(left) more directions to measure")
-                : ScanSession.remainingHint(max(0, ScanSession.finishSectors - n))
+                : ScanSession.remainingHint(max(0, ScanSession.finishSectors - n), camera: true)
             if n == needed + 1 { s.median = ScanStageScreen.demoBox }
             guard await pause(0.6) else { return false }
         }

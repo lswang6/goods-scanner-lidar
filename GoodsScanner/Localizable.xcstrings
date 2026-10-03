@@ -1506,234 +1506,6 @@
         }
       }
     },
-    "%lld orders · %lld pcs · %@ kg": {
-      "comment": "Reports, per-customer row: orders · pieces · weight. Plural on the order count",
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%#@count@"
-          },
-          "substitutions": {
-            "count": {
-              "argNum": 1,
-              "formatSpecifier": "lld",
-              "variations": {
-                "plural": {
-                  "one": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld Eingang · %2$lld Stk. · %3$@ kg"
-                    }
-                  },
-                  "other": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld Eingänge · %2$lld Stk. · %3$@ kg"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%#@count@"
-          },
-          "substitutions": {
-            "count": {
-              "argNum": 1,
-              "formatSpecifier": "lld",
-              "variations": {
-                "plural": {
-                  "one": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld order · %2$lld pcs · %3$@ kg"
-                    }
-                  },
-                  "other": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld orders · %2$lld pcs · %3$@ kg"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%#@count@"
-          },
-          "substitutions": {
-            "count": {
-              "argNum": 1,
-              "formatSpecifier": "lld",
-              "variations": {
-                "plural": {
-                  "many": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld órdenes · %2$lld uds. · %3$@ kg"
-                    }
-                  },
-                  "one": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld orden · %2$lld uds. · %3$@ kg"
-                    }
-                  },
-                  "other": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld órdenes · %2$lld uds. · %3$@ kg"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%#@count@"
-          },
-          "substitutions": {
-            "count": {
-              "argNum": 1,
-              "formatSpecifier": "lld",
-              "variations": {
-                "plural": {
-                  "many": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld bons · %2$lld pcs · %3$@ kg"
-                    }
-                  },
-                  "one": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld bon · %2$lld pcs · %3$@ kg"
-                    }
-                  },
-                  "other": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld bons · %2$lld pcs · %3$@ kg"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld 件 · %lld 個 · %@ kg"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld건 · %lld개 · %@ kg"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%#@count@"
-          },
-          "substitutions": {
-            "count": {
-              "argNum": 1,
-              "formatSpecifier": "lld",
-              "variations": {
-                "plural": {
-                  "one": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld ordem · %2$lld pç · %3$@ kg"
-                    }
-                  },
-                  "other": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld ordens · %2$lld pç · %3$@ kg"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%#@count@"
-          },
-          "substitutions": {
-            "count": {
-              "argNum": 1,
-              "formatSpecifier": "lld",
-              "variations": {
-                "plural": {
-                  "few": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld приёмки · %2$lld шт. · %3$@ кг"
-                    }
-                  },
-                  "many": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld приёмок · %2$lld шт. · %3$@ кг"
-                    }
-                  },
-                  "one": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld приёмка · %2$lld шт. · %3$@ кг"
-                    }
-                  },
-                  "other": {
-                    "stringUnit": {
-                      "state": "translated",
-                      "value": "%1$lld приёмки · %2$lld шт. · %3$@ кг"
-                    }
-                  }
-                }
-              }
-            }
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld phiếu · %lld kiện · %@ kg"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld 单 · %lld 件 · %@ kg"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld 張 · %lld 件 · %@ kg"
-          }
-        }
-      }
-    },
     "%lld pcs": {
       "comment": "Piece count in the order picker row. Plural",
       "extractionState": "manual",
@@ -1780,7 +1552,7 @@
                   "one": {
                     "stringUnit": {
                       "state": "translated",
-                      "value": "%1$lld pcs"
+                      "value": "%1$lld pc"
                     }
                   },
                   "other": {
@@ -1814,7 +1586,7 @@
                   "one": {
                     "stringUnit": {
                       "state": "translated",
-                      "value": "%1$lld uds."
+                      "value": "%1$lld ud."
                     }
                   },
                   "other": {
@@ -1848,7 +1620,7 @@
                   "one": {
                     "stringUnit": {
                       "state": "translated",
-                      "value": "%1$lld pcs"
+                      "value": "%1$lld pce"
                     }
                   },
                   "other": {
@@ -2008,7 +1780,7 @@
                   "one": {
                     "stringUnit": {
                       "state": "translated",
-                      "value": "%1$lld pcs · %2$@"
+                      "value": "%1$lld pc · %2$@"
                     }
                   },
                   "other": {
@@ -2042,7 +1814,7 @@
                   "one": {
                     "stringUnit": {
                       "state": "translated",
-                      "value": "%1$lld uds. · %2$@"
+                      "value": "%1$lld ud. · %2$@"
                     }
                   },
                   "other": {
@@ -2076,7 +1848,7 @@
                   "one": {
                     "stringUnit": {
                       "state": "translated",
-                      "value": "%1$lld pcs · %2$@"
+                      "value": "%1$lld pce · %2$@"
                     }
                   },
                   "other": {
@@ -4258,7 +4030,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Оценка по камере · около ±3 см"
+            "value": "Оценка по камере · около ±3 cm"
           }
         },
         "vi": {
@@ -4324,7 +4096,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Измерение камерой, около ±3 см"
+            "value": "Измерение камерой, около ±3 cm"
           }
         },
         "vi": {
@@ -4390,7 +4162,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Измерение камерой на iPhone без LiDAR менее точное: в наших тестах около ±3 см."
+            "value": "Измерение камерой на iPhone без LiDAR менее точное: в наших тестах около ±3 cm."
           }
         },
         "vi": {
@@ -7516,7 +7288,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Диаметр %@ см"
+            "value": "Диаметр %@ cm"
           }
         },
         "vi": {
@@ -8506,7 +8278,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Итоговая оценка по облаку точек %@ см · %@"
+            "value": "Итоговая оценка по облаку точек %@ cm · %@"
           }
         },
         "vi": {
@@ -8770,7 +8542,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "В %@ см"
+            "value": "В %@ cm"
           }
         },
         "vi": {
@@ -8902,7 +8674,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Высота (см)"
+            "value": "Высота (cm)"
           }
         },
         "vi": {
@@ -10348,7 +10120,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Д %@ см"
+            "value": "Д %@ cm"
           }
         },
         "vi": {
@@ -10546,7 +10318,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Длина (см)"
+            "value": "Длина (cm)"
           }
         },
         "vi": {
@@ -11145,7 +10917,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Д×Ш×В %@×%@×%@ см · %@ м³ · коробка · макс. габариты"
+            "value": "Д×Ш×В %@×%@×%@ cm · %@ m³ · коробка · макс. габариты"
           }
         },
         "vi": {
@@ -11211,7 +10983,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Д×Ш×В %@×%@×%@ см · %@ м³ · сложная форма · макс. габариты"
+            "value": "Д×Ш×В %@×%@×%@ cm · %@ m³ · сложная форма · макс. габариты"
           }
         },
         "vi": {
@@ -11560,6 +11332,234 @@
           "stringUnit": {
             "state": "translated",
             "value": "測量方式"
+          }
+        }
+      }
+    },
+    "Measuring — walk %lld more directions to finish": {
+      "comment": "ScanSession · camera-mode status capsule while measuring; counts directions left until the scan finishes automatically. Plural",
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Messung läuft – noch %1$lld Richtung abgehen"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Messung läuft – noch %1$lld Richtungen abgehen"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Measuring — walk %1$lld more direction to finish"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Measuring — walk %1$lld more directions to finish"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "many": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Midiendo: recorra %1$lld direcciones más para terminar"
+                    }
+                  },
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Midiendo: recorra %1$lld dirección más para terminar"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Midiendo: recorra %1$lld direcciones más para terminar"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "many": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Mesure en cours — encore %1$lld directions pour terminer"
+                    }
+                  },
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Mesure en cours — encore %1$lld direction pour terminer"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Mesure en cours — encore %1$lld directions pour terminer"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "測定中 — あと %lld 方向回ると完了"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "측정 중 — %lld개 방향 더 돌면 완료"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Medindo — percorra mais %1$lld direção para concluir"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Medindo — percorra mais %1$lld direções para concluir"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%#@count@"
+          },
+          "substitutions": {
+            "count": {
+              "argNum": 1,
+              "formatSpecifier": "lld",
+              "variations": {
+                "plural": {
+                  "few": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Измерение — пройдите ещё %1$lld направления до завершения"
+                    }
+                  },
+                  "many": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Измерение — пройдите ещё %1$lld направлений до завершения"
+                    }
+                  },
+                  "one": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Измерение — пройдите ещё %1$lld направление до завершения"
+                    }
+                  },
+                  "other": {
+                    "stringUnit": {
+                      "state": "translated",
+                      "value": "Измерение — пройдите ещё %1$lld направления до завершения"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "vi": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Đang đo — đi thêm %lld hướng nữa để hoàn tất"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "测量中，再绕 %lld 个方向即可完成"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "測量中，再繞 %lld 個方向即可完成"
           }
         }
       }
@@ -13191,7 +13191,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Смещение на сторону (см)"
+            "value": "Смещение на сторону (cm)"
           }
         },
         "vi": {
@@ -13719,7 +13719,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Приёмок: %lld · Штук: %lld · Общий объём: %@ м³ · Общий вес: %@ кг"
+            "value": "Приёмок: %lld · Штук: %lld · Общий объём: %@ m³ · Общий вес: %@ kg"
           }
         },
         "vi": {
@@ -15638,7 +15638,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Отсканируйте коробку известного размера. Если каждая сторона завышена на 1 см, введите 1. Положительные значения вычитаются."
+            "value": "Отсканируйте коробку известного размера. Если каждая сторона завышена на 1 cm, введите 1. Положительные значения вычитаются."
           }
         },
         "vi": {
@@ -16430,7 +16430,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Размеры (см)"
+            "value": "Размеры (cm)"
           }
         },
         "vi": {
@@ -17744,7 +17744,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Общий объём (м³)"
+            "value": "Общий объём (m³)"
           }
         },
         "vi": {
@@ -17810,7 +17810,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Объём единицы (м³)"
+            "value": "Объём единицы (m³)"
           }
         },
         "vi": {
@@ -18272,7 +18272,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Объём (м³)"
+            "value": "Объём (m³)"
           }
         },
         "vi": {
@@ -18404,7 +18404,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ш %@ см"
+            "value": "Ш %@ cm"
           }
         },
         "vi": {
@@ -18668,7 +18668,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Вес (кг)"
+            "value": "Вес (kg)"
           }
         },
         "vi": {
@@ -18866,7 +18866,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ширина (см)"
+            "value": "Ширина (cm)"
           }
         },
         "vi": {
@@ -18998,7 +18998,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "см"
+            "value": "cm"
           }
         },
         "vi": {
@@ -19030,138 +19030,6 @@
       "comment": "DebugViews",
       "extractionState": "manual",
       "shouldTranslate": false
-    },
-    "orders": {
-      "comment": "Unit shown after an order count on a stat card (e.g. '3 orders'); not plural-aware, keep very short (≤ 8 chars)",
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Eingänge"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "órdenes"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "bons"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "件"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "건"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ordens"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "приёмок"
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "phiếu"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "单"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "張"
-          }
-        }
-      }
-    },
-    "pcs": {
-      "comment": "Unit shown after a piece count on a stat card (pieces); keep very short (≤ 5 chars)",
-      "extractionState": "manual",
-      "localizations": {
-        "de": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stk."
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "uds."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "pcs"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "個"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "개"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "pç"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "шт."
-          }
-        },
-        "vi": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "kiện"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "件"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "件"
-          }
-        }
-      }
     },
     "planeY %@": {
       "comment": "DebugViews",
@@ -19530,7 +19398,7 @@
         "ru": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ø×В %@×%@ см · %@ м³ · цилиндр · макс. габариты"
+            "value": "Ø×В %@×%@ cm · %@ m³ · цилиндр · макс. габариты"
           }
         },
         "vi": {

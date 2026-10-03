@@ -95,11 +95,6 @@
     "plural": true
   },
   {
-    "key": "%lld orders · %lld pcs · %@ kg",
-    "comment": "Reports, per-customer row: orders · pieces · weight. Plural on the order count",
-    "plural": true
-  },
-  {
     "key": "%lld pcs",
     "comment": "Piece count in the order picker row. Plural",
     "plural": true
@@ -786,6 +781,11 @@
     "plural": false
   },
   {
+    "key": "Measuring — walk %lld more directions to finish",
+    "comment": "ScanSession · camera-mode status capsule while measuring; counts directions left until the scan finishes automatically. Plural",
+    "plural": true
+  },
+  {
     "key": "Measuring…",
     "comment": "ScanView",
     "plural": false
@@ -941,11 +941,6 @@
     "plural": false
   },
   {
-    "key": "orders",
-    "comment": "Unit shown after an order count on a stat card (e.g. '3 orders'); not plural-aware, keep very short (≤ 8 chars)",
-    "plural": false
-  },
-  {
     "key": "Orders",
     "comment": "Reports filter row: which orders are included. ≤ 16 chars",
     "plural": false
@@ -963,11 +958,6 @@
   {
     "key": "Page %lld of %lld",
     "comment": "OnboardingView · VoiceOver label (not shown)",
-    "plural": false
-  },
-  {
-    "key": "pcs",
-    "comment": "Unit shown after a piece count on a stat card (pieces); keep very short (≤ 5 chars)",
     "plural": false
   },
   {

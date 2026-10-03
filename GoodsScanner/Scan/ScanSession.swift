@@ -482,7 +482,11 @@ final class ScanSession: NSObject, ObservableObject, ARSessionDelegate {
         finish(e, hint)
     }
 
-    static func remainingHint(_ remaining: Int) -> String { String(localized: "\(remaining) more directions to go") }
+    /// Status toward the auto-finish coverage (finishSectors). Camera: the card already says "Measuring…".
+    static func remainingHint(_ remaining: Int, camera: Bool = false) -> String {
+        camera ? String(localized: "Measuring — walk \(remaining) more directions to finish")
+            : String(localized: "\(remaining) more directions to go")
+    }
 
     /// B5: sector of the camera's azimuth around `center`, counted only at 0.3-2.5 m with the center in view.
     /// Returns the sector if it was newly covered by this frame.
@@ -714,7 +718,7 @@ extension ScanSession {
         qCameraStage = toMeasure > 0 ? .collecting(covered: n, needed: Self.cameraMinSectors) : .measuring
         let hint = n <= 1 ? String(localized: "Locked, walk slowly around the item")
             : toMeasure > 0 ? String(localized: "Keep walking: \(toMeasure) more directions to measure")
-            : remaining > 0 ? Self.remainingHint(remaining) : String(localized: "Coverage complete, refining the size…")
+            : remaining > 0 ? Self.remainingHint(remaining, camera: true) : String(localized: "Coverage complete, refining the size…")
         guard n >= Self.cameraMinSectors, s.time - lastEstimateTime >= Self.estimateInterval else {
             return finish(nil, hint, keepWireframe: true)
         }

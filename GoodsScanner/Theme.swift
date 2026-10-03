@@ -40,17 +40,30 @@ enum Radius {
     static let card: CGFloat = 16, button: CGFloat = 14, tag: CGFloat = 8
 }
 
-/// Number + smaller secondary unit, e.g. "1.234 m³".
+/// Number + smaller secondary unit, e.g. "1.234 m³". `counted:` takes a whole localized plural phrase
+/// ("3 orders", "3 приёмки") and styles the digits as the number, the rest as the unit.
 struct NumText: View {
-    let value: String
-    let unit: String
+    let text: AttributedString
     var style: Font.TextStyle = .title2
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 2) {
-            Text(value).font(.num(style))
-            Text(unit).font(.caption).foregroundStyle(.secondary)
+
+    init(value: String, unit: String, style: Font.TextStyle = .title2) {
+        self.init(counted: "\(value)\u{2009}\(unit)", number: value, style: style)
+    }
+
+    init(counted phrase: String, number: String, style: Font.TextStyle = .title2) {
+        var t = AttributedString(phrase)
+        t.font = .caption
+        t.foregroundColor = .secondary
+        if let r = t.range(of: number) {
+            t[r].font = .num(style)
+            t[r].foregroundColor = nil
         }
-        .lineLimit(1).minimumScaleFactor(0.6)
+        self.text = t
+        self.style = style
+    }
+
+    var body: some View {
+        Text(text).lineLimit(1).minimumScaleFactor(0.6)
     }
 }
 
@@ -67,11 +80,20 @@ struct IconTile: View {
     }
 }
 
+/// Put cards of one row in an HStack/Grid with `.fixedSize(horizontal: false, vertical: true)` so they share a height.
 struct StatCard: View {
     let icon: String
-    let value: String
-    let unit: String
+    let num: NumText
     let label: LocalizedStringKey
+
+    init(icon: String, value: String, unit: String, label: LocalizedStringKey) {
+        self.icon = icon; self.num = NumText(value: value, unit: unit); self.label = label
+    }
+
+    /// `phrase` is a plural-aware localized "N unit" string, e.g. `String(localized: "\(n) orders")`.
+    init(icon: String, count: Int, phrase: String, label: LocalizedStringKey) {
+        self.icon = icon; self.num = NumText(counted: phrase, number: "\(count)"); self.label = label
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -80,10 +102,11 @@ struct StatCard: View {
                 .foregroundStyle(.brand)
                 .frame(width: 28, height: 28)
                 .background(Color.brand.opacity(0.15), in: Circle())
-            NumText(value: value, unit: unit)
+            num
             Text(label).font(.caption).foregroundStyle(.secondary)
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(12)
         .background(Color.surface, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }

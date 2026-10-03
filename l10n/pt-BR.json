@@ -24,10 +24,6 @@
     "one": "%lld ordem",
     "other": "%lld ordens"
   },
-  "%lld orders · %lld pcs · %@ kg": {
-    "one": "%lld ordem · %lld pç · %@ kg",
-    "other": "%lld ordens · %lld pç · %@ kg"
-  },
   "%lld pcs": {
     "one": "%lld pç",
     "other": "%lld pç"
@@ -213,12 +209,10 @@
   "Order No.": "N.º da ordem",
   "Order No. / Customer": "N.º da ordem / Cliente",
   "Order note": "Observação da ordem",
-  "orders": "ordens",
   "Orders": "Ordens",
   "Orders: %lld · Pieces: %lld · Total volume: %@ m³ · Total weight: %@ kg": "Ordens: %lld · Peças: %lld · Volume total: %@ m³ · Peso total: %@ kg",
   "Page %lld": "Página %lld",
   "Page %lld of %lld": "Página %lld de %lld",
-  "pcs": "pç",
   "PDF Report": "Relatório PDF",
   "Per item": "Por unidade",
   "Phone": "Telefone",
@@ -302,5 +296,9 @@
     "other": "· %lld/%lld fotos"
   },
   "Ø %@ × H %@": "Ø %@ × Alt. %@",
-  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×Alt. %@×%@ cm · %@ m³ · cilindro · dimensões externas máx."
+  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×Alt. %@×%@ cm · %@ m³ · cilindro · dimensões externas máx.",
+  "Measuring — walk %lld more directions to finish": {
+    "one": "Medindo — percorra mais %lld direção para concluir",
+    "other": "Medindo — percorra mais %lld direções para concluir"
+  }
 }

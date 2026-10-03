@@ -24,10 +24,6 @@
     "one": "%lld Eingang",
     "other": "%lld Eingänge"
   },
-  "%lld orders · %lld pcs · %@ kg": {
-    "one": "%lld Eingang · %lld Stk. · %@ kg",
-    "other": "%lld Eingänge · %lld Stk. · %@ kg"
-  },
   "%lld pcs": {
     "one": "%lld Stk.",
     "other": "%lld Stk."
@@ -213,12 +209,10 @@
   "Order No.": "Eingangs-Nr.",
   "Order No. / Customer": "Eingangs-Nr. / Kunde",
   "Order note": "Eingangsnotiz",
-  "orders": "Eingänge",
   "Orders": "Eingänge",
   "Orders: %lld · Pieces: %lld · Total volume: %@ m³ · Total weight: %@ kg": "Eingänge: %lld · Stück: %lld · Gesamtvolumen: %@ m³ · Gesamtgewicht: %@ kg",
   "Page %lld": "Seite %lld",
   "Page %lld of %lld": "Seite %lld von %lld",
-  "pcs": "Stk.",
   "PDF Report": "PDF-Bericht",
   "Per item": "Pro Artikel",
   "Phone": "Telefon",
@@ -302,5 +296,9 @@
     "other": "· %lld/%lld Fotos"
   },
   "Ø %@ × H %@": "Ø %@ × H %@",
-  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×H %@×%@ cm · %@ m³ · Zylinder · max. Außenmaße"
+  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×H %@×%@ cm · %@ m³ · Zylinder · max. Außenmaße",
+  "Measuring — walk %lld more directions to finish": {
+    "one": "Messung läuft – noch %lld Richtung abgehen",
+    "other": "Messung läuft – noch %lld Richtungen abgehen"
+  }
 }

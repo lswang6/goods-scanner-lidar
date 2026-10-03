@@ -29,18 +29,13 @@
     "other": "%lld órdenes",
     "many": "%lld órdenes"
   },
-  "%lld orders · %lld pcs · %@ kg": {
-    "one": "%lld orden · %lld uds. · %@ kg",
-    "other": "%lld órdenes · %lld uds. · %@ kg",
-    "many": "%lld órdenes · %lld uds. · %@ kg"
-  },
   "%lld pcs": {
-    "one": "%lld uds.",
+    "one": "%lld ud.",
     "other": "%lld uds.",
     "many": "%lld uds."
   },
   "%lld pcs · %@": {
-    "one": "%lld uds. · %@",
+    "one": "%lld ud. · %@",
     "other": "%lld uds. · %@",
     "many": "%lld uds. · %@"
   },
@@ -227,12 +222,10 @@
   "Order No.": "N.º de orden",
   "Order No. / Customer": "N.º de orden / Cliente",
   "Order note": "Nota de la orden",
-  "orders": "órdenes",
   "Orders": "Órdenes",
   "Orders: %lld · Pieces: %lld · Total volume: %@ m³ · Total weight: %@ kg": "Órdenes: %lld · Piezas: %lld · Volumen total: %@ m³ · Peso total: %@ kg",
   "Page %lld": "Página %lld",
   "Page %lld of %lld": "Página %lld de %lld",
-  "pcs": "uds.",
   "PDF Report": "Informe PDF",
   "Per item": "Por unidad",
   "Phone": "Teléfono",
@@ -319,5 +312,10 @@
     "many": "· %lld/%lld fotos"
   },
   "Ø %@ × H %@": "Ø %@ × Alt. %@",
-  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×Alt. %@×%@ cm · %@ m³ · cilindro · dimensiones exteriores máx."
+  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×Alt. %@×%@ cm · %@ m³ · cilindro · dimensiones exteriores máx.",
+  "Measuring — walk %lld more directions to finish": {
+    "one": "Midiendo: recorra %lld dirección más para terminar",
+    "many": "Midiendo: recorra %lld direcciones más para terminar",
+    "other": "Midiendo: recorra %lld direcciones más para terminar"
+  }
 }

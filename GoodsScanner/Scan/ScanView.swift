@@ -161,8 +161,8 @@ private struct ARContainer: UIViewRepresentable {
 }
 
 /// Bottom card of the scan screen: coverage ring, size readout, note, Cancel / Reset / Done.
-/// `cameraStage` nil = LiDAR. Camera mode shows "walk halfway around" progress instead of "— × — × —" until
-/// the first hull estimate (SPEC §14 F5: >= cameraMinSectors sectors). Also used by ScanGuidanceDemo.
+/// `cameraStage` nil = LiDAR. Camera mode: before lock a neutral "— × — × —" with an aim hint; while collecting,
+/// "walk halfway around" progress with the k/needed ring; then "Measuring…" until the first hull estimate (SPEC §14 F5: >= cameraMinSectors sectors). Also used by ScanGuidanceDemo.
 struct ScanCard: View {
     let phase: ScanSession.Phase
     let cameraStage: ScanSession.CameraStage?
@@ -179,16 +179,21 @@ struct ScanCard: View {
     private var stable: Bool { spread <= ScanSession.stableSpread }
     private var camera: Bool { cameraStage != nil }
     private var covered: Int { sectors.filter { $0 }.count }
-    /// Camera mode before the first estimate: sectors needed to measure (0 = enough, measuring).
+    private var collecting: Bool { if case .collecting = cameraStage { true } else { false } }
+    /// Camera mode, not locked yet: neutral placeholder readout.
+    private var preLock: Bool {
+        switch cameraStage { case .findingFloor, .searching, .locking: true; default: false }
+    }
+    /// Camera mode after lock, before the first estimate: sectors needed to measure (0 = enough, measuring).
     private var gate: Int? {
-        guard camera, median == nil, phase != .done else { return nil }
-        return cameraStage == .measuring ? 0 : ScanSession.cameraMinSectors
+        guard median == nil, phase != .done else { return nil }
+        return collecting ? ScanSession.cameraMinSectors : cameraStage == .measuring ? 0 : nil
     }
 
     var body: some View {
         VStack(spacing: 12) {
             HStack(spacing: 16) {
-                SectorRing(covered: sectors, done: phase == .done, needed: camera ? ScanSession.cameraMinSectors : nil)
+                SectorRing(covered: sectors, done: phase == .done, needed: collecting ? ScanSession.cameraMinSectors : nil)
                     .background(GeometryReader { g in
                         let f = g.frame(in: .named(ScanGuidance.space))
                         Color.clear.preference(key: RingCenterKey.self, value: CGPoint(x: f.midX, y: f.midY))
@@ -248,7 +253,8 @@ struct ScanCard: View {
     private var readout: some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 6) {
-                Text(median?.shape == .cylinder ? "Diameter × H" : "L × W × H").font(.caption).foregroundStyle(.secondary)
+                Text(preLock ? "Aim at the item" : median?.shape == .cylinder ? "Diameter × H" : "L × W × H")
+                    .font(.caption).foregroundStyle(.secondary)
                 if let m = median { ShapeChip(shape: m.shape.rawValue) }
             }
             HStack(alignment: .firstTextBaseline, spacing: 4) {

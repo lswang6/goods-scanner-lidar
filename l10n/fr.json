@@ -29,18 +29,13 @@
     "other": "%lld bons",
     "many": "%lld bons"
   },
-  "%lld orders · %lld pcs · %@ kg": {
-    "one": "%lld bon · %lld pcs · %@ kg",
-    "other": "%lld bons · %lld pcs · %@ kg",
-    "many": "%lld bons · %lld pcs · %@ kg"
-  },
   "%lld pcs": {
-    "one": "%lld pcs",
+    "one": "%lld pce",
     "other": "%lld pcs",
     "many": "%lld pcs"
   },
   "%lld pcs · %@": {
-    "one": "%lld pcs · %@",
+    "one": "%lld pce · %@",
     "other": "%lld pcs · %@",
     "many": "%lld pcs · %@"
   },
@@ -227,12 +222,10 @@
   "Order No.": "N° de bon",
   "Order No. / Customer": "N° de bon / Client",
   "Order note": "Note du bon",
-  "orders": "bons",
   "Orders": "Bons",
   "Orders: %lld · Pieces: %lld · Total volume: %@ m³ · Total weight: %@ kg": "Bons : %lld · Pièces : %lld · Volume total : %@ m³ · Poids total : %@ kg",
   "Page %lld": "Page %lld",
   "Page %lld of %lld": "Page %lld sur %lld",
-  "pcs": "pcs",
   "PDF Report": "Rapport PDF",
   "Per item": "Par pièce",
   "Phone": "Téléphone",
@@ -319,5 +312,10 @@
     "many": "· %lld/%lld photos"
   },
   "Ø %@ × H %@": "Ø %@ × H %@",
-  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×H %@×%@ cm · %@ m³ · cylindre · dimensions extérieures max."
+  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×H %@×%@ cm · %@ m³ · cylindre · dimensions extérieures max.",
+  "Measuring — walk %lld more directions to finish": {
+    "one": "Mesure en cours — encore %lld direction pour terminer",
+    "many": "Mesure en cours — encore %lld directions pour terminer",
+    "other": "Mesure en cours — encore %lld directions pour terminer"
+  }
 }

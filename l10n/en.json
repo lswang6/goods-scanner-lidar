@@ -3,16 +3,12 @@
     "one": "%lld order",
     "other": "%lld orders"
   },
-  "%lld orders · %lld pcs · %@ kg": {
-    "one": "%lld order · %lld pcs · %@ kg",
-    "other": "%lld orders · %lld pcs · %@ kg"
-  },
   "%lld pcs": {
-    "one": "%lld pcs",
+    "one": "%lld pc",
     "other": "%lld pcs"
   },
   "%lld pcs · %@": {
-    "one": "%lld pcs · %@",
+    "one": "%lld pc · %@",
     "other": "%lld pcs · %@"
   },
   "%lld scans": {
@@ -66,5 +62,9 @@
   "· %lld/%lld photos": {
     "one": "· %lld/%lld photo",
     "other": "· %lld/%lld photos"
+  },
+  "Measuring — walk %lld more directions to finish": {
+    "one": "Measuring — walk %lld more direction to finish",
+    "other": "Measuring — walk %lld more directions to finish"
   }
 }

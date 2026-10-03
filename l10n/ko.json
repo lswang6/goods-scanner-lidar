@@ -9,7 +9,6 @@
   "%lld of %lld directions needed to measure": "측정에 필요한 방향 %lld/%lld개 완료",
   "%lld of %lld selected": "%lld/%lld개 선택됨",
   "%lld orders": "%lld건",
-  "%lld orders · %lld pcs · %@ kg": "%lld건 · %lld개 · %@ kg",
   "%lld pcs": "%lld개",
   "%lld pcs · %@": "%lld개 · %@",
   "%lld points · object %lld · support %lld · side seed": "%lld점 · 물체 %lld · 지지면 %lld · 측면 시드",
@@ -171,12 +170,10 @@
   "Order No.": "전표 번호",
   "Order No. / Customer": "전표 번호 / 고객",
   "Order note": "입고 메모",
-  "orders": "건",
   "Orders": "입고 전표",
   "Orders: %lld · Pieces: %lld · Total volume: %@ m³ · Total weight: %@ kg": "전표: %lld건 · 수량: %lld · 총 부피: %@ m³ · 총 무게: %@ kg",
   "Page %lld": "%lld페이지",
   "Page %lld of %lld": "%lld/%lld페이지",
-  "pcs": "개",
   "PDF Report": "PDF 보고서",
   "Per item": "개당",
   "Phone": "전화",
@@ -251,5 +248,6 @@
   "You use the app and its results at your own responsibility and risk. The developer accepts no liability for any loss or damage arising from use of the measurements.": "이 앱과 그 결과는 사용자 본인의 책임과 위험 부담으로 사용하는 것입니다. 개발자는 측정값 사용으로 발생하는 어떠한 손실이나 손해에 대해서도 책임을 지지 않습니다.",
   "· %lld/%lld photos": "· %lld/%lld장 촬영",
   "Ø %@ × H %@": "Ø %@ × 높이 %@",
-  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×높이 %@×%@ cm · %@ m³ · 원기둥 · 최대 외곽 치수"
+  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×높이 %@×%@ cm · %@ m³ · 원기둥 · 최대 외곽 치수",
+  "Measuring — walk %lld more directions to finish": "측정 중 — %lld개 방향 더 돌면 완료"
 }

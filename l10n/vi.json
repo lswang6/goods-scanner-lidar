@@ -9,7 +9,6 @@
   "%lld of %lld directions needed to measure": "Đã quét %lld/%lld hướng cần thiết để đo",
   "%lld of %lld selected": "Đã chọn %lld/%lld",
   "%lld orders": "%lld phiếu",
-  "%lld orders · %lld pcs · %@ kg": "%lld phiếu · %lld kiện · %@ kg",
   "%lld pcs": "%lld kiện",
   "%lld pcs · %@": "%lld kiện · %@",
   "%lld points · object %lld · support %lld · side seed": "%lld điểm · vật thể %lld · mặt đỡ %lld · seed cạnh bên",
@@ -171,12 +170,10 @@
   "Order No.": "Số phiếu",
   "Order No. / Customer": "Số phiếu / Khách hàng",
   "Order note": "Ghi chú phiếu",
-  "orders": "phiếu",
   "Orders": "Phiếu",
   "Orders: %lld · Pieces: %lld · Total volume: %@ m³ · Total weight: %@ kg": "Phiếu: %lld · Số kiện: %lld · Tổng thể tích: %@ m³ · Tổng trọng lượng: %@ kg",
   "Page %lld": "Trang %lld",
   "Page %lld of %lld": "Trang %lld trên %lld",
-  "pcs": "kiện",
   "PDF Report": "Báo cáo PDF",
   "Per item": "Theo hàng hóa",
   "Phone": "Điện thoại",
@@ -251,5 +248,6 @@
   "You use the app and its results at your own responsibility and risk. The developer accepts no liability for any loss or damage arising from use of the measurements.": "Bạn sử dụng ứng dụng và các kết quả của ứng dụng bằng trách nhiệm và rủi ro của chính mình. Nhà phát triển không chịu trách nhiệm đối với bất kỳ tổn thất hoặc thiệt hại nào phát sinh từ việc sử dụng các số đo.",
   "· %lld/%lld photos": "· %lld/%lld ảnh",
   "Ø %@ × H %@": "Ø %@ × C %@",
-  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×C %@×%@ cm · %@ m³ · hình trụ · kích thước ngoài lớn nhất"
+  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×C %@×%@ cm · %@ m³ · hình trụ · kích thước ngoài lớn nhất",
+  "Measuring — walk %lld more directions to finish": "Đang đo — đi thêm %lld hướng nữa để hoàn tất"
 }

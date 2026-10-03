@@ -9,7 +9,6 @@
   "%lld of %lld directions needed to measure": "已涵蓋 %lld/%lld 個測量所需方向",
   "%lld of %lld selected": "已選 %lld/%lld",
   "%lld orders": "%lld 張",
-  "%lld orders · %lld pcs · %@ kg": "%lld 張 · %lld 件 · %@ kg",
   "%lld pcs": "%lld 件",
   "%lld pcs · %@": "%lld 件 · %@",
   "%lld points · object %lld · support %lld · side seed": "%lld 點 · 物件 %lld · 支撐面 %lld · 側面種子",
@@ -171,12 +170,10 @@
   "Order No.": "單號",
   "Order No. / Customer": "單號 / 客戶",
   "Order note": "入庫備註",
-  "orders": "張",
   "Orders": "入庫單",
   "Orders: %lld · Pieces: %lld · Total volume: %@ m³ · Total weight: %@ kg": "入庫單 %lld 張 · 件數 %lld · 總體積 %@ m³ · 總重量 %@ kg",
   "Page %lld": "第 %lld 頁",
   "Page %lld of %lld": "第 %lld 頁，共 %lld 頁",
-  "pcs": "件",
   "PDF Report": "PDF 報表",
   "Per item": "單件",
   "Phone": "電話",
@@ -251,5 +248,6 @@
   "You use the app and its results at your own responsibility and risk. The developer accepts no liability for any loss or damage arising from use of the measurements.": "使用本 App 及其測量結果，須由您自行承擔責任與風險。對於因使用測量結果而造成的任何損失或損害，開發者概不負責。",
   "· %lld/%lld photos": "· 已拍 %lld/%lld",
   "Ø %@ × H %@": "Ø %@ × 高 %@",
-  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×高 %@×%@ cm · %@ m³ · 圓柱 · 依最大外形"
+  "Ø×H %@×%@ cm · %@ m³ · cylinder · max outer dimensions": "Ø×高 %@×%@ cm · %@ m³ · 圓柱 · 依最大外形",
+  "Measuring — walk %lld more directions to finish": "測量中，再繞 %lld 個方向即可完成"
 }

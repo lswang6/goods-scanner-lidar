@@ -59,12 +59,17 @@ struct ReportsView: View {
                     }
                 } else {
                     Section("Summary") {
-                        LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                            StatCard(icon: "doc.text", value: "\(total.orders)", unit: String(localized: "orders", comment: "Unit after an order count on a stat card; keep very short"), label: "Order Count")
-                            StatCard(icon: "shippingbox", value: "\(total.pieces)", unit: String(localized: "pcs", comment: "Unit after a piece count; keep very short"), label: "Pieces")
-                            StatCard(icon: "cube", value: total.volumeM3.m3, unit: "m³", label: "Total Volume")
-                            StatCard(icon: "scalemass", value: total.weightKg.kg, unit: "kg", label: "Total Weight")
+                        Grid(horizontalSpacing: 8, verticalSpacing: 8) {
+                            GridRow {
+                                StatCard(icon: "doc.text", count: total.orders, phrase: String(localized: "\(total.orders) orders"), label: "Order Count")
+                                StatCard(icon: "shippingbox", count: total.pieces, phrase: String(localized: "\(total.pieces) pcs"), label: "Pieces")
+                            }
+                            GridRow {
+                                StatCard(icon: "cube", value: total.volumeM3.m3, unit: "m³", label: "Total Volume")
+                                StatCard(icon: "scalemass", value: total.weightKg.kg, unit: "kg", label: "Total Weight")
+                            }
                         }
+                        .fixedSize(horizontal: false, vertical: true)
                         .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                     }
                     Section("By Customer") {
@@ -74,7 +79,7 @@ struct ReportsView: View {
                                 IconTile(systemName: "person.fill", size: 36)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(os.first?.customer?.name ?? String(localized: "(No customer)")).font(.headline).lineLimit(1)
-                                    Text("\(s.orders) orders · \(s.pieces) pcs · \(s.weightKg.kg) kg")
+                                    Text([String(localized: "\(s.orders) orders"), String(localized: "\(s.pieces) pcs"), "\(s.weightKg.kg) kg"].joined(separator: " · "))
                                         .font(.num(.caption)).foregroundStyle(.secondary)
                                 }
                                 Spacer(minLength: 4)

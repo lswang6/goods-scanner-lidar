@@ -13,8 +13,10 @@ Then run `python3 tools/l10n/build_catalog.py && python3 tools/l10n/check.py --l
   zh-Hans/zh-Hant/ja/ko/vi a plain string is fine (`other` only). `pluralArg` says which argument drives the
   plural when it isn't the first number.
 - Respect length hints in the comments (tab titles ≤ 12 chars, buttons ≤ 16).
-- `%@ (%@)` is "name (code)": use your language's parentheses. `cm`, `kg`, `m³`, `LiDAR`, `CSV`, `PDF`, `ZIP` stay as is
-  (localize `cm` only if your market writes it differently, e.g. ru "см").
+- `%@ (%@)` is "name (code)": use your language's parentheses. `LiDAR`, `CSV`, `PDF`, `ZIP` stay as is.
+- Units: `cm`, `kg`, `m³` are SI symbols and stay unlocalized in every language (also inside sentences and headers,
+  e.g. ru "Вес (kg)", not "кг"); UI components hard-code them next to numbers, so translations must match.
+- Count + unit ("3 orders", "3 pcs"): always a plural key with the number in it, never a bare unit word.
 - Tone: short, neutral, professional warehouse/logistics wording. Imperative for instructions ("Aim at the item").
 
 ## Terms

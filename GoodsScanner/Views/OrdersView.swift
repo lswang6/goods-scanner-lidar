@@ -25,15 +25,17 @@ struct OrdersView: View {
 
     var body: some View {
         let today = orders.filter { Calendar.current.isDateInToday($0.receivedAt) }
+        let pieces = today.reduce(0) { $0 + $1.totalPieces }
         NavigationStack(path: $path) {
             List {
                 if search.isEmpty {
                     Section {
                         HStack(spacing: 8) {
-                            StatCard(icon: "doc.text", value: "\(today.count)", unit: String(localized: "orders", comment: "Unit after an order count on a stat card; keep very short"), label: "Inbound Today")
-                            StatCard(icon: "shippingbox", value: "\(today.reduce(0) { $0 + $1.totalPieces })", unit: String(localized: "pcs", comment: "Unit after a piece count; keep very short"), label: "Pieces Today")
+                            StatCard(icon: "doc.text", count: today.count, phrase: String(localized: "\(today.count) orders"), label: "Inbound Today")
+                            StatCard(icon: "shippingbox", count: pieces, phrase: String(localized: "\(pieces) pcs"), label: "Pieces Today")
                             StatCard(icon: "cube", value: today.reduce(0) { $0 + $1.totalVolumeM3 }.m3, unit: "m³", label: "Volume Today")
                         }
+                        .fixedSize(horizontal: false, vertical: true)
                         .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                     }
                 }
@@ -132,10 +134,11 @@ struct OrderDetailView: View {
             }
             Section {
                 HStack(spacing: 8) {
-                    StatCard(icon: "shippingbox", value: "\(order.totalPieces)", unit: String(localized: "pcs", comment: "Unit after a piece count; keep very short"), label: "Pieces")
+                    StatCard(icon: "shippingbox", count: order.totalPieces, phrase: String(localized: "\(order.totalPieces) pcs"), label: "Pieces")
                     StatCard(icon: "cube", value: order.totalVolumeM3.m3, unit: "m³", label: "Total Volume")
                     StatCard(icon: "scalemass", value: order.totalWeightKg.kg, unit: "kg", label: "Total Weight")
                 }
+                .fixedSize(horizontal: false, vertical: true)
                 .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
             }
             Section("Items (\(order.items.count))") {
